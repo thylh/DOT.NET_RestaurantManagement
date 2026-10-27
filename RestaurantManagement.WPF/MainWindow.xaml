@@ -1,0 +1,151 @@
+<Window x:Class="RestaurantManagement.WPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="{Binding Title}" Height="760" Width="1120" MinHeight="620" MinWidth="900"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="28">
+        <Grid Visibility="{Binding IsSetupScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Border Width="460" Padding="28" Background="White" BorderBrush="#D8DEE9" BorderThickness="1"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Initial administrator setup" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <TextBlock Text="Create the first Admin account. Use a password with at least 12 characters."
+                               TextWrapping="Wrap" Margin="0,0,0,20" />
+                    <TextBlock Text="Username" />
+                    <TextBox Text="{Binding SetupUsername, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,12" />
+                    <TextBlock Text="Password" />
+                    <PasswordBox x:Name="SetupPasswordBox" Tag="setup" PasswordChanged="PasswordBox_PasswordChanged" Margin="0,4,0,18" />
+                    <Button Content="Create Admin" Command="{Binding CreateInitialAdminCommand}" Padding="12,8" />
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="Firebrick" TextWrapping="Wrap" Margin="0,12,0,0" />
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="DarkGreen" TextWrapping="Wrap" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Visibility="{Binding IsLoginScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Border Width="420" Padding="28" Background="White" BorderBrush="#D8DEE9" BorderThickness="1"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Restaurant Management" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,20" />
+                    <TextBlock Text="Username" />
+                    <TextBox Text="{Binding LoginUsername, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,12" />
+                    <TextBlock Text="Password" />
+                    <PasswordBox x:Name="LoginPasswordBox" Tag="login" PasswordChanged="PasswordBox_PasswordChanged" Margin="0,4,0,18" />
+                    <Button Content="Sign in" Command="{Binding SignInCommand}" Padding="12,8" />
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="Firebrick" TextWrapping="Wrap" Margin="0,12,0,0" />
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="DarkGreen" TextWrapping="Wrap" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Visibility="{Binding IsAuthenticated, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <DockPanel Grid.Row="0" Margin="0,0,0,18">
+                <Button DockPanel.Dock="Right" Content="Sign out" Command="{Binding SignOutCommand}" Padding="14,7" />
+                <TextBlock Text="{Binding CurrentUserDescription}" FontSize="16" VerticalAlignment="Center" />
+            </DockPanel>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <StackPanel Visibility="{Binding IsAdminScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="Employee and account management" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,14" />
+                        <DataGrid ItemsSource="{Binding Employees}" SelectedItem="{Binding SelectedEmployee}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                                  Height="230" Margin="0,0,0,18">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Name" Binding="{Binding FullName}" Width="*" />
+                                <DataGridTextColumn Header="Phone" Binding="{Binding Phone}" Width="130" />
+                                <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="180" />
+                                <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="130" />
+                                <DataGridTextColumn Header="Role" Binding="{Binding Role}" Width="90" />
+                                <DataGridCheckBoxColumn Header="Employee active" Binding="{Binding IsEmployeeActive}" Width="110" />
+                                <DataGridCheckBoxColumn Header="Account active" Binding="{Binding IsAccountActive}" Width="110" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Text="Create employee and login account" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                        <Grid Margin="0,0,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,10">
+                                <TextBlock Text="Full name" />
+                                <TextBox Text="{Binding EmployeeName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,12,10">
+                                <TextBlock Text="Phone" />
+                                <TextBox Text="{Binding EmployeePhone, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,10">
+                                <TextBlock Text="Email" />
+                                <TextBox Text="{Binding EmployeeEmail, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,12,10">
+                                <TextBlock Text="Username" />
+                                <TextBox Text="{Binding AccountUsername, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,12,10">
+                                <TextBlock Text="New password (12+ chars; leave blank when updating)" />
+                                <PasswordBox x:Name="AccountPasswordBox" Tag="account" PasswordChanged="PasswordBox_PasswordChanged" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,10">
+                                <TextBlock Text="Role" />
+                                <ComboBox ItemsSource="{Binding AvailableRoles}" SelectedItem="{Binding SelectedRole}" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <Button Grid.Row="2" Grid.Column="0" Content="Create employee and account"
+                                    Command="{Binding CreateEmployeeCommand}" Padding="12,7" HorizontalAlignment="Left" />
+                        </Grid>
+
+                        <TextBlock Text="Selected employee" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                        <WrapPanel Margin="0,0,0,16">
+                            <Button Content="Save profile" Command="{Binding UpdateEmployeeCommand}" Padding="12,7" Margin="0,0,8,8" />
+                            <Button Content="Save account" Command="{Binding UpdateAccountCommand}" Padding="12,7" Margin="0,0,8,8" />
+                            <Button Content="Activate/deactivate employee" Command="{Binding ToggleEmployeeStatusCommand}" Padding="12,7" Margin="0,0,8,8" />
+                            <Button Content="Lock/unlock account" Command="{Binding ToggleAccountStatusCommand}" Padding="12,7" Margin="0,0,8,8" />
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <StackPanel Visibility="{Binding IsStaffScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="Staff workspace" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,14" />
+                        <TextBlock Text="Your account is signed in. Order and menu workflows will be added in later project phases."
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <TextBlock Text="Change your password" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,10" />
+                    <WrapPanel Margin="0,0,0,12">
+                        <StackPanel Width="240" Margin="0,0,12,8">
+                            <TextBlock Text="Current password" />
+                            <PasswordBox x:Name="CurrentPasswordBox" Tag="current" PasswordChanged="PasswordBox_PasswordChanged" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel Width="240" Margin="0,0,12,8">
+                            <TextBlock Text="New password (12+ chars)" />
+                            <PasswordBox x:Name="NewPasswordBox" Tag="new" PasswordChanged="PasswordBox_PasswordChanged" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <Button Content="Change password" Command="{Binding ChangePasswordCommand}" Padding="12,7"
+                                VerticalAlignment="Bottom" Margin="0,0,0,8" />
+                    </WrapPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <StackPanel Grid.Row="2" Margin="0,12,0,0">
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="Firebrick" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding StatusMessage}" Foreground="DarkGreen" TextWrapping="Wrap" Margin="0,4,0,0" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
