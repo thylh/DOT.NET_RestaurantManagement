@@ -205,6 +205,8 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** dữ liệu bàn và thực đơn được quản lý, lưu bền vững.
 
+**Trạng thái:** Hoàn thành ngày 2026-10-28. Admin có thể quản lý bàn, danh mục và món ăn; Staff chỉ xem dữ liệu đang sử dụng. Đã bổ sung tìm kiếm/lọc món, kiểm tra dữ liệu, trạng thái bàn/món và bảo vệ dữ liệu đã được order tham chiếu. Các nhãn và thông báo của giao diện cùng luồng tài khoản hiện dùng tiếng Việt.
+
 ### Giai đoạn E — Order
 
 - Xây dựng màn hình chọn bàn và tạo order.

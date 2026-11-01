@@ -14,8 +14,15 @@ public sealed class AuthenticationService(
         string password,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(username);
-        ArgumentException.ThrowIfNullOrWhiteSpace(password);
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            throw new ArgumentException("Hãy nhập tên đăng nhập.", nameof(username));
+        }
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            throw new ArgumentException("Hãy nhập mật khẩu.", nameof(password));
+        }
 
         var normalizedUsername = username.Trim();
         var account = await dbContext.UserAccounts
@@ -54,16 +61,23 @@ public sealed class AuthenticationService(
     {
         if (currentUserSession.User?.Id != userId)
         {
-            throw new UnauthorizedAccessException("You can only change the password of the signed-in account.");
+            throw new UnauthorizedAccessException("Bạn chỉ có thể đổi mật khẩu của tài khoản đang đăng nhập.");
         }
 
-        ArgumentNullException.ThrowIfNull(currentPassword);
-        ArgumentNullException.ThrowIfNull(newPassword);
+        if (currentPassword is null)
+        {
+            throw new ArgumentException("Hãy nhập mật khẩu hiện tại.", nameof(currentPassword));
+        }
+
+        if (newPassword is null)
+        {
+            throw new ArgumentException("Hãy nhập mật khẩu mới.", nameof(newPassword));
+        }
         var passwordByteCount = System.Text.Encoding.UTF8.GetByteCount(newPassword);
         if (passwordByteCount is < 12 or > 72)
         {
             throw new ArgumentException(
-                "New password must contain at least 12 characters and no more than 72 UTF-8 bytes.",
+                "Mật khẩu mới phải có ít nhất 12 ký tự và không vượt quá 72 byte UTF-8.",
                 nameof(newPassword));
         }
 
@@ -73,12 +87,12 @@ public sealed class AuthenticationService(
         if (account is null || !account.IsActive)
         {
             currentUserSession.SignOut();
-            throw new UnauthorizedAccessException("The signed-in account is no longer active.");
+            throw new UnauthorizedAccessException("Tài khoản đang đăng nhập không còn hoạt động.");
         }
 
         if (!global::BCrypt.Net.BCrypt.Verify(currentPassword, account.PasswordHash))
         {
-            throw new InvalidOperationException("The current password is incorrect.");
+            throw new InvalidOperationException("Mật khẩu hiện tại không chính xác.");
         }
 
         account.PasswordHash = global::BCrypt.Net.BCrypt.HashPassword(newPassword);

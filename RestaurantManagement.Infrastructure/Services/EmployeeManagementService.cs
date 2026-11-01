@@ -47,7 +47,7 @@ public sealed class EmployeeManagementService(
         ValidatePassword(password);
         if (role is not UserRole.Admin and not UserRole.Staff)
         {
-            throw new ArgumentOutOfRangeException(nameof(role), "Select a valid account role.");
+            throw new ArgumentOutOfRangeException(nameof(role), "Hãy chọn vai trò hợp lệ.");
         }
 
         var employee = new Employee
@@ -68,10 +68,15 @@ public sealed class EmployeeManagementService(
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception)
+        catch (DbUpdateException exception) when (IsDuplicateKey(exception))
         {
+            foreach (var entry in exception.Entries)
+            {
+                entry.State = EntityState.Detached;
+            }
+
             throw new InvalidOperationException(
-                "Could not create the employee. The username may already be in use.",
+                "Không thể tạo hồ sơ. Tên đăng nhập này có thể đã được sử dụng.",
                 exception);
         }
     }
@@ -89,7 +94,7 @@ public sealed class EmployeeManagementService(
             cancellationToken);
         if (employee is null)
         {
-            throw new InvalidOperationException("The selected employee no longer exists.");
+            throw new InvalidOperationException("Không tìm thấy hồ sơ nhân viên cần cập nhật.");
         }
 
         employee.FullName = ValidateRequiredText(fullName, 150, nameof(fullName));
@@ -109,7 +114,7 @@ public sealed class EmployeeManagementService(
         var normalizedUsername = ValidateRequiredText(username, 50, nameof(username));
         if (role is not UserRole.Admin and not UserRole.Staff)
         {
-            throw new ArgumentOutOfRangeException(nameof(role), "Select a valid account role.");
+            throw new ArgumentOutOfRangeException(nameof(role), "Hãy chọn vai trò hợp lệ.");
         }
 
         var account = await dbContext.UserAccounts.SingleOrDefaultAsync(
@@ -117,12 +122,12 @@ public sealed class EmployeeManagementService(
             cancellationToken);
         if (account is null)
         {
-            throw new InvalidOperationException("The selected account no longer exists.");
+            throw new InvalidOperationException("Không tìm thấy tài khoản cần cập nhật.");
         }
 
         if (account.Id == currentUserSession.User?.Id && role != UserRole.Admin)
         {
-            throw new InvalidOperationException("You cannot change your own role.");
+            throw new InvalidOperationException("Bạn không thể tự thay đổi vai trò của tài khoản đang đăng nhập.");
         }
 
         if (account.Role == UserRole.Admin && role != UserRole.Admin)
@@ -142,10 +147,15 @@ public sealed class EmployeeManagementService(
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception)
+        catch (DbUpdateException exception) when (IsDuplicateKey(exception))
         {
+            foreach (var entry in exception.Entries)
+            {
+                entry.State = EntityState.Detached;
+            }
+
             throw new InvalidOperationException(
-                "Could not update the account. The username may already be in use.",
+                "Không thể cập nhật tài khoản. Tên đăng nhập này có thể đã được sử dụng.",
                 exception);
         }
     }
@@ -161,12 +171,12 @@ public sealed class EmployeeManagementService(
             .SingleOrDefaultAsync(candidate => candidate.Id == employeeId, cancellationToken);
         if (employee is null)
         {
-            throw new InvalidOperationException("The selected employee no longer exists.");
+            throw new InvalidOperationException("Không tìm thấy hồ sơ nhân viên cần cập nhật.");
         }
 
         if (!isActive && employee.UserAccount?.Id == currentUserSession.User?.Id)
         {
-            throw new InvalidOperationException("You cannot deactivate your own employee profile.");
+            throw new InvalidOperationException("Bạn không thể tự ngừng hoạt động hồ sơ của mình.");
         }
 
         if (!isActive && employee.UserAccount?.Role == UserRole.Admin)
@@ -191,12 +201,12 @@ public sealed class EmployeeManagementService(
             .SingleOrDefaultAsync(candidate => candidate.Id == accountId, cancellationToken);
         if (account is null)
         {
-            throw new InvalidOperationException("The selected account no longer exists.");
+            throw new InvalidOperationException("Không tìm thấy tài khoản cần cập nhật.");
         }
 
         if (!isActive && account.Id == currentUserSession.User?.Id)
         {
-            throw new InvalidOperationException("You cannot lock your own signed-in account.");
+            throw new InvalidOperationException("Bạn không thể tự khóa tài khoản đang đăng nhập.");
         }
 
         if (!isActive && account.Role == UserRole.Admin)
@@ -212,7 +222,7 @@ public sealed class EmployeeManagementService(
     {
         if (currentUserSession.User?.Role != UserRole.Admin)
         {
-            throw new UnauthorizedAccessException("Only an Admin can manage employee accounts.");
+            throw new UnauthorizedAccessException("Chỉ Admin mới được quản lý hồ sơ nhân viên và tài khoản.");
         }
     }
 
@@ -230,17 +240,20 @@ public sealed class EmployeeManagementService(
             cancellationToken);
         if (!anotherAdminExists)
         {
-            throw new InvalidOperationException("At least one other active Admin account must remain.");
+            throw new InvalidOperationException("Phải còn ít nhất một tài khoản Admin khác đang hoạt động.");
         }
     }
 
     private static string ValidateRequiredText(string value, int maxLength, string parameterName)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(value, parameterName);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Thông tin này không được để trống.", parameterName);
+        }
         var normalized = value.Trim();
         if (normalized.Length > maxLength)
         {
-            throw new ArgumentException($"Value must not exceed {maxLength} characters.", parameterName);
+            throw new ArgumentException($"Nội dung không được vượt quá {maxLength} ký tự.", parameterName);
         }
 
         return normalized;
@@ -256,7 +269,7 @@ public sealed class EmployeeManagementService(
 
         if (normalized.Length > maxLength)
         {
-            throw new ArgumentException($"Value must not exceed {maxLength} characters.", parameterName);
+            throw new ArgumentException($"Nội dung không được vượt quá {maxLength} ký tự.", parameterName);
         }
 
         return normalized;
@@ -264,13 +277,19 @@ public sealed class EmployeeManagementService(
 
     private static void ValidatePassword(string password)
     {
-        ArgumentNullException.ThrowIfNull(password);
+        if (password is null)
+        {
+            throw new ArgumentException("Hãy nhập mật khẩu.", nameof(password));
+        }
         var passwordByteCount = System.Text.Encoding.UTF8.GetByteCount(password);
         if (passwordByteCount is < 12 or > 72)
         {
             throw new ArgumentException(
-                "Password must contain at least 12 characters and no more than 72 UTF-8 bytes.",
+                "Mật khẩu phải có ít nhất 12 ký tự và không vượt quá 72 byte UTF-8.",
                 nameof(password));
         }
     }
+
+    private static bool IsDuplicateKey(DbUpdateException exception) =>
+        exception.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 };
 }

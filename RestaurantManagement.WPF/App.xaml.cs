@@ -48,10 +48,10 @@ namespace RestaurantManagement.WPF
             catch (Exception exception)
             {
                 _host.Services.GetRequiredService<ILogger<App>>()
-                    .LogCritical(exception, "Database migration failed during application startup.");
+                    .LogCritical(exception, "Không thể cập nhật cấu trúc cơ sở dữ liệu khi khởi động.");
                 MessageBox.Show(
-                    "The application could not initialize its database. Check the application log and SQL Server LocalDB installation.",
-                    "Database initialization failed",
+                    "Không thể khởi tạo cơ sở dữ liệu. Hãy kiểm tra LocalDB rồi khởi động lại ứng dụng.",
+                    "Lỗi khởi tạo cơ sở dữ liệu",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 Shutdown(1);

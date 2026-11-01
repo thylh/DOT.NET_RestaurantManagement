@@ -17,12 +17,19 @@ public sealed class InitialAdminSetupService(RestaurantDbContext dbContext) : II
         string password,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(username);
-        ArgumentNullException.ThrowIfNull(password);
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            throw new ArgumentException("Hãy nhập tên đăng nhập.", nameof(username));
+        }
+
+        if (password is null)
+        {
+            throw new ArgumentException("Hãy nhập mật khẩu.", nameof(password));
+        }
         var normalizedUsername = username.Trim();
         if (normalizedUsername.Length is < 3 or > 50)
         {
-            throw new ArgumentException("Username must contain between 3 and 50 characters.", nameof(username));
+            throw new ArgumentException("Tên đăng nhập phải có từ 3 đến 50 ký tự.", nameof(username));
         }
 
         ValidatePassword(password);
@@ -54,7 +61,7 @@ public sealed class InitialAdminSetupService(RestaurantDbContext dbContext) : II
         if (passwordByteCount is < 12 or > 72)
         {
             throw new ArgumentException(
-                "Password must contain at least 12 characters and no more than 72 UTF-8 bytes.",
+                "Mật khẩu phải có ít nhất 12 ký tự và không vượt quá 72 byte UTF-8.",
                 nameof(password));
         }
     }

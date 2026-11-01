@@ -9,16 +9,24 @@ namespace RestaurantManagement.Tests;
 public class MainWindowViewModelTests
 {
     [Fact]
-    public void TitleIsInitializedForMainWindow()
+    public void ViewModelExposesVietnameseTitleAndErrorState()
     {
         var viewModel = new MainWindowViewModel(
             new InitialAdminSetupServiceStub(),
             new AuthenticationServiceStub(),
             new CurrentUserSessionStub(),
             new EmployeeManagementServiceStub(),
+            new RestaurantCatalogServiceStub(),
             NullLogger<MainWindowViewModel>.Instance);
 
-        Assert.Equal("Restaurant Management", viewModel.Title);
+        Assert.Equal("Quản lý nhà hàng", viewModel.Title);
+        Assert.False(viewModel.HasError);
+
+        viewModel.ErrorMessage = "Có lỗi xảy ra.";
+
+        Assert.True(viewModel.HasError);
+        viewModel.ErrorMessage = string.Empty;
+        Assert.False(viewModel.HasError);
     }
 
     private sealed class InitialAdminSetupServiceStub : IInitialAdminSetupService
@@ -92,5 +100,87 @@ public class MainWindowViewModelTests
             int accountId,
             bool isActive,
             CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class RestaurantCatalogServiceStub : IRestaurantCatalogService
+    {
+        public Task<IReadOnlyList<RestaurantTableSummary>> GetTablesAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<RestaurantTableSummary>>([]);
+
+        public Task<IReadOnlyList<CategorySummary>> GetCategoriesAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<CategorySummary>>([]);
+
+        public Task<IReadOnlyList<ProductSummary>> GetProductsAsync(
+            string? searchText = null,
+            int? categoryId = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ProductSummary>>([]);
+
+        public Task CreateTableAsync(
+            int tableNumber,
+            int seatCount,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task UpdateTableAsync(
+            int tableId,
+            int tableNumber,
+            int seatCount,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SetTableActiveAsync(
+            int tableId,
+            bool isActive,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task DeleteTableAsync(int tableId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task CreateCategoryAsync(
+            string name,
+            string? description,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task UpdateCategoryAsync(
+            int categoryId,
+            string name,
+            string? description,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SetCategoryActiveAsync(
+            int categoryId,
+            bool isActive,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task DeleteCategoryAsync(int categoryId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task CreateProductAsync(
+            string name,
+            string? description,
+            decimal price,
+            int categoryId,
+            string? imagePath,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task UpdateProductAsync(
+            int productId,
+            string name,
+            string? description,
+            decimal price,
+            int categoryId,
+            string? imagePath,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SetProductAvailabilityAsync(
+            int productId,
+            bool isAvailable,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SetProductActiveAsync(
+            int productId,
+            bool isActive,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task DeleteProductAsync(int productId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }
