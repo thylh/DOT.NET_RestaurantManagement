@@ -10,9 +10,15 @@ public class RestaurantOrder
 
     public RestaurantTable RestaurantTable { get; set; } = null!;
 
-    public int CreatedByEmployeeId { get; set; }
+    public int? CreatedByEmployeeId { get; set; }
 
-    public Employee CreatedByEmployee { get; set; } = null!;
+    public Employee? CreatedByEmployee { get; set; }
+
+    public string CreatedByEmployeeNameSnapshot { get; set; } = string.Empty;
+
+    public int? CreatedByUserId { get; set; }
+
+    public UserAccount? CreatedByUser { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

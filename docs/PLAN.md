@@ -7,20 +7,20 @@ Xây dựng ứng dụng desktop phục vụ bài tập lớn, mô phỏng các 
 ### Phạm vi triển khai
 
 - Ứng dụng chạy cục bộ trên một máy Windows.
-- Dữ liệu được lưu bằng SQL Server LocalDB trên cùng máy.
+- Dữ liệu được lưu trên MySQL Server 8.4 LTS chạy cục bộ; có thể quản lý bằng MySQL Workbench.
 - Chỉ có hai vai trò trong ứng dụng: `Admin` và `Staff`.
 - Không triển khai truy cập qua mạng LAN hoặc nhiều máy dùng chung database.
 - Không sử dụng ASP.NET Core, Web API, JWT hay kiến trúc client-server.
 
-LocalDB là database lưu dữ liệu; tài khoản `Admin` và `Staff` là tài khoản đăng nhập ứng dụng. Hai loại này không phải một.
+MySQL Server là database lưu dữ liệu; tài khoản `Admin` và `Staff` là tài khoản đăng nhập ứng dụng. Hai loại này không phải một.
 
 ## 2. Công nghệ
 
 - C# 12 và .NET 8.
 - WPF cho giao diện desktop.
 - MVVM với CommunityToolkit.Mvvm.
-- Entity Framework Core 8 và provider SQL Server.
-- SQL Server LocalDB.
+- Entity Framework Core 8 và Oracle MySQL EF Core Provider 8.0.31.
+- MySQL Server 8.4 LTS.
 - Microsoft.Extensions.DependencyInjection cho Dependency Injection.
 - BCrypt.Net-Next để hash mật khẩu.
 - Microsoft.Extensions.Logging cho logging.
@@ -29,13 +29,15 @@ LocalDB là database lưu dữ liệu; tài khoản `Admin` và `Staff` là tài
 
 Không thêm thư viện hoặc công nghệ mới nếu chưa có nhu cầu cụ thể và chưa kiểm tra tương thích với .NET 8.
 
+MySQL Server 8.4 LTS là hệ quản trị cơ sở dữ liệu được sử dụng xuyên suốt dự án.
+
 ## 3. Kiến trúc solution
 
 Tổ chức solution theo trách nhiệm:
 
 - `RestaurantManagement.WPF`: Views, ViewModels, điều hướng, binding, tài nguyên giao diện và khởi tạo ứng dụng.
 - `RestaurantManagement.Core`: entities, enums, interfaces và quy tắc nghiệp vụ độc lập với WPF/EF Core.
-- `RestaurantManagement.Infrastructure`: `DbContext`, cấu hình EF Core, migrations, khởi tạo dữ liệu và truy cập SQL Server LocalDB.
+- `RestaurantManagement.Infrastructure`: `DbContext`, cấu hình EF Core, migrations, khởi tạo dữ liệu và truy cập MySQL Server.
 - `RestaurantManagement.Tests`: kiểm thử nghiệp vụ và các luồng dữ liệu quan trọng.
 
 Luồng phụ thuộc dự kiến:
@@ -166,36 +168,38 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 - Kiểm tra workspace và các hướng dẫn hiện có trước khi sửa.
 - Tạo solution/projects theo kiến trúc đã thống nhất.
 - Cấu hình target framework, project references, MVVM, DI và logging.
-- Xác nhận LocalDB có thể chạy trên môi trường phát triển.
+- Xác nhận MySQL Server có thể chạy trên môi trường phát triển.
 
 **Kết quả:** solution build được và ứng dụng khởi động.
 
-**Trạng thái:** Hoàn thành ngày 2026-10-26.
+**Trạng thái:** Hoàn thành. Môi trường và solution được cấu hình để sử dụng MySQL Server 8.4 LTS.
 
 ### Giai đoạn B — Database và dữ liệu nền
 
 - Tạo entities, enums, quan hệ và cấu hình EF Core.
-- Cấu hình connection string LocalDB bên ngoài mã nguồn nếu phù hợp.
+- Cấu hình connection string MySQL bên ngoài mã nguồn; không lưu mật khẩu trong repository.
 - Tạo migration đầu tiên và quy trình cập nhật database.
 - Tạo dữ liệu mẫu tối thiểu và cách khởi tạo Admin ban đầu an toàn.
 - Cung cấp service thiết lập Admin lần đầu khi database chưa có tài khoản; xác minh không thể tạo lại tài khoản sau khi đã hoàn tất. Giao diện thiết lập được triển khai ở Giai đoạn C.
 - Xác minh dữ liệu tồn tại sau khi đóng và mở lại ứng dụng.
 
-**Kết quả:** ứng dụng đọc/ghi được dữ liệu trên LocalDB.
+**Kết quả:** ứng dụng đọc/ghi được dữ liệu trên MySQL Server.
 
-**Trạng thái:** Hoàn thành ngày 2026-10-26. Migration được quản lý bằng EF Core; chạy `dotnet ef database update` từ thư mục solution để áp dụng thủ công khi cần. Ứng dụng cũng tự áp dụng migration khi khởi động.
+**Trạng thái:** Hoàn thành. Ứng dụng tự áp dụng migration MySQL khi khởi động; xem [hướng dẫn thiết lập MySQL](./MYSQL-SETUP.md).
 
 ### Giai đoạn C — Đăng nhập và nhân viên
 
 - Xây dựng đăng nhập/đăng xuất và xử lý phiên đăng nhập.
 - Hash/verify mật khẩu.
-- Xây dựng chức năng Admin quản lý nhân viên và tài khoản.
+- Tách riêng quản lý hồ sơ nhân viên và cấp tài khoản đăng nhập.
+- Tự sinh tên đăng nhập theo tên nhân viên, thêm hậu tố khi trùng; tạo mật khẩu tạm ngẫu nhiên an toàn.
+- Bắt buộc nhân viên đổi mật khẩu tạm ở lần đăng nhập đầu tiên hoặc sau khi Admin đặt lại mật khẩu.
 - Xây dựng luồng thiết lập Admin lần đầu khi database chưa có tài khoản.
 - Áp dụng kiểm tra quyền trong service và điều hướng giao diện.
 
 **Kết quả:** Admin và Staff chỉ sử dụng được chức năng tương ứng.
 
-**Trạng thái:** Hoàn thành ngày 2026-10-27. Luồng thiết lập Admin lần đầu, đăng nhập/đăng xuất, đổi mật khẩu, quản lý hồ sơ nhân viên và tài khoản, khóa/mở khóa, cùng kiểm tra quyền tại service đã được triển khai. Giao diện thao tác bàn, thực đơn và order thuộc các giai đoạn sau.
+**Trạng thái:** Hoàn thành. Luồng thiết lập Admin lần đầu, đăng nhập/đăng xuất, đổi mật khẩu bắt buộc ở lần đầu, quản lý hồ sơ nhân viên và cấp/khóa tài khoản riêng biệt, cùng kiểm tra quyền tại service đã được triển khai. Giao diện thao tác bàn, thực đơn và order thuộc các giai đoạn sau.
 
 ### Giai đoạn D — Bàn và thực đơn
 
@@ -205,7 +209,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** dữ liệu bàn và thực đơn được quản lý, lưu bền vững.
 
-**Trạng thái:** Hoàn thành ngày 2026-10-28. Admin có thể quản lý bàn, danh mục và món ăn; Staff chỉ xem dữ liệu đang sử dụng. Đã bổ sung tìm kiếm/lọc món, kiểm tra dữ liệu, trạng thái bàn/món và bảo vệ dữ liệu đã được order tham chiếu. Các nhãn và thông báo của giao diện cùng luồng tài khoản hiện dùng tiếng Việt.
+**Trạng thái:** Hoàn thành. Admin có thể quản lý bàn, danh mục và món ăn; Staff chỉ xem dữ liệu đang sử dụng. Đã bổ sung tìm kiếm/lọc món, kiểm tra dữ liệu, trạng thái bàn/món và bảo vệ dữ liệu đã được order tham chiếu. Các nhãn và thông báo của giao diện cùng luồng tài khoản hiện dùng tiếng Việt.
 
 ### Giai đoạn E — Order
 
@@ -231,6 +235,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 - Xây dựng dashboard doanh thu và món bán chạy.
 - Chuẩn hóa điều hướng, thông báo lỗi, xác nhận thao tác và trạng thái tải.
+- Ảnh nền đăng nhập/thiết lập đặt trong `RestaurantManagement.WPF/Assets/Images`; hỗ trợ JPG/JPEG và PNG.
 - Chỉ bổ sung PDF/in nếu đã hoàn thành chức năng bắt buộc.
 
 **Kết quả:** báo cáo dùng dữ liệu thật và giao diện thống nhất.
@@ -239,7 +244,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 - Kiểm thử đăng nhập, quyền, CRUD, order, thanh toán và báo cáo.
 - Kiểm tra dữ liệu sai/thiếu, order trống, thanh toán trùng và lỗi database.
-- Viết hướng dẫn cài đặt prerequisites, cấu hình LocalDB, cập nhật database và chạy ứng dụng.
+- Viết hướng dẫn cài đặt prerequisites, cấu hình MySQL, cập nhật database và chạy ứng dụng.
 - Chuẩn bị dữ liệu demo và kịch bản trình diễn.
 
 **Kết quả:** ứng dụng chạy ổn định trên một máy và có tài liệu bàn giao.
@@ -263,7 +268,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 ### Điều kiện hoàn thành
 
 - Solution build thành công.
-- Có thể khởi chạy ứng dụng trên một máy Windows với SQL Server LocalDB.
+- Có thể khởi chạy ứng dụng trên một máy Windows với MySQL Server 8.4 LTS.
 - Admin quản lý được tài khoản/nhân viên, bàn và thực đơn.
 - Staff xử lý được order và thanh toán theo quyền.
 - Dữ liệu được lưu và truy xuất lại sau khi khởi động lại ứng dụng.

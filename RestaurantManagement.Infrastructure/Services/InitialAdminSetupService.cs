@@ -46,6 +46,7 @@ public sealed class InitialAdminSetupService(RestaurantDbContext dbContext) : II
         var account = new UserAccount
         {
             Username = normalizedUsername,
+            FullName = normalizedUsername,
             PasswordHash = global::BCrypt.Net.BCrypt.HashPassword(password),
             Role = UserRole.Admin
         };

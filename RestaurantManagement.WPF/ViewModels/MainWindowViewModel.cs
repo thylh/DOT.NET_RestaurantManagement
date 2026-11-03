@@ -3,8 +3,8 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
+using MySql.Data.MySqlClient;
 using RestaurantManagement.Core.Enums;
 using RestaurantManagement.Core.Models;
 using RestaurantManagement.Core.Services;
@@ -21,19 +21,25 @@ public partial class MainWindowViewModel(
 {
     public ObservableCollection<EmployeeAccountSummary> Employees { get; } = [];
 
+    public ObservableCollection<AccountSummary> Accounts { get; } = [];
+
     public ObservableCollection<RestaurantTableSummary> Tables { get; } = [];
 
     public ObservableCollection<CategorySummary> Categories { get; } = [];
 
     public ObservableCollection<ProductSummary> Products { get; } = [];
 
-    public IReadOnlyList<UserRole> AvailableRoles { get; } = Enum.GetValues<UserRole>();
-
-    public string Title => "Quản lý nhà hàng";
+    public static string Title => "Quản lý nhà hàng";
 
     public bool IsAuthenticated => currentUserSession.User is not null;
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+    public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
+
+    public bool IsPasswordChangeRequired => currentUserSession.User?.RequiresPasswordChange == true;
+
+    public bool IsAuthenticatedWorkspace => IsAuthenticated && !IsPasswordChangeRequired;
 
     public bool IsAdmin => currentUserSession.User?.Role == UserRole.Admin;
 
@@ -41,9 +47,9 @@ public partial class MainWindowViewModel(
 
     public bool IsLoginScreen => !IsSetupRequired && !IsAuthenticated;
 
-    public bool IsAdminScreen => IsAuthenticated && IsAdmin;
+    public bool IsAdminScreen => IsAuthenticatedWorkspace && IsAdmin;
 
-    public bool IsStaffScreen => IsAuthenticated && !IsAdmin;
+    public bool IsStaffScreen => IsAuthenticatedWorkspace && !IsAdmin;
 
     public string CurrentUserDescription => currentUserSession.User is { } user
         ? $"{user.Username} ({(user.Role == UserRole.Admin ? "Quản trị viên" : "Nhân viên")})"
@@ -57,6 +63,9 @@ public partial class MainWindowViewModel(
 
     [ObservableProperty]
     private string statusMessage = string.Empty;
+
+    partial void OnStatusMessageChanged(string value) =>
+        OnPropertyChanged(nameof(HasStatusMessage));
 
     [ObservableProperty]
     private string errorMessage = string.Empty;
@@ -89,16 +98,22 @@ public partial class MainWindowViewModel(
     private string employeeEmail = string.Empty;
 
     [ObservableProperty]
-    private string accountUsername = string.Empty;
+    private string accountEmployeeName = string.Empty;
 
     [ObservableProperty]
-    private string accountPassword = string.Empty;
+    private string accountEmployeePhone = string.Empty;
 
     [ObservableProperty]
-    private UserRole selectedRole = UserRole.Staff;
+    private string accountEmployeeEmail = string.Empty;
 
     [ObservableProperty]
     private EmployeeAccountSummary? selectedEmployee;
+
+    [ObservableProperty]
+    private AccountSummary? selectedAccount;
+
+    [ObservableProperty]
+    private string editAccountEmployeeName = string.Empty;
 
     [ObservableProperty]
     private RestaurantTableSummary? selectedTable;
@@ -153,10 +168,10 @@ public partial class MainWindowViewModel(
             }
         }
         catch (Exception exception) when (
-            exception is DbUpdateException or InvalidOperationException or SqlException)
+            exception is DbUpdateException or InvalidOperationException or MySqlException)
         {
             logger.LogError(exception, "Không thể kiểm tra trạng thái thiết lập Admin lần đầu.");
-            ErrorMessage = "Không thể kiểm tra dữ liệu khởi tạo. Hãy kiểm tra LocalDB rồi khởi động lại ứng dụng.";
+            ErrorMessage = "Không thể kiểm tra dữ liệu khởi tạo. Hãy kiểm tra kết nối MySQL rồi khởi động lại ứng dụng.";
         }
     }
 
@@ -189,17 +204,27 @@ public partial class MainWindowViewModel(
 
             OnPropertyChanged(nameof(IsAuthenticated));
             OnPropertyChanged(nameof(IsAdmin));
+            OnPropertyChanged(nameof(IsPasswordChangeRequired));
+            OnPropertyChanged(nameof(IsAuthenticatedWorkspace));
             OnPropertyChanged(nameof(IsAdminScreen));
             OnPropertyChanged(nameof(IsStaffScreen));
             OnPropertyChanged(nameof(IsLoginScreen));
             OnPropertyChanged(nameof(CurrentUserDescription));
             StatusMessage = $"Đã đăng nhập với tài khoản {user.Username}.";
-            if (user.Role == UserRole.Admin)
+            if (user.RequiresPasswordChange)
+            {
+                StatusMessage = "Đây là lần đăng nhập đầu tiên. Hãy đổi mật khẩu để tiếp tục.";
+            }
+            else if (user.Role == UserRole.Admin)
             {
                 await RefreshEmployeesAsync();
+                await RefreshAccountsAsync();
+                await RefreshCatalogAsync();
             }
-
-            await RefreshCatalogAsync();
+            else
+            {
+                await RefreshCatalogAsync();
+            }
         });
     }
 
@@ -208,15 +233,19 @@ public partial class MainWindowViewModel(
     {
         currentUserSession.SignOut();
         Employees.Clear();
+        Accounts.Clear();
         Tables.Clear();
         Categories.Clear();
         Products.Clear();
         SelectedEmployee = null;
+        SelectedAccount = null;
         SelectedTable = null;
         SelectedCategory = null;
         SelectedProduct = null;
         OnPropertyChanged(nameof(IsAuthenticated));
         OnPropertyChanged(nameof(IsAdmin));
+        OnPropertyChanged(nameof(IsPasswordChangeRequired));
+        OnPropertyChanged(nameof(IsAuthenticatedWorkspace));
         OnPropertyChanged(nameof(IsAdminScreen));
         OnPropertyChanged(nameof(IsStaffScreen));
         OnPropertyChanged(nameof(IsLoginScreen));
@@ -237,9 +266,11 @@ public partial class MainWindowViewModel(
         await RunOperationAsync(async () =>
         {
             await authenticationService.ChangePasswordAsync(user.Id, CurrentPassword, NewPassword);
+
             CurrentPassword = string.Empty;
             NewPassword = string.Empty;
-            StatusMessage = "Đã đổi mật khẩu.";
+            await SignOutAsync();
+            StatusMessage = "Đổi mật khẩu thành công. Hãy đăng nhập lại.";
         });
     }
 
@@ -251,17 +282,115 @@ public partial class MainWindowViewModel(
             await employeeManagementService.CreateEmployeeAsync(
                 EmployeeName,
                 EmployeePhone,
-                EmployeeEmail,
-                AccountUsername,
-                AccountPassword,
-                SelectedRole);
+                EmployeeEmail);
             EmployeeName = string.Empty;
             EmployeePhone = string.Empty;
             EmployeeEmail = string.Empty;
-            AccountUsername = string.Empty;
-            AccountPassword = string.Empty;
             await RefreshEmployeesAsync();
-            StatusMessage = "Đã tạo hồ sơ nhân viên và tài khoản.";
+            StatusMessage = "Đã tạo hồ sơ nhân viên.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task CreateAccountAsync()
+    {
+        await RunOperationAsync(async () =>
+        {
+            var credentials = await employeeManagementService.CreateAccountAsync(
+                AccountEmployeeName,
+                AccountEmployeePhone,
+                AccountEmployeeEmail);
+            AccountEmployeeName = string.Empty;
+            AccountEmployeePhone = string.Empty;
+            AccountEmployeeEmail = string.Empty;
+            await RefreshAccountsAsync();
+            StatusMessage = "Đã tạo tài khoản. Hãy gửi mật khẩu tạm cho nhân viên; hệ thống sẽ yêu cầu đổi mật khẩu ở lần đăng nhập đầu.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task CreateEmployeeProfileAsync()
+    {
+        if (SelectedAccount is not { } account)
+        {
+            ErrorMessage = "Hãy chọn tài khoản cần tạo hồ sơ.";
+            return;
+        }
+
+        if (!account.CanCreateEmployeeProfile)
+        {
+            ErrorMessage = account.HasEmployeeProfile
+                ? "Tài khoản này đã có hồ sơ nhân viên."
+                : "Chỉ tài khoản nhân viên chưa có hồ sơ mới được tạo hồ sơ.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await employeeManagementService.CreateEmployeeProfileAsync(account.AccountId);
+            await RefreshAccountsAsync();
+            await RefreshEmployeesAsync();
+            StatusMessage = "Đã tạo hồ sơ nhân viên.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task UpdateAccountEmployeeNameAsync()
+    {
+        if (SelectedAccount is not { } account)
+        {
+            ErrorMessage = "Hãy chọn tài khoản cần chỉnh sửa.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await employeeManagementService.UpdateAccountEmployeeNameAsync(
+                account.AccountId,
+                EditAccountEmployeeName);
+            await RefreshAccountsAsync();
+            await RefreshEmployeesAsync();
+            StatusMessage = "Đã cập nhật họ tên nhân viên.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task ToggleAccountStatusAsync()
+    {
+        if (SelectedAccount is not { } account)
+        {
+            ErrorMessage = "Hãy chọn tài khoản cần cập nhật.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await employeeManagementService.SetAccountActiveAsync(
+                account.AccountId,
+                !account.IsAccountActive);
+            await RefreshAccountsAsync();
+            StatusMessage = account.IsAccountActive
+                ? "Đã khóa tài khoản."
+                : "Đã mở khóa tài khoản.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task DeleteAccountAsync()
+    {
+        if (SelectedAccount is not { } account)
+        {
+            ErrorMessage = "Hãy chọn tài khoản cần xóa.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await employeeManagementService.DeleteAccountAsync(account.AccountId);
+            SelectedAccount = null;
+            await RefreshAccountsAsync();
+            await RefreshEmployeesAsync();
+            StatusMessage = "Đã xóa tài khoản.";
         });
     }
 
@@ -287,24 +416,21 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
-    private async Task UpdateAccountAsync()
+    private async Task DeleteEmployeeProfileAsync()
     {
-        if (SelectedEmployee?.AccountId is not { } accountId)
+        if (SelectedEmployee is not { } employee)
         {
-            ErrorMessage = "Hãy chọn nhân viên có tài khoản cần cập nhật.";
+            ErrorMessage = "Hãy chọn hồ sơ nhân viên cần xóa.";
             return;
         }
 
         await RunOperationAsync(async () =>
         {
-            await employeeManagementService.UpdateAccountAsync(
-                accountId,
-                AccountUsername,
-                SelectedRole,
-                AccountPassword);
-            AccountPassword = string.Empty;
+            await employeeManagementService.DeleteEmployeeProfileAsync(employee.EmployeeId);
+            SelectedEmployee = null;
             await RefreshEmployeesAsync();
-            StatusMessage = "Đã cập nhật tài khoản.";
+            await RefreshAccountsAsync();
+            StatusMessage = "Đã xóa hồ sơ nhân viên; lịch sử order vẫn được giữ lại.";
         });
     }
 
@@ -324,23 +450,6 @@ public partial class MainWindowViewModel(
                 !employee.IsEmployeeActive);
             await RefreshEmployeesAsync();
             StatusMessage = "Đã cập nhật trạng thái nhân viên.";
-        });
-    }
-
-    [RelayCommand]
-    private async Task ToggleAccountStatusAsync()
-    {
-        if (SelectedEmployee is not { AccountId: { } accountId, IsAccountActive: { } isActive })
-        {
-            ErrorMessage = "Nhân viên đã chọn chưa có tài khoản.";
-            return;
-        }
-
-        await RunOperationAsync(async () =>
-        {
-            await employeeManagementService.SetAccountActiveAsync(accountId, !isActive);
-            await RefreshEmployeesAsync();
-            StatusMessage = "Đã cập nhật trạng thái tài khoản.";
         });
     }
 
@@ -622,6 +731,19 @@ public partial class MainWindowViewModel(
         }
     }
 
+    private async Task RefreshAccountsAsync()
+    {
+        var selectedAccountId = SelectedAccount?.AccountId;
+        var accounts = await employeeManagementService.GetAccountsAsync();
+        Accounts.Clear();
+        foreach (var account in accounts)
+        {
+            Accounts.Add(account);
+        }
+
+        SelectedAccount = Accounts.FirstOrDefault(account => account.AccountId == selectedAccountId);
+    }
+
     private async Task RefreshCatalogAsync()
     {
         var selectedTableId = SelectedTable?.Id;
@@ -698,9 +820,9 @@ public partial class MainWindowViewModel(
                 or InvalidOperationException
                 or UnauthorizedAccessException
                 or DbUpdateException
-                or SqlException)
+                or MySqlException)
         {
-            if (exception is DbUpdateException or SqlException)
+            if (exception is DbUpdateException or MySqlException)
             {
                 logger.LogError(exception, "Thao tác thất bại khi truy cập cơ sở dữ liệu.");
                 ErrorMessage = "Không thể lưu thay đổi. Hãy kiểm tra kết nối cơ sở dữ liệu rồi thử lại.";
@@ -727,9 +849,6 @@ public partial class MainWindowViewModel(
         EmployeeName = value.FullName;
         EmployeePhone = value.Phone ?? string.Empty;
         EmployeeEmail = value.Email ?? string.Empty;
-        AccountUsername = value.Username ?? string.Empty;
-        SelectedRole = value.Role ?? UserRole.Staff;
-        AccountPassword = string.Empty;
     }
 
     partial void OnSelectedTableChanged(RestaurantTableSummary? value)

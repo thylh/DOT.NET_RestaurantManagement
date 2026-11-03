@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Data.SqlClient;
+using MySql.Data.MySqlClient;
 using RestaurantManagement.Core.Entities;
 using RestaurantManagement.Core.Enums;
 using RestaurantManagement.Core.Models;
@@ -382,7 +382,7 @@ public sealed class RestaurantCatalogService(
     }
 
     private static bool IsDuplicateKey(DbUpdateException exception) =>
-        exception.InnerException is SqlException { Number: 2601 or 2627 };
+        exception.InnerException is MySqlException { Number: 1062 };
 
     private void EnsureSignedIn()
     {

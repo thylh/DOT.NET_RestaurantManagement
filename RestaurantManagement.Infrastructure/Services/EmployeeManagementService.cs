@@ -1,9 +1,13 @@
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using RestaurantManagement.Core.Entities;
 using RestaurantManagement.Core.Enums;
 using RestaurantManagement.Core.Models;
 using RestaurantManagement.Core.Services;
 using RestaurantManagement.Infrastructure.Data;
+using RestaurantManagement.Infrastructure.Security;
 
 namespace RestaurantManagement.Infrastructure.Services;
 
@@ -28,42 +32,89 @@ public sealed class EmployeeManagementService(
                 employee.UserAccount == null ? null : employee.UserAccount.Id,
                 employee.UserAccount == null ? null : employee.UserAccount.Username,
                 employee.UserAccount == null ? null : employee.UserAccount.Role,
-                employee.UserAccount == null ? null : employee.UserAccount.IsActive))
+                employee.UserAccount == null ? null : employee.UserAccount.IsActive,
+                employee.UserAccount != null && employee.UserAccount.RequiresPasswordChange))
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AccountSummary>> GetAccountsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        EnsureAdmin();
+
+        var accounts = await dbContext.UserAccounts
+            .AsNoTracking()
+            .Where(account => account.Role == UserRole.Staff)
+            .OrderBy(account => account.FullName)
+            .Select(account => new
+            {
+                Summary = new AccountSummary(
+                    account.Id,
+                    account.EmployeeId,
+                    account.Employee == null ? account.FullName : account.Employee.FullName,
+                    account.Employee == null ? account.Phone : account.Employee.Phone,
+                    account.Employee == null ? account.Email : account.Employee.Email,
+                    account.Employee == null || account.Employee.IsActive,
+                    account.Username,
+                    account.Role,
+                    account.IsActive,
+                    account.RequiresPasswordChange),
+                account.EncryptedTemporaryPassword
+            })
+            .ToListAsync(cancellationToken);
+
+        return accounts
+            .Select(account => account.Summary with
+            {
+                TemporaryPassword = account.EncryptedTemporaryPassword is null
+                    ? null
+                    : TemporaryPasswordProtector.Unprotect(account.EncryptedTemporaryPassword)
+            })
+            .ToList();
     }
 
     public async Task CreateEmployeeAsync(
         string fullName,
         string? phone,
         string? email,
-        string username,
-        string password,
-        UserRole role,
         CancellationToken cancellationToken = default)
     {
         EnsureAdmin();
         var normalizedName = ValidateRequiredText(fullName, 150, nameof(fullName));
-        var normalizedUsername = ValidateRequiredText(username, 50, nameof(username));
-        ValidatePassword(password);
-        if (role is not UserRole.Admin and not UserRole.Staff)
-        {
-            throw new ArgumentOutOfRangeException(nameof(role), "Hãy chọn vai trò hợp lệ.");
-        }
-
         var employee = new Employee
         {
             FullName = normalizedName,
             Phone = NormalizeOptional(phone, 30, nameof(phone)),
             Email = NormalizeOptional(email, 254, nameof(email))
         };
-        employee.UserAccount = new UserAccount
-        {
-            Username = normalizedUsername,
-            PasswordHash = global::BCrypt.Net.BCrypt.HashPassword(password),
-            Role = role
-        };
 
         dbContext.Employees.Add(employee);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<GeneratedEmployeeCredentials> CreateAccountAsync(
+        string fullName,
+        string? phone,
+        string? email,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureAdmin();
+        var normalizedName = ValidateRequiredText(fullName, 150, nameof(fullName));
+        var username = await GenerateUsernameAsync(normalizedName, cancellationToken);
+        var temporaryPassword = GenerateTemporaryPassword();
+        var account = new UserAccount
+        {
+            FullName = normalizedName,
+            Phone = NormalizeOptional(phone, 30, nameof(phone)),
+            Email = NormalizeOptional(email, 254, nameof(email)),
+            Username = username,
+            PasswordHash = global::BCrypt.Net.BCrypt.HashPassword(temporaryPassword),
+            EncryptedTemporaryPassword = TemporaryPasswordProtector.Protect(temporaryPassword),
+            Role = UserRole.Staff,
+            RequiresPasswordChange = true
+        };
+
+        dbContext.UserAccounts.Add(account);
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -76,9 +127,124 @@ public sealed class EmployeeManagementService(
             }
 
             throw new InvalidOperationException(
-                "Không thể tạo hồ sơ. Tên đăng nhập này có thể đã được sử dụng.",
+                "Không thể cấp tài khoản do thông tin bị trùng. Hãy kiểm tra lại dữ liệu rồi thử lại.",
                 exception);
         }
+
+        return new GeneratedEmployeeCredentials(account.Id, username, temporaryPassword);
+    }
+
+    public async Task CreateEmployeeProfileAsync(
+        int accountId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureAdmin();
+        var account = await dbContext.UserAccounts
+            .Include(candidate => candidate.Employee)
+            .SingleOrDefaultAsync(candidate => candidate.Id == accountId, cancellationToken);
+        if (account is null)
+        {
+            throw new InvalidOperationException("Không tìm thấy tài khoản cần tạo hồ sơ.");
+        }
+
+        if (account.Role != UserRole.Staff)
+        {
+            throw new InvalidOperationException("Chỉ tài khoản nhân viên mới được tạo hồ sơ nhân viên.");
+        }
+
+        if (account.Employee is not null)
+        {
+            throw new InvalidOperationException("Tài khoản này đã có hồ sơ nhân viên.");
+        }
+
+        account.Employee = new Employee
+        {
+            FullName = account.FullName,
+            Phone = account.Phone,
+            Email = account.Email
+        };
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateAccountEmployeeNameAsync(
+        int accountId,
+        string fullName,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureAdmin();
+        var account = await dbContext.UserAccounts
+            .Include(candidate => candidate.Employee)
+            .SingleOrDefaultAsync(candidate => candidate.Id == accountId, cancellationToken);
+        if (account is null)
+        {
+            throw new InvalidOperationException("Không tìm thấy tài khoản cần cập nhật.");
+        }
+
+        var normalizedName = ValidateRequiredText(fullName, 150, nameof(fullName));
+        account.FullName = normalizedName;
+        if (account.Employee is not null)
+        {
+            account.Employee.FullName = normalizedName;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeleteAccountAsync(
+        int accountId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureAdmin();
+        var account = await dbContext.UserAccounts
+            .Include(candidate => candidate.Employee)
+            .SingleOrDefaultAsync(
+                candidate => candidate.Id == accountId,
+                cancellationToken);
+        if (account is null)
+        {
+            throw new InvalidOperationException("Không tìm thấy tài khoản cần xóa.");
+        }
+
+        if (account.Id == currentUserSession.User?.Id)
+        {
+            throw new InvalidOperationException("Bạn không thể xóa tài khoản đang đăng nhập.");
+        }
+
+        if (account.Role == UserRole.Admin)
+        {
+            await EnsureAnotherActiveAdminExistsAsync(account.Id, account.EmployeeId, cancellationToken);
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var employeeId = account.EmployeeId;
+        var relatedOrders = await dbContext.RestaurantOrders
+            .Where(order =>
+                order.CreatedByUserId == accountId
+                || (employeeId.HasValue && order.CreatedByEmployeeId == employeeId.Value)
+                || order.CancelledByUserId == accountId
+                || (order.Payment != null && order.Payment.PaidByUserId == accountId))
+            .Include(order => order.OrderDetails)
+            .Include(order => order.Payment)
+            .ToListAsync(cancellationToken);
+
+        foreach (var order in relatedOrders)
+        {
+            dbContext.OrderDetails.RemoveRange(order.OrderDetails);
+            if (order.Payment is not null)
+            {
+                dbContext.Payments.Remove(order.Payment);
+            }
+        }
+
+        dbContext.RestaurantOrders.RemoveRange(relatedOrders);
+        if (account.Employee is not null)
+        {
+            dbContext.Employees.Remove(account.Employee);
+        }
+
+        dbContext.UserAccounts.Remove(account);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task UpdateEmployeeAsync(
@@ -89,9 +255,11 @@ public sealed class EmployeeManagementService(
         CancellationToken cancellationToken = default)
     {
         EnsureAdmin();
-        var employee = await dbContext.Employees.SingleOrDefaultAsync(
-            candidate => candidate.Id == employeeId,
-            cancellationToken);
+        var employee = await dbContext.Employees
+            .Include(candidate => candidate.UserAccount)
+            .SingleOrDefaultAsync(
+                candidate => candidate.Id == employeeId,
+                cancellationToken);
         if (employee is null)
         {
             throw new InvalidOperationException("Không tìm thấy hồ sơ nhân viên cần cập nhật.");
@@ -100,6 +268,48 @@ public sealed class EmployeeManagementService(
         employee.FullName = ValidateRequiredText(fullName, 150, nameof(fullName));
         employee.Phone = NormalizeOptional(phone, 30, nameof(phone));
         employee.Email = NormalizeOptional(email, 254, nameof(email));
+        if (employee.UserAccount is not null)
+        {
+            employee.UserAccount.FullName = employee.FullName;
+            employee.UserAccount.Phone = employee.Phone;
+            employee.UserAccount.Email = employee.Email;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeleteEmployeeProfileAsync(
+        int employeeId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureAdmin();
+        var employee = await dbContext.Employees
+            .Include(candidate => candidate.UserAccount)
+            .SingleOrDefaultAsync(candidate => candidate.Id == employeeId, cancellationToken);
+        if (employee is null)
+        {
+            throw new InvalidOperationException("Không tìm thấy hồ sơ nhân viên cần xóa.");
+        }
+
+        if (employee.UserAccount?.Id == currentUserSession.User?.Id)
+        {
+            throw new InvalidOperationException("Bạn không thể xóa hồ sơ đang dùng cho tài khoản đăng nhập hiện tại.");
+        }
+
+        var orders = await dbContext.RestaurantOrders
+            .Where(order => order.CreatedByEmployeeId == employeeId)
+            .ToListAsync(cancellationToken);
+        foreach (var order in orders)
+        {
+            if (string.IsNullOrWhiteSpace(order.CreatedByEmployeeNameSnapshot))
+            {
+                order.CreatedByEmployeeNameSnapshot = employee.FullName;
+            }
+
+            order.CreatedByEmployeeId = null;
+        }
+
+        dbContext.Employees.Remove(employee);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -130,6 +340,12 @@ public sealed class EmployeeManagementService(
             throw new InvalidOperationException("Bạn không thể tự thay đổi vai trò của tài khoản đang đăng nhập.");
         }
 
+        if (account.Id == currentUserSession.User?.Id && !string.IsNullOrWhiteSpace(newPassword))
+        {
+            throw new InvalidOperationException(
+                "Hãy dùng chức năng Đổi mật khẩu để thay đổi mật khẩu của tài khoản đang đăng nhập.");
+        }
+
         if (account.Role == UserRole.Admin && role != UserRole.Admin)
         {
             await EnsureAnotherActiveAdminExistsAsync(account.Id, account.EmployeeId, cancellationToken);
@@ -141,6 +357,8 @@ public sealed class EmployeeManagementService(
         {
             ValidatePassword(newPassword);
             account.PasswordHash = global::BCrypt.Net.BCrypt.HashPassword(newPassword);
+            account.RequiresPasswordChange = true;
+            account.EncryptedTemporaryPassword = TemporaryPasswordProtector.Protect(newPassword);
         }
 
         try
@@ -250,6 +468,7 @@ public sealed class EmployeeManagementService(
         {
             throw new ArgumentException("Thông tin này không được để trống.", parameterName);
         }
+
         var normalized = value.Trim();
         if (normalized.Length > maxLength)
         {
@@ -257,6 +476,73 @@ public sealed class EmployeeManagementService(
         }
 
         return normalized;
+    }
+
+    private async Task<string> GenerateUsernameAsync(
+        string fullName,
+        CancellationToken cancellationToken)
+    {
+        var normalizedName = fullName
+            .Replace('đ', 'd')
+            .Replace('Đ', 'D')
+            .Normalize(NormalizationForm.FormD);
+        var tokens = new List<string>();
+        var currentToken = new StringBuilder();
+        foreach (var character in normalizedName)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            if (char.IsLetterOrDigit(character) && character <= 127)
+            {
+                currentToken.Append(char.ToLowerInvariant(character));
+            }
+            else if (currentToken.Length > 0)
+            {
+                tokens.Add(currentToken.ToString());
+                currentToken.Clear();
+            }
+        }
+
+        if (currentToken.Length > 0)
+        {
+            tokens.Add(currentToken.ToString());
+        }
+
+        var baseUsername = tokens.Count switch
+        {
+            0 => "nhanvien",
+            1 => tokens[0],
+            _ => $"{tokens[^1]}.{tokens[0]}"
+        };
+        baseUsername = baseUsername[..Math.Min(baseUsername.Length, 40)];
+
+        for (var suffix = 1; ; suffix++)
+        {
+            var suffixText = suffix == 1 ? string.Empty : suffix.ToString(CultureInfo.InvariantCulture);
+            var candidateLength = Math.Min(baseUsername.Length, 50 - suffixText.Length);
+            var candidate = baseUsername[..candidateLength] + suffixText;
+            if (!await dbContext.UserAccounts.AnyAsync(
+                    account => account.Username == candidate,
+                    cancellationToken))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    private static string GenerateTemporaryPassword()
+    {
+        const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+        return string.Create(20, alphabet, static (password, characters) =>
+        {
+            for (var index = 0; index < password.Length; index++)
+            {
+                password[index] = characters[RandomNumberGenerator.GetInt32(characters.Length)];
+            }
+        });
     }
 
     private static string? NormalizeOptional(string? value, int maxLength, string parameterName)
@@ -291,5 +577,5 @@ public sealed class EmployeeManagementService(
     }
 
     private static bool IsDuplicateKey(DbUpdateException exception) =>
-        exception.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 };
+        exception.InnerException is MySql.Data.MySqlClient.MySqlException { Number: 1062 };
 }

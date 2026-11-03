@@ -2,7 +2,6 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RestaurantManagement.Infrastructure.Data;
@@ -12,18 +11,16 @@ using RestaurantManagement.Infrastructure.Data;
 namespace RestaurantManagement.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(RestaurantDbContext))]
-    [Migration("20261026170139_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20261101194420_InitialMySql")]
+    partial class InitialMySql
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.22")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
-
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+                .HasAnnotation("ProductVersion", "8.0.31")
+                .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             modelBuilder.Entity("RestaurantManagement.Core.Entities.Category", b =>
                 {
@@ -31,19 +28,17 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
                     b.Property<string>("Description")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("varchar(100)");
 
                     b.HasKey("Id");
 
@@ -59,26 +54,24 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
+                        .HasColumnType("datetime");
 
                     b.Property<string>("Email")
                         .HasMaxLength(254)
-                        .HasColumnType("nvarchar(254)");
+                        .HasColumnType("varchar(254)");
 
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasColumnType("varchar(30)");
 
                     b.HasKey("Id");
 
@@ -93,11 +86,9 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
@@ -105,7 +96,7 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                     b.Property<string>("ProductNameSnapshot")
                         .IsRequired()
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
@@ -125,9 +116,9 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
 
                     b.ToTable("OrderDetails", null, t =>
                         {
-                            t.HasCheckConstraint("CK_OrderDetails_Quantity", "[Quantity] > 0");
+                            t.HasCheckConstraint("CK_OrderDetails_Quantity", "`Quantity` > 0");
 
-                            t.HasCheckConstraint("CK_OrderDetails_UnitPriceSnapshot", "[UnitPriceSnapshot] > 0");
+                            t.HasCheckConstraint("CK_OrderDetails_UnitPriceSnapshot", "`UnitPriceSnapshot` > 0");
                         });
                 });
 
@@ -137,8 +128,6 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -146,10 +135,10 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                     b.Property<string>("Method")
                         .IsRequired()
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasColumnType("varchar(30)");
 
                     b.Property<DateTimeOffset>("PaidAt")
-                        .HasColumnType("datetimeoffset");
+                        .HasColumnType("datetime");
 
                     b.Property<int>("PaidByUserId")
                         .HasColumnType("int");
@@ -169,9 +158,9 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
 
                     b.ToTable("Payments", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Payments_Amount", "[Amount] > 0");
+                            t.HasCheckConstraint("CK_Payments_Amount", "`Amount` > 0");
 
-                            t.HasCheckConstraint("CK_Payments_Status", "[Status] = 1");
+                            t.HasCheckConstraint("CK_Payments_Status", "`Status` = 1");
                         });
                 });
 
@@ -181,29 +170,27 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("ImagePath")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsAvailable")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<decimal>("Price")
                         .HasPrecision(18, 2)
@@ -215,7 +202,7 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
 
                     b.ToTable("Products", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Products_Price", "[Price] > 0");
+                            t.HasCheckConstraint("CK_Products_Price", "`Price` > 0");
                         });
                 });
 
@@ -225,23 +212,26 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
                     b.Property<string>("CancellationReason")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<DateTimeOffset?>("CancelledAt")
-                        .HasColumnType("datetimeoffset");
+                        .HasColumnType("datetime");
 
                     b.Property<int?>("CancelledByUserId")
                         .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
+                        .HasColumnType("datetime");
 
                     b.Property<int>("CreatedByEmployeeId")
                         .HasColumnType("int");
+
+                    b.Property<int?>("OpenRestaurantTableId")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("int")
+                        .HasComputedColumnSql("CASE WHEN `Status` = 0 THEN `RestaurantTableId` ELSE NULL END", true);
 
                     b.Property<int>("RestaurantTableId")
                         .HasColumnType("int");
@@ -255,13 +245,14 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
 
                     b.HasIndex("CreatedByEmployeeId");
 
-                    b.HasIndex("RestaurantTableId")
-                        .IsUnique()
-                        .HasFilter("[Status] = 0");
+                    b.HasIndex("OpenRestaurantTableId")
+                        .IsUnique();
+
+                    b.HasIndex("RestaurantTableId");
 
                     b.ToTable("RestaurantOrders", null, t =>
                         {
-                            t.HasCheckConstraint("CK_RestaurantOrders_Cancellation", "([Status] <> 2 AND [CancelledAt] IS NULL AND [CancelledByUserId] IS NULL AND [CancellationReason] IS NULL) OR ([Status] = 2 AND [CancelledAt] IS NOT NULL AND [CancelledByUserId] IS NOT NULL AND [CancellationReason] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_RestaurantOrders_Cancellation", "(`Status` <> 2 AND `CancelledAt` IS NULL AND `CancelledByUserId` IS NULL AND `CancellationReason` IS NULL) OR (`Status` = 2 AND `CancelledAt` IS NOT NULL AND `CancelledByUserId` IS NOT NULL AND `CancellationReason` IS NOT NULL)");
                         });
                 });
 
@@ -271,10 +262,8 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<int>("SeatCount")
                         .HasColumnType("int");
@@ -289,9 +278,9 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
 
                     b.ToTable("RestaurantTables", null, t =>
                         {
-                            t.HasCheckConstraint("CK_RestaurantTables_SeatCount", "[SeatCount] > 0");
+                            t.HasCheckConstraint("CK_RestaurantTables_SeatCount", "`SeatCount` > 0");
 
-                            t.HasCheckConstraint("CK_RestaurantTables_TableNumber", "[TableNumber] > 0");
+                            t.HasCheckConstraint("CK_RestaurantTables_TableNumber", "`TableNumber` > 0");
                         });
                 });
 
@@ -301,34 +290,31 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
                     b.Property<int?>("EmployeeId")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("varchar(100)");
 
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("varchar(20)");
 
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("varchar(50)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("EmployeeId")
-                        .IsUnique()
-                        .HasFilter("[EmployeeId] IS NOT NULL");
+                        .IsUnique();
 
                     b.HasIndex("Username")
                         .IsUnique();

@@ -7,4 +7,5 @@ public sealed record AuthenticatedUser(
     string Username,
     UserRole Role,
     int? EmployeeId,
-    string? FullName);
+    string? FullName,
+    bool RequiresPasswordChange = false);

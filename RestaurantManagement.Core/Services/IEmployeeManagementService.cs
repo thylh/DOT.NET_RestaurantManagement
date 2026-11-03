@@ -8,13 +8,32 @@ public interface IEmployeeManagementService
     Task<IReadOnlyList<EmployeeAccountSummary>> GetEmployeesAsync(
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<AccountSummary>> GetAccountsAsync(
+        CancellationToken cancellationToken = default);
+
     Task CreateEmployeeAsync(
         string fullName,
         string? phone,
         string? email,
-        string username,
-        string password,
-        UserRole role,
+        CancellationToken cancellationToken = default);
+
+    Task<GeneratedEmployeeCredentials> CreateAccountAsync(
+        string fullName,
+        string? phone,
+        string? email,
+        CancellationToken cancellationToken = default);
+
+    Task CreateEmployeeProfileAsync(
+        int accountId,
+        CancellationToken cancellationToken = default);
+
+    Task UpdateAccountEmployeeNameAsync(
+        int accountId,
+        string fullName,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteAccountAsync(
+        int accountId,
         CancellationToken cancellationToken = default);
 
     Task UpdateEmployeeAsync(
@@ -22,6 +41,10 @@ public interface IEmployeeManagementService
         string fullName,
         string? phone,
         string? email,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteEmployeeProfileAsync(
+        int employeeId,
         CancellationToken cancellationToken = default);
 
     Task UpdateAccountAsync(

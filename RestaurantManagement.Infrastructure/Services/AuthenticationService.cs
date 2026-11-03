@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RestaurantManagement.Core.Enums;
 using RestaurantManagement.Core.Models;
 using RestaurantManagement.Core.Services;
 using RestaurantManagement.Infrastructure.Data;
@@ -42,12 +43,19 @@ public sealed class AuthenticationService(
             return null;
         }
 
+        if (account.Role == UserRole.Staff && employee is null)
+        {
+            throw new InvalidOperationException(
+                "Tài khoản chưa có hồ sơ nhân viên. Hãy liên hệ Admin để hoàn tất hồ sơ trước khi đăng nhập.");
+        }
+
         var user = new AuthenticatedUser(
             account.Id,
             account.Username,
             account.Role,
             account.EmployeeId,
-            employee?.FullName);
+            employee?.FullName ?? account.FullName,
+            account.RequiresPasswordChange);
         currentUserSession.SignIn(user);
 
         return user;
@@ -96,6 +104,12 @@ public sealed class AuthenticationService(
         }
 
         account.PasswordHash = global::BCrypt.Net.BCrypt.HashPassword(newPassword);
+        account.RequiresPasswordChange = false;
+        account.EncryptedTemporaryPassword = null;
         await dbContext.SaveChangesAsync(cancellationToken);
+        if (currentUserSession.User is { } currentUser)
+        {
+            currentUserSession.SignIn(currentUser with { RequiresPasswordChange = false });
+        }
     }
 }

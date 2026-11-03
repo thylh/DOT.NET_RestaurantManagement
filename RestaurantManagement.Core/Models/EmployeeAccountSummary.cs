@@ -11,4 +11,8 @@ public sealed record EmployeeAccountSummary(
     int? AccountId,
     string? Username,
     UserRole? Role,
-    bool? IsAccountActive);
+    bool? IsAccountActive,
+    bool RequiresPasswordChange)
+{
+    public string? TemporaryPassword { get; init; }
+}

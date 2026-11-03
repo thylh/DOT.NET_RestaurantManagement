@@ -1,101 +1,109 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using MySql.EntityFrameworkCore.Metadata;
 
 #nullable disable
 
 namespace RestaurantManagement.Infrastructure.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialMySql : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AlterDatabase()
+                .Annotation("MySQL:Charset", "utf8mb4");
+
             migrationBuilder.CreateTable(
                 name: "Categories",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
+                    Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
+                    Description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Categories", x => x.Id);
-                });
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "Employees",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    FullName = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
-                    Phone = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
-                    Email = table.Column<string>(type: "nvarchar(254)", maxLength: 254, nullable: true),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
+                    FullName = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false),
+                    Phone = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: true),
+                    Email = table.Column<string>(type: "varchar(254)", maxLength: 254, nullable: true),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "datetime", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Employees", x => x.Id);
-                });
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "RestaurantTables",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     TableNumber = table.Column<int>(type: "int", nullable: false),
                     SeatCount = table.Column<int>(type: "int", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_RestaurantTables", x => x.Id);
-                    table.CheckConstraint("CK_RestaurantTables_SeatCount", "[SeatCount] > 0");
-                    table.CheckConstraint("CK_RestaurantTables_TableNumber", "[TableNumber] > 0");
-                });
+                    table.CheckConstraint("CK_RestaurantTables_SeatCount", "`SeatCount` > 0");
+                    table.CheckConstraint("CK_RestaurantTables_TableNumber", "`TableNumber` > 0");
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "Products",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    ImagePath = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
+                    Name = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false),
+                    Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true),
+                    ImagePath = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true),
                     Price = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    IsAvailable = table.Column<bool>(type: "bit", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    IsAvailable = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CategoryId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Products", x => x.Id);
-                    table.CheckConstraint("CK_Products_Price", "[Price] > 0");
+                    table.CheckConstraint("CK_Products_Price", "`Price` > 0");
                     table.ForeignKey(
                         name: "FK_Products_Categories_CategoryId",
                         column: x => x.CategoryId,
                         principalTable: "Categories",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "UserAccounts",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Username = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    PasswordHash = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Role = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
+                    Username = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false),
+                    PasswordHash = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
+                    Role = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     EmployeeId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
@@ -107,26 +115,28 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         principalTable: "Employees",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
-                });
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "RestaurantOrders",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     RestaurantTableId = table.Column<int>(type: "int", nullable: false),
                     CreatedByEmployeeId = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "datetime", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
-                    CancelledAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                    CancelledAt = table.Column<DateTimeOffset>(type: "datetime", nullable: true),
                     CancelledByUserId = table.Column<int>(type: "int", nullable: true),
-                    CancellationReason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                    CancellationReason = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true),
+                    OpenRestaurantTableId = table.Column<int>(type: "int", nullable: true, computedColumnSql: "CASE WHEN `Status` = 0 THEN `RestaurantTableId` ELSE NULL END", stored: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_RestaurantOrders", x => x.Id);
-                    table.CheckConstraint("CK_RestaurantOrders_Cancellation", "([Status] <> 2 AND [CancelledAt] IS NULL AND [CancelledByUserId] IS NULL AND [CancellationReason] IS NULL) OR ([Status] = 2 AND [CancelledAt] IS NOT NULL AND [CancelledByUserId] IS NOT NULL AND [CancellationReason] IS NOT NULL)");
+                    table.CheckConstraint("CK_RestaurantOrders_Cancellation", "(`Status` <> 2 AND `CancelledAt` IS NULL AND `CancelledByUserId` IS NULL AND `CancellationReason` IS NULL) OR (`Status` = 2 AND `CancelledAt` IS NOT NULL AND `CancelledByUserId` IS NOT NULL AND `CancellationReason` IS NOT NULL)");
                     table.ForeignKey(
                         name: "FK_RestaurantOrders_Employees_CreatedByEmployeeId",
                         column: x => x.CreatedByEmployeeId,
@@ -145,26 +155,27 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         principalTable: "UserAccounts",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "OrderDetails",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     RestaurantOrderId = table.Column<int>(type: "int", nullable: false),
                     ProductId = table.Column<int>(type: "int", nullable: false),
-                    ProductNameSnapshot = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
+                    ProductNameSnapshot = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false),
                     UnitPriceSnapshot = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     Quantity = table.Column<int>(type: "int", nullable: false),
-                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                    Notes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_OrderDetails", x => x.Id);
-                    table.CheckConstraint("CK_OrderDetails_Quantity", "[Quantity] > 0");
-                    table.CheckConstraint("CK_OrderDetails_UnitPriceSnapshot", "[UnitPriceSnapshot] > 0");
+                    table.CheckConstraint("CK_OrderDetails_Quantity", "`Quantity` > 0");
+                    table.CheckConstraint("CK_OrderDetails_UnitPriceSnapshot", "`UnitPriceSnapshot` > 0");
                     table.ForeignKey(
                         name: "FK_OrderDetails_Products_ProductId",
                         column: x => x.ProductId,
@@ -177,26 +188,27 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         principalTable: "RestaurantOrders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "Payments",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     RestaurantOrderId = table.Column<int>(type: "int", nullable: false),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Method = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    PaidAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    Method = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false),
+                    PaidAt = table.Column<DateTimeOffset>(type: "datetime", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     PaidByUserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Payments", x => x.Id);
-                    table.CheckConstraint("CK_Payments_Amount", "[Amount] > 0");
-                    table.CheckConstraint("CK_Payments_Status", "[Status] = 1");
+                    table.CheckConstraint("CK_Payments_Amount", "`Amount` > 0");
+                    table.CheckConstraint("CK_Payments_Status", "`Status` = 1");
                     table.ForeignKey(
                         name: "FK_Payments_RestaurantOrders_RestaurantOrderId",
                         column: x => x.RestaurantOrderId,
@@ -209,7 +221,8 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         principalTable: "UserAccounts",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Categories_Name",
@@ -259,11 +272,15 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                 column: "CreatedByEmployeeId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_RestaurantOrders_OpenRestaurantTableId",
+                table: "RestaurantOrders",
+                column: "OpenRestaurantTableId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_RestaurantOrders_RestaurantTableId",
                 table: "RestaurantOrders",
-                column: "RestaurantTableId",
-                unique: true,
-                filter: "[Status] = 0");
+                column: "RestaurantTableId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RestaurantTables_TableNumber",
@@ -275,8 +292,7 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                 name: "IX_UserAccounts_EmployeeId",
                 table: "UserAccounts",
                 column: "EmployeeId",
-                unique: true,
-                filter: "[EmployeeId] IS NOT NULL");
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserAccounts_Username",

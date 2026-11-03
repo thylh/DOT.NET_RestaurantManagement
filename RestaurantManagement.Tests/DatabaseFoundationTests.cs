@@ -1,5 +1,5 @@
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using MySql.Data.MySqlClient;
 using RestaurantManagement.Core.Entities;
 using RestaurantManagement.Core.Enums;
 using RestaurantManagement.Core.Models;
@@ -11,27 +11,35 @@ namespace RestaurantManagement.Tests;
 
 public class DatabaseFoundationTests
 {
-    [Fact]
+    private const string TestDatabaseName = "RestaurantManagement_Test";
+
+    [MySqlFact]
     public async Task AccountAndRestaurantWorkflowsEnforceRulesAndPersistData()
     {
-        var connectionString = new SqlConnectionStringBuilder
+        var connectionString = Environment.GetEnvironmentVariable("RESTAURANT_TEST_CONNECTION_STRING")!;
+        var connectionStringBuilder = new MySqlConnectionStringBuilder(connectionString);
+        if (!string.Equals(
+                connectionStringBuilder.Database,
+                TestDatabaseName,
+                StringComparison.OrdinalIgnoreCase))
         {
-            DataSource = @"(localdb)\MSSQLLocalDB",
-            InitialCatalog = $"RestaurantManagementTests_{Guid.NewGuid():N}",
-            IntegratedSecurity = true,
-            MultipleActiveResultSets = true,
-            TrustServerCertificate = true
-        }.ConnectionString;
+            throw new InvalidOperationException(
+                $"Database thử nghiệm phải có tên chính xác là {TestDatabaseName} để tránh xóa nhầm dữ liệu.");
+        }
+
         var options = new DbContextOptionsBuilder<RestaurantDbContext>()
-            .UseSqlServer(connectionString)
+            .UseMySQL(connectionString)
             .Options;
         const string password = "Phase-B-test-password-2026";
+        var databaseReady = false;
 
         try
         {
             await using (var dbContext = new RestaurantDbContext(options))
             {
                 await dbContext.Database.MigrateAsync();
+                databaseReady = true;
+                await ClearTestDataAsync(dbContext);
 
                 var setupService = new InitialAdminSetupService(dbContext);
                 Assert.True(await setupService.IsSetupRequiredAsync());
@@ -107,32 +115,72 @@ public class DatabaseFoundationTests
                 Assert.Empty(await catalogService.GetProductsAsync("Món không tồn tại"));
 
                 var employeeService = new EmployeeManagementService(dbContext, session);
-                await employeeService.CreateEmployeeAsync(
-                    "Sample Staff",
+                var staffCredentials = await employeeService.CreateAccountAsync(
+                    "Nguyễn Văn An",
                     "0123456789",
-                    "staff@example.test",
-                    "sample-staff",
-                    "Phase-C-staff-password-2026",
-                    UserRole.Staff);
+                    "staff@example.test");
 
+                Assert.Empty(await employeeService.GetEmployeesAsync());
+                var accountList = await employeeService.GetAccountsAsync();
+                Assert.All(accountList, account => Assert.Equal(UserRole.Staff, account.Role));
+                var accountBeforeProfile = Assert.Single(accountList);
+                Assert.Equal(staffCredentials.AccountId, accountBeforeProfile.AccountId);
+                Assert.False(accountBeforeProfile.HasEmployeeProfile);
+                Assert.Equal(staffCredentials.TemporaryPassword, accountBeforeProfile.PasswordDisplay);
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => authenticationService.SignInAsync(
+                        staffCredentials.Username,
+                        staffCredentials.TemporaryPassword));
+
+                await employeeService.CreateEmployeeProfileAsync(staffCredentials.AccountId);
                 var employees = await employeeService.GetEmployeesAsync();
                 var staff = Assert.Single(employees);
-                Assert.Equal("Sample Staff", staff.FullName);
+                Assert.Equal("Nguyễn Văn An", staff.FullName);
                 Assert.Equal(UserRole.Staff, staff.Role);
-                Assert.NotNull(staff.AccountId);
+                Assert.Equal(staffCredentials.AccountId, staff.AccountId);
+                Assert.Equal("an.nguyen", staffCredentials.Username);
+                Assert.Equal(staffCredentials.Username, staff.Username);
+                Assert.Equal(20, staffCredentials.TemporaryPassword.Length);
+                Assert.True(staff.RequiresPasswordChange);
+                await employeeService.UpdateAccountEmployeeNameAsync(
+                    staffCredentials.AccountId,
+                    "Nguyễn An");
+                Assert.Equal(
+                    "Nguyễn An",
+                    Assert.Single(await employeeService.GetEmployeesAsync()).FullName);
+                Assert.Equal(
+                    "Nguyễn An",
+                    Assert.Single(await employeeService.GetAccountsAsync()).FullName);
+                Assert.True(global::BCrypt.Net.BCrypt.Verify(
+                    staffCredentials.TemporaryPassword,
+                    (await dbContext.UserAccounts.SingleAsync(account => account.Id == staffCredentials.AccountId))
+                    .PasswordHash));
+                var duplicateNameCredentials = await employeeService.CreateAccountAsync(
+                    "Nguyễn Văn An",
+                    null,
+                    "second-staff@example.test");
+                Assert.Equal("an.nguyen2", duplicateNameCredentials.Username);
+                Assert.NotEqual(
+                    staffCredentials.TemporaryPassword,
+                    duplicateNameCredentials.TemporaryPassword);
+                await employeeService.DeleteAccountAsync(duplicateNameCredentials.AccountId);
+                Assert.DoesNotContain(
+                    await employeeService.GetAccountsAsync(),
+                    account => account.AccountId == duplicateNameCredentials.AccountId);
+                await employeeService.CreateAccountAsync("Nguyễn Văn Bình", null, null);
 
                 await Assert.ThrowsAsync<InvalidOperationException>(
                     () => employeeService.SetAccountActiveAsync(admin.Id, false));
 
-                var staffAccountId = staff.AccountId!.Value;
+                var staffAccountId = staffCredentials.AccountId;
                 await employeeService.UpdateAccountAsync(
                     staffAccountId,
                     "renamed-staff",
                     UserRole.Staff,
                     "Phase-C-new-staff-password-2026");
                 Assert.Null(await authenticationService.SignInAsync(
-                    "sample-staff",
-                    "Phase-C-staff-password-2026"));
+                    staffCredentials.Username,
+                    staffCredentials.TemporaryPassword));
                 await employeeService.SetAccountActiveAsync(staffAccountId, false);
                 Assert.Null(await authenticationService.SignInAsync(
                     "renamed-staff",
@@ -144,6 +192,16 @@ public class DatabaseFoundationTests
                     "Phase-C-new-staff-password-2026");
                 Assert.NotNull(signedInStaff);
                 Assert.Equal(UserRole.Staff, signedInStaff.Role);
+                Assert.True(signedInStaff.RequiresPasswordChange);
+                await authenticationService.ChangePasswordAsync(
+                    staffAccountId,
+                    "Phase-C-new-staff-password-2026",
+                    "Phase-C-rotated-staff-password-2026");
+                signedInStaff = Assert.IsType<AuthenticatedUser>(session.User);
+                Assert.False(signedInStaff.RequiresPasswordChange);
+                Assert.False((await dbContext.UserAccounts
+                    .SingleAsync(account => account.Id == staffAccountId))
+                    .RequiresPasswordChange);
                 await Assert.ThrowsAsync<UnauthorizedAccessException>(
                     () => employeeService.GetEmployeesAsync());
                 Assert.Single(await catalogService.GetTablesAsync());
@@ -169,6 +227,8 @@ public class DatabaseFoundationTests
                 {
                     RestaurantTableId = table.Id,
                     CreatedByEmployeeId = staff.EmployeeId,
+                    CreatedByEmployeeNameSnapshot = staff.FullName,
+                    CreatedByUserId = staffAccountId,
                     Status = OrderStatus.Open,
                     OrderDetails =
                     [
@@ -183,6 +243,18 @@ public class DatabaseFoundationTests
                 };
                 dbContext.RestaurantOrders.Add(order);
                 await dbContext.SaveChangesAsync();
+
+                var duplicateOpenOrder = new RestaurantOrder
+                {
+                    RestaurantTableId = table.Id,
+                    CreatedByEmployeeId = staff.EmployeeId,
+                    CreatedByEmployeeNameSnapshot = staff.FullName,
+                    CreatedByUserId = staffAccountId,
+                    Status = OrderStatus.Open
+                };
+                dbContext.RestaurantOrders.Add(duplicateOpenOrder);
+                await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
+                dbContext.Entry(duplicateOpenOrder).State = EntityState.Detached;
 
                 Assert.True(Assert.Single(await catalogService.GetTablesAsync()).IsOccupied);
                 Assert.Equal(55_000m, await dbContext.OrderDetails
@@ -207,6 +279,14 @@ public class DatabaseFoundationTests
 
                 order.Status = OrderStatus.Paid;
                 await dbContext.SaveChangesAsync();
+                dbContext.Payments.Add(new Payment
+                {
+                    RestaurantOrderId = order.Id,
+                    Amount = 55_000m,
+                    Method = PaymentMethod.Cash,
+                    PaidByUserId = staffAccountId
+                });
+                await dbContext.SaveChangesAsync();
                 await catalogService.SetTableActiveAsync(table.Id, false);
                 session.SignIn(signedInStaff);
                 Assert.Empty(await catalogService.GetTablesAsync());
@@ -216,7 +296,7 @@ public class DatabaseFoundationTests
                 await employeeService.SetEmployeeActiveAsync(staff.EmployeeId, false);
                 Assert.Null(await authenticationService.SignInAsync(
                     "renamed-staff",
-                    "Phase-C-new-staff-password-2026"));
+                    "Phase-C-rotated-staff-password-2026"));
                 await employeeService.SetEmployeeActiveAsync(staff.EmployeeId, true);
 
                 await authenticationService.ChangePasswordAsync(
@@ -227,6 +307,46 @@ public class DatabaseFoundationTests
                 Assert.NotNull(await authenticationService.SignInAsync(
                     "test-admin",
                     "Phase-C-new-admin-password-2026"));
+                await employeeService.CreateEmployeeAsync(
+                    "Hồ sơ chưa cấp tài khoản",
+                    null,
+                    null);
+                var employeeWithoutAccount = (await employeeService.GetEmployeesAsync())
+                    .Single(candidate => candidate.FullName == "Hồ sơ chưa cấp tài khoản");
+                Assert.Null(employeeWithoutAccount.AccountId);
+                Assert.Equal(
+                    "Đã đổi mk",
+                    (await employeeService.GetAccountsAsync())
+                    .Single(account => account.AccountId == staffAccountId)
+                    .PasswordDisplay);
+                var relatedOrderId = order.Id;
+                await employeeService.DeleteEmployeeProfileAsync(staff.EmployeeId);
+                Assert.DoesNotContain(
+                    await employeeService.GetEmployeesAsync(),
+                    employee => employee.EmployeeId == staff.EmployeeId);
+                var retainedOrder = await dbContext.RestaurantOrders
+                    .SingleAsync(candidate => candidate.Id == relatedOrderId);
+                Assert.Null(retainedOrder.CreatedByEmployeeId);
+                Assert.Equal(staff.FullName, retainedOrder.CreatedByEmployeeNameSnapshot);
+                Assert.Equal(staffAccountId, retainedOrder.CreatedByUserId);
+                Assert.Contains(
+                    await employeeService.GetAccountsAsync(),
+                    account => account.AccountId == staffAccountId);
+
+                await employeeService.CreateEmployeeProfileAsync(staffAccountId);
+                await employeeService.DeleteAccountAsync(staffAccountId);
+                Assert.DoesNotContain(
+                    await employeeService.GetAccountsAsync(),
+                    account => account.AccountId == staffAccountId);
+                Assert.DoesNotContain(
+                    await employeeService.GetEmployeesAsync(),
+                    employee => employee.AccountId == staffAccountId);
+                Assert.False(await dbContext.RestaurantOrders.AnyAsync(
+                    candidate => candidate.Id == relatedOrderId));
+                Assert.False(await dbContext.OrderDetails.AnyAsync(
+                    detail => detail.RestaurantOrderId == relatedOrderId));
+                Assert.False(await dbContext.Payments.AnyAsync(
+                    payment => payment.RestaurantOrderId == relatedOrderId));
             }
 
             await using var verificationContext = new RestaurantDbContext(options);
@@ -237,8 +357,31 @@ public class DatabaseFoundationTests
         }
         finally
         {
-            await using var cleanupContext = new RestaurantDbContext(options);
-            await cleanupContext.Database.EnsureDeletedAsync();
+            if (databaseReady)
+            {
+                await using var cleanupContext = new RestaurantDbContext(options);
+                await ClearTestDataAsync(cleanupContext);
+            }
+        }
+    }
+
+    private static async Task ClearTestDataAsync(RestaurantDbContext dbContext)
+    {
+        string[] statements =
+        [
+            "DELETE FROM `Payments`",
+            "DELETE FROM `OrderDetails`",
+            "DELETE FROM `RestaurantOrders`",
+            "DELETE FROM `Products`",
+            "DELETE FROM `Categories`",
+            "DELETE FROM `RestaurantTables`",
+            "DELETE FROM `UserAccounts`",
+            "DELETE FROM `Employees`"
+        ];
+
+        foreach (var statement in statements)
+        {
+            await dbContext.Database.ExecuteSqlRawAsync(statement);
         }
     }
 }

@@ -36,7 +36,11 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
         {
             entity.ToTable("UserAccounts");
             entity.Property(account => account.Username).HasMaxLength(50).IsRequired();
+            entity.Property(account => account.FullName).HasMaxLength(150).IsRequired();
+            entity.Property(account => account.Phone).HasMaxLength(30);
+            entity.Property(account => account.Email).HasMaxLength(254);
             entity.Property(account => account.PasswordHash).HasMaxLength(100).IsRequired();
+            entity.Property(account => account.EncryptedTemporaryPassword).HasMaxLength(2048);
             entity.Property(account => account.Role).HasConversion<string>().HasMaxLength(20);
             entity.HasIndex(account => account.Username).IsUnique();
             entity.HasIndex(account => account.EmployeeId).IsUnique();
@@ -50,8 +54,8 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
         {
             entity.ToTable("RestaurantTables", table =>
             {
-                table.HasCheckConstraint("CK_RestaurantTables_TableNumber", "[TableNumber] > 0");
-                table.HasCheckConstraint("CK_RestaurantTables_SeatCount", "[SeatCount] > 0");
+                table.HasCheckConstraint("CK_RestaurantTables_TableNumber", "`TableNumber` > 0");
+                table.HasCheckConstraint("CK_RestaurantTables_SeatCount", "`SeatCount` > 0");
             });
             entity.HasIndex(table => table.TableNumber).IsUnique();
         });
@@ -67,7 +71,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
         modelBuilder.Entity<Product>(entity =>
         {
             entity.ToTable("Products", table =>
-                table.HasCheckConstraint("CK_Products_Price", "[Price] > 0"));
+                table.HasCheckConstraint("CK_Products_Price", "`Price` > 0"));
             entity.Property(product => product.Name).HasMaxLength(150).IsRequired();
             entity.Property(product => product.Description).HasMaxLength(1000);
             entity.Property(product => product.ImagePath).HasMaxLength(500);
@@ -83,12 +87,15 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
             entity.ToTable("RestaurantOrders", table =>
                 table.HasCheckConstraint(
                     "CK_RestaurantOrders_Cancellation",
-                    "([Status] <> 2 AND [CancelledAt] IS NULL AND [CancelledByUserId] IS NULL AND [CancellationReason] IS NULL) OR ([Status] = 2 AND [CancelledAt] IS NOT NULL AND [CancelledByUserId] IS NOT NULL AND [CancellationReason] IS NOT NULL)"));
+                    "(`Status` <> 2 AND `CancelledAt` IS NULL AND `CancelledByUserId` IS NULL AND `CancellationReason` IS NULL) OR (`Status` = 2 AND `CancelledAt` IS NOT NULL AND `CancelledByUserId` IS NOT NULL AND `CancellationReason` IS NOT NULL)"));
             entity.Property(order => order.Status).HasConversion<int>();
             entity.Property(order => order.CancellationReason).HasMaxLength(500);
-            entity.HasIndex(order => order.RestaurantTableId)
-                .IsUnique()
-                .HasFilter("[Status] = 0");
+            entity.Property(order => order.CreatedByEmployeeNameSnapshot).HasMaxLength(150).IsRequired();
+            entity.Property<int?>("OpenRestaurantTableId")
+                .HasComputedColumnSql(
+                    "CASE WHEN `Status` = 0 THEN `RestaurantTableId` ELSE NULL END",
+                    stored: true);
+            entity.HasIndex("OpenRestaurantTableId").IsUnique();
             entity.HasOne(order => order.RestaurantTable)
                 .WithMany(table => table.Orders)
                 .HasForeignKey(order => order.RestaurantTableId)
@@ -96,6 +103,10 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
             entity.HasOne(order => order.CreatedByEmployee)
                 .WithMany(employee => employee.Orders)
                 .HasForeignKey(order => order.CreatedByEmployeeId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(order => order.CreatedByUser)
+                .WithMany(account => account.CreatedOrders)
+                .HasForeignKey(order => order.CreatedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(order => order.CancelledByUser)
                 .WithMany(account => account.CancelledOrders)
@@ -107,8 +118,8 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
         {
             entity.ToTable("OrderDetails", table =>
             {
-                table.HasCheckConstraint("CK_OrderDetails_Quantity", "[Quantity] > 0");
-                table.HasCheckConstraint("CK_OrderDetails_UnitPriceSnapshot", "[UnitPriceSnapshot] > 0");
+                table.HasCheckConstraint("CK_OrderDetails_Quantity", "`Quantity` > 0");
+                table.HasCheckConstraint("CK_OrderDetails_UnitPriceSnapshot", "`UnitPriceSnapshot` > 0");
             });
             entity.Property(detail => detail.ProductNameSnapshot).HasMaxLength(150).IsRequired();
             entity.Property(detail => detail.UnitPriceSnapshot).HasPrecision(18, 2);
@@ -127,8 +138,8 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
         {
             entity.ToTable("Payments", table =>
             {
-                table.HasCheckConstraint("CK_Payments_Amount", "[Amount] > 0");
-                table.HasCheckConstraint("CK_Payments_Status", "[Status] = 1");
+                table.HasCheckConstraint("CK_Payments_Amount", "`Amount` > 0");
+                table.HasCheckConstraint("CK_Payments_Status", "`Status` = 1");
             });
             entity.Property(payment => payment.Amount).HasPrecision(18, 2);
             entity.Property(payment => payment.Method).HasConversion<string>().HasMaxLength(30);
