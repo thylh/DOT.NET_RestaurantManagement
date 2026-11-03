@@ -20,7 +20,6 @@ public class MainWindowViewModelTests
             true,
             "an.nguyen",
             UserRole.Staff,
-            true,
             RequiresPasswordChange: true)
         {
             TemporaryPassword = "Temporary123!"
@@ -28,18 +27,239 @@ public class MainWindowViewModelTests
 
         Assert.Equal("Temporary123!", account.PasswordDisplay);
         Assert.Equal("Tạo hồ sơ", account.ProfileActionLabel);
-        Assert.Equal("Khóa tài khoản", account.AccountStatusActionLabel);
-        Assert.Equal("Mở khóa tài khoản", (account with { IsAccountActive = false }).AccountStatusActionLabel);
+        Assert.Equal("Chưa tạo hồ sơ", account.EmployeeProfileStatusLabel);
         Assert.Equal(
             "Đã đổi mật khẩu",
             (account with { RequiresPasswordChange = false }).PasswordDisplay);
         Assert.Equal(
-            "Đã tạo hs",
+            "Đã tạo hồ sơ",
             (account with { EmployeeId = 12 }).ProfileActionLabel);
+        Assert.Equal(
+            "Đã tạo hồ sơ",
+            (account with { EmployeeId = 12 }).EmployeeProfileStatusLabel);
+        Assert.Equal(
+            "Hồ sơ đã bị xóa",
+            (account with { EmployeeProfileDeleted = true }).EmployeeProfileStatusLabel);
+
+        var employee = new EmployeeAccountSummary(
+            3,
+            "Nguyễn Văn An",
+            "0123456789",
+            null,
+            true,
+            7,
+            "an.nguyen",
+            UserRole.Staff,
+            RequiresPasswordChange: false);
+        Assert.Equal("Tạm đình chỉ", employee.EmployeeStatusActionLabel);
+        Assert.Equal(
+            "Bỏ tạm đình chỉ",
+            (employee with { IsEmployeeActive = false }).EmployeeStatusActionLabel);
     }
 
     [Fact]
-    public async Task ToggleAccountStatusCommandLocksSelectedAccount()
+    public void TableStatusReflectsOccupancyAndAvailability()
+    {
+        var table = new RestaurantTableSummary(1, "Bàn 1", "Tầng trệt", 4, true, false);
+
+        Assert.Equal("Trống", table.OccupancyStatus);
+        Assert.Equal("Có khách", (table with { IsOccupied = true }).OccupancyStatus);
+        Assert.Equal("Đang phục vụ", table.ServiceStatus);
+        Assert.Equal("Ngừng phục vụ", (table with { IsActive = false }).ServiceStatus);
+        Assert.Equal("Trống", (table with { IsActive = false }).OccupancyStatus);
+    }
+
+    [Fact]
+    public void OpenOrderSummaryShowsDiscountedTotalWithoutChangingSubtotal()
+    {
+        var order = new OpenOrderSummary(
+            7,
+            3,
+            [new OrderDetailSummary("Món thử", 50_000m, 2, null)],
+            "Ưu đãi cuối tuần",
+            10_000m);
+
+        Assert.Equal(100_000m, order.Subtotal);
+        Assert.Equal(10_000m, order.DiscountAmount);
+        Assert.Equal(90_000m, order.Total);
+    }
+
+    [Fact]
+    public void AccountFiltersMatchSearchRoleAndEmployeeProfileStatus()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.Accounts.Add(new AccountSummary(
+            1, 10, "Nguyễn An", "0900000001", "an@example.com", true,
+            "an.staff", UserRole.Staff, false));
+        viewModel.Accounts.Add(new AccountSummary(
+            2, null, "Trần Bình", null, null, false,
+            "binh.staff", UserRole.Staff, true));
+        viewModel.Accounts.Add(new AccountSummary(
+            3, 11, "Lê Chi", null, null, true,
+            "admin.chi", UserRole.Admin, false));
+        viewModel.Accounts.Add(new AccountSummary(
+            4, null, "Phạm Dung", null, null, false,
+            "dung.staff", UserRole.Staff, true) { EmployeeProfileDeleted = true });
+
+        viewModel.SelectedAccountRoleFilter = "Nhân viên";
+        viewModel.SelectedAccountProfileFilter = "Chưa tạo hồ sơ";
+        Assert.Equal(new[] { 2 }, viewModel.FilteredAccounts.Select(account => account.AccountId));
+
+        viewModel.SelectedAccountProfileFilter = "Hồ sơ đã bị xóa";
+        Assert.Equal(new[] { 4 }, viewModel.FilteredAccounts.Select(account => account.AccountId));
+
+        viewModel.SelectedAccountProfileFilter = "Tất cả hồ sơ";
+        viewModel.AccountSearchText = "0900000001";
+        Assert.Equal(new[] { 1 }, viewModel.FilteredAccounts.Select(account => account.AccountId));
+    }
+
+    [Fact]
+    public void EmployeeFiltersMatchSearchAndWorkStatus()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.Employees.Add(new EmployeeAccountSummary(
+            1, "Nguyễn An", "0900000001", "an@example.com", true,
+            10, "an.staff", UserRole.Staff, false));
+        viewModel.Employees.Add(new EmployeeAccountSummary(
+            2, "Trần Bình", "0900000002", null, false,
+            11, "binh.staff", UserRole.Staff, false));
+
+        viewModel.SelectedEmployeeStatusFilter = "Tạm đình chỉ";
+        Assert.Equal(new[] { 2 }, viewModel.FilteredEmployees.Select(employee => employee.EmployeeId));
+
+        viewModel.EmployeeSearchText = "binh.staff";
+        Assert.Equal(new[] { 2 }, viewModel.FilteredEmployees.Select(employee => employee.EmployeeId));
+
+        viewModel.EmployeeSearchText = "an@example.com";
+        Assert.Empty(viewModel.FilteredEmployees);
+    }
+
+    [Fact]
+    public void TableAreasProvideCommonPrivateVipAndOutdoorOptions()
+    {
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub(),
+            new CurrentUserSessionStub(),
+            new EmployeeManagementServiceStub(),
+            new RestaurantCatalogServiceStub(),
+            NullLogger<MainWindowViewModel>.Instance);
+
+        Assert.Equal(
+            new[] { "Chung", "Riêng tư", "VIP", "Ngoài trời" },
+            viewModel.TableAreas);
+    }
+
+    private static MainWindowViewModel CreateViewModel() =>
+        new(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub(),
+            new CurrentUserSessionStub(),
+            new EmployeeManagementServiceStub(),
+            new RestaurantCatalogServiceStub(),
+            NullLogger<MainWindowViewModel>.Instance);
+
+    [Fact]
+    public void TableFiltersMatchSearchAreaAndServiceStatus()
+    {
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub(),
+            new CurrentUserSessionStub(),
+            new EmployeeManagementServiceStub(),
+            new RestaurantCatalogServiceStub(),
+            NullLogger<MainWindowViewModel>.Instance);
+        viewModel.Tables.Add(new RestaurantTableSummary(1, "Bàn 1", "Chung", 4, true, false));
+        viewModel.Tables.Add(new RestaurantTableSummary(2, "A2", "VIP", 2, false, false));
+        viewModel.Tables.Add(new RestaurantTableSummary(3, "Bàn 3", "VIP", 6, true, true));
+        viewModel.SelectedTableAreaFilter = "Chung";
+        viewModel.SelectedTableAreaFilter = "Tất cả khu vực";
+
+        Assert.Equal(3, viewModel.FilteredTables.Count);
+
+        viewModel.SelectedTableAreaFilter = "VIP";
+        Assert.Equal(new[] { 2, 3 }, viewModel.FilteredTables.Select(table => table.Id));
+
+        viewModel.SelectedTableServiceStatusFilter = "Đang phục vụ";
+        Assert.Equal(new[] { 3 }, viewModel.FilteredTables.Select(table => table.Id));
+
+        viewModel.TableSearchText = "bàn 3";
+        Assert.Equal(new[] { 3 }, viewModel.FilteredTables.Select(table => table.Id));
+
+        viewModel.TableSearchText = "bàn 1";
+        Assert.Empty(viewModel.FilteredTables);
+    }
+
+    [Fact]
+    public async Task UpdatingTablePreservesAvailableFilters()
+    {
+        var catalogService = new RestaurantCatalogServiceStub
+        {
+            TablesToReturn = [new RestaurantTableSummary(2, "A2", "VIP", 2, false, false)]
+        };
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub(),
+            new CurrentUserSessionStub(),
+            new EmployeeManagementServiceStub(),
+            catalogService,
+            NullLogger<MainWindowViewModel>.Instance);
+        var table = new RestaurantTableSummary(2, "A2", "VIP", 2, false, false);
+        viewModel.Tables.Add(table);
+        viewModel.SelectedTable = table;
+        viewModel.SelectedTableAreaFilter = "VIP";
+        viewModel.SelectedTableServiceStatusFilter = "Ngừng phục vụ";
+        viewModel.TableSearchText = "A2";
+
+        await viewModel.UpdateTableCommand.ExecuteAsync(null);
+
+        Assert.Equal("VIP", viewModel.SelectedTableAreaFilter);
+        Assert.Equal("Ngừng phục vụ", viewModel.SelectedTableServiceStatusFilter);
+        Assert.Equal("A2", viewModel.TableSearchText);
+        Assert.Equal(2, Assert.Single(viewModel.FilteredTables).Id);
+        Assert.NotNull(viewModel.SelectedTable);
+    }
+
+    [Fact]
+    public void TableStatusSwitchIsDisabledOnlyForOccupiedActiveTables()
+    {
+        Assert.True(new RestaurantTableSummary(1, "Bàn 1", "Chung", 4, true, false).CanToggleServiceStatus);
+        Assert.False(new RestaurantTableSummary(2, "Bàn 2", "Chung", 4, true, true).CanToggleServiceStatus);
+        Assert.True(new RestaurantTableSummary(3, "Bàn 3", "Chung", 4, false, false).CanToggleServiceStatus);
+    }
+
+    [Fact]
+    public void StaffWithoutEmployeeProfileCanEnterReadOnlyWorkspace()
+    {
+        var session = new CurrentUserSessionStub();
+        session.SignIn(new AuthenticatedUser(
+            7,
+            "an.nguyen",
+            UserRole.Staff,
+            null,
+            "Nguyễn Văn An",
+            RequiresPasswordChange: false));
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub(),
+            session,
+            new EmployeeManagementServiceStub(),
+            new RestaurantCatalogServiceStub(),
+            NullLogger<MainWindowViewModel>.Instance);
+
+        Assert.True(viewModel.IsAuthenticatedWorkspace);
+        Assert.True(viewModel.IsStaffScreen);
+        Assert.True(viewModel.IsReadOnlyStaff);
+        Assert.False(viewModel.IsStaffOrderScreen);
+        Assert.False(viewModel.IsPasswordChangeRequired);
+        Assert.Contains(
+            "Bạn chỉ có thể xem nghiệp vụ, không thể thao tác ảnh hưởng đến dữ liệu.",
+            viewModel.ReadOnlyStaffWarning);
+        Assert.Contains("Hãy đổi mật khẩu được cấp", viewModel.ReadOnlyStaffWarning);
+    }
+
+    [Fact]
+    public async Task UpdateEmployeeCommandChangesContactDetailsWithoutRenamingEmployee()
     {
         var employeeService = new EmployeeManagementServiceStub();
         var viewModel = new MainWindowViewModel(
@@ -50,23 +270,86 @@ public class MainWindowViewModelTests
             new RestaurantCatalogServiceStub(),
             NullLogger<MainWindowViewModel>.Instance)
         {
-            SelectedAccount = new AccountSummary(
+            SelectedEmployee = new EmployeeAccountSummary(
+                12,
+                "Nguyễn Văn An",
+                "0123456789",
+                "old@example.test",
+                true,
                 7,
+                "an.nguyen",
+                UserRole.Staff,
+                RequiresPasswordChange: false),
+            EmployeePhone = "0987654321",
+            EmployeeEmail = "new@example.test"
+        };
+
+        await viewModel.UpdateEmployeeCommand.ExecuteAsync(null);
+
+        Assert.Equal(
+            (12, "Nguyễn Văn An", "0987654321", "new@example.test"),
+            employeeService.LastEmployeeUpdate);
+        Assert.Equal("Đã cập nhật số điện thoại và email nhân viên.", viewModel.StatusMessage);
+    }
+
+    [Fact]
+    public async Task ToggleEmployeeStatusCommandSuspendsSelectedEmployee()
+    {
+        var employeeService = new EmployeeManagementServiceStub();
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub(),
+            new CurrentUserSessionStub(),
+            employeeService,
+            new RestaurantCatalogServiceStub(),
+            NullLogger<MainWindowViewModel>.Instance)
+        {
+            SelectedEmployee = new EmployeeAccountSummary(
                 12,
                 "Nguyễn Văn An",
                 "0123456789",
                 null,
                 true,
+                7,
                 "an.nguyen",
                 UserRole.Staff,
-                true,
-                RequiresPasswordChange: true)
+                RequiresPasswordChange: false)
         };
 
-        await viewModel.ToggleAccountStatusCommand.ExecuteAsync(null);
+        await viewModel.ToggleEmployeeStatusCommand.ExecuteAsync(null);
 
-        Assert.Equal((7, false), employeeService.LastAccountStatusChange!.Value);
-        Assert.Equal("Đã khóa tài khoản.", viewModel.StatusMessage);
+        Assert.Equal((12, false), employeeService.LastEmployeeStatusChange);
+        Assert.Equal("Đã tạm đình chỉ nhân viên.", viewModel.StatusMessage);
+    }
+
+    [Theory]
+    [InlineData("Tài khoản không tồn tại.")]
+    [InlineData("Nhân viên đang bị tạm đình chỉ.")]
+    public async Task SignInFailureIsShownOnLoginScreen(string message)
+    {
+        var authenticationService = new AuthenticationServiceStub
+        {
+            SignInFailure = new InvalidOperationException(message)
+        };
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            authenticationService,
+            new CurrentUserSessionStub(),
+            new EmployeeManagementServiceStub(),
+            new RestaurantCatalogServiceStub(),
+            NullLogger<MainWindowViewModel>.Instance)
+        {
+            IsSetupRequired = false,
+            LoginUsername = "staff",
+            LoginPassword = "Temporary123!"
+        };
+
+        await viewModel.SignInCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsLoginScreen);
+        Assert.False(viewModel.IsAuthenticated);
+        Assert.Equal(message, viewModel.ErrorMessage);
+        Assert.Empty(viewModel.LoginPassword);
     }
 
     [Fact]
@@ -146,7 +429,7 @@ public class MainWindowViewModelTests
             new RestaurantCatalogServiceStub(),
             NullLogger<MainWindowViewModel>.Instance);
 
-        Assert.Equal("Quản lý nhà hàng", MainWindowViewModel.Title);
+        Assert.Equal("DineEase - Quản lý nhà hàng", MainWindowViewModel.Title);
         Assert.False(viewModel.HasError);
         Assert.False(viewModel.HasStatusMessage);
 
@@ -162,7 +445,56 @@ public class MainWindowViewModelTests
     }
 
     [Fact]
-    public void FirstLoginPasswordRequirementBlocksTheAuthenticatedWorkspace()
+    public void ProductTagsCombineSelectedDropdownOptions()
+    {
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub(),
+            new CurrentUserSessionStub(),
+            new EmployeeManagementServiceStub(),
+            new RestaurantCatalogServiceStub(),
+            NullLogger<MainWindowViewModel>.Instance);
+
+        viewModel.ProductTagOptions.Single(option => option.Name == "Đặc sản").IsSelected = true;
+        viewModel.ProductTagOptions.Single(option => option.Name == "Bán chạy").IsSelected = true;
+
+        Assert.Equal("Đặc sản, Bán chạy", viewModel.ProductTags);
+        Assert.Equal("Đặc sản, Bán chạy", viewModel.ProductTagsDisplay);
+
+        viewModel.ProductTagOptions.Single(option => option.Name == "Đặc sản").IsSelected = false;
+
+        Assert.Equal("Bán chạy", viewModel.ProductTags);
+    }
+
+    [Fact]
+    public void SelectingProductLoadsTagsIntoTheMultiSelectDropdown()
+    {
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub(),
+            new CurrentUserSessionStub(),
+            new EmployeeManagementServiceStub(),
+            new RestaurantCatalogServiceStub(),
+            NullLogger<MainWindowViewModel>.Instance);
+
+        viewModel.SelectedProduct = new ProductSummary(
+            1,
+            "Món thử",
+            null,
+            "Đặc sản, Nhãn cũ",
+            25_000m,
+            IsAvailable: true,
+            IsActive: true,
+            CategoryId: 1,
+            CategoryName: "Món chính");
+
+        Assert.True(viewModel.ProductTagOptions.Single(option => option.Name == "Đặc sản").IsSelected);
+        Assert.True(viewModel.ProductTagOptions.Single(option => option.Name == "Nhãn cũ").IsSelected);
+        Assert.Equal("Đặc sản, Nhãn cũ", viewModel.ProductTags);
+    }
+
+    [Fact]
+    public void FirstLoginPasswordRequirementBlocksStaffButNotAdminWorkspace()
     {
         var session = new CurrentUserSessionStub();
         session.SignIn(new AuthenticatedUser(
@@ -183,6 +515,57 @@ public class MainWindowViewModelTests
         Assert.True(viewModel.IsPasswordChangeRequired);
         Assert.False(viewModel.IsAuthenticatedWorkspace);
         Assert.False(viewModel.IsStaffScreen);
+
+        session.SignIn(new AuthenticatedUser(
+            2,
+            "admin",
+            UserRole.Admin,
+            null,
+            "Quản trị viên",
+            RequiresPasswordChange: true));
+
+        Assert.False(viewModel.IsPasswordChangeRequired);
+        Assert.True(viewModel.IsAuthenticatedWorkspace);
+        Assert.True(viewModel.IsAdminScreen);
+        Assert.False(viewModel.IsReadOnlyStaff);
+        Assert.False(viewModel.IsStaffOrderScreen);
+    }
+
+    [Fact]
+    public async Task AdminWithTemporaryPasswordCanSignInAndLoadWorkspaceData()
+    {
+        var session = new CurrentUserSessionStub();
+        var employeeService = new EmployeeManagementServiceStub();
+        var catalogService = new RestaurantCatalogServiceStub();
+        var authenticationService = new AuthenticationServiceStub
+        {
+            SignInResult = new AuthenticatedUser(
+                2,
+                "admin",
+                UserRole.Admin,
+                null,
+                "Quản trị viên",
+                RequiresPasswordChange: true),
+            OnSuccessfulSignIn = session.SignIn
+        };
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            authenticationService,
+            session,
+            employeeService,
+            catalogService,
+            NullLogger<MainWindowViewModel>.Instance);
+
+        await viewModel.SignInCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsAdminScreen);
+        Assert.False(viewModel.IsReadOnlyStaff);
+        Assert.False(viewModel.IsStaffOrderScreen);
+        Assert.Equal(1, employeeService.EmployeeListReadCount);
+        Assert.Equal(1, employeeService.AccountListReadCount);
+        Assert.Equal(1, catalogService.TableListReadCount);
+        Assert.Equal(1, catalogService.CategoryListReadCount);
+        Assert.Equal(1, catalogService.ProductListReadCount);
     }
 
     private sealed class InitialAdminSetupServiceStub : IInitialAdminSetupService
@@ -199,10 +582,30 @@ public class MainWindowViewModelTests
     {
         public Exception? ChangePasswordFailure { get; init; }
 
+        public Exception? SignInFailure { get; init; }
+
+        public AuthenticatedUser? SignInResult { get; init; }
+
+        public Action<AuthenticatedUser>? OnSuccessfulSignIn { get; init; }
+
         public Task<AuthenticatedUser?> SignInAsync(
             string username,
             string password,
-            CancellationToken cancellationToken = default) => Task.FromResult<AuthenticatedUser?>(null);
+            CancellationToken cancellationToken = default)
+        {
+            if (SignInFailure is not null)
+            {
+                return Task.FromException<AuthenticatedUser?>(SignInFailure);
+            }
+
+            if (SignInResult is { } user)
+            {
+                OnSuccessfulSignIn?.Invoke(user);
+                return Task.FromResult<AuthenticatedUser?>(user);
+            }
+
+            return Task.FromResult<AuthenticatedUser?>(null);
+        }
 
         public Task ChangePasswordAsync(
             int userId,
@@ -225,15 +628,27 @@ public class MainWindowViewModelTests
 
     private sealed class EmployeeManagementServiceStub : IEmployeeManagementService
     {
-        public (int AccountId, bool IsActive)? LastAccountStatusChange { get; private set; }
+        public int EmployeeListReadCount { get; private set; }
+
+        public int AccountListReadCount { get; private set; }
+
+        public (int EmployeeId, string FullName, string? Phone, string? Email)? LastEmployeeUpdate { get; private set; }
+
+        public (int EmployeeId, bool IsActive)? LastEmployeeStatusChange { get; private set; }
 
         public Task<IReadOnlyList<EmployeeAccountSummary>> GetEmployeesAsync(
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<EmployeeAccountSummary>>([]);
+            CancellationToken cancellationToken = default)
+        {
+            EmployeeListReadCount++;
+            return Task.FromResult<IReadOnlyList<EmployeeAccountSummary>>([]);
+        }
 
         public Task<IReadOnlyList<AccountSummary>> GetAccountsAsync(
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<AccountSummary>>([]);
+            CancellationToken cancellationToken = default)
+        {
+            AccountListReadCount++;
+            return Task.FromResult<IReadOnlyList<AccountSummary>>([]);
+        }
 
         public Task CreateEmployeeAsync(
             string fullName,
@@ -266,7 +681,11 @@ public class MainWindowViewModelTests
             string fullName,
             string? phone,
             string? email,
-            CancellationToken cancellationToken = default) => Task.CompletedTask;
+            CancellationToken cancellationToken = default)
+        {
+            LastEmployeeUpdate = (employeeId, fullName, phone, email);
+            return Task.CompletedTask;
+        }
 
         public Task DeleteEmployeeProfileAsync(
             int employeeId,
@@ -282,43 +701,86 @@ public class MainWindowViewModelTests
         public Task SetEmployeeActiveAsync(
             int employeeId,
             bool isActive,
-            CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public Task SetAccountActiveAsync(
-            int accountId,
-            bool isActive,
             CancellationToken cancellationToken = default)
         {
-            LastAccountStatusChange = (accountId, isActive);
+            LastEmployeeStatusChange = (employeeId, isActive);
             return Task.CompletedTask;
         }
+
     }
 
     private sealed class RestaurantCatalogServiceStub : IRestaurantCatalogService
     {
+        public IReadOnlyList<RestaurantTableSummary> TablesToReturn { get; set; } = [];
+
+        public int TableListReadCount { get; private set; }
+
+        public int CategoryListReadCount { get; private set; }
+
+        public int ProductListReadCount { get; private set; }
+
         public Task<IReadOnlyList<RestaurantTableSummary>> GetTablesAsync(
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<RestaurantTableSummary>>([]);
+            CancellationToken cancellationToken = default)
+        {
+            TableListReadCount++;
+            return Task.FromResult(TablesToReturn);
+        }
 
         public Task<IReadOnlyList<CategorySummary>> GetCategoriesAsync(
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<CategorySummary>>([]);
+            CancellationToken cancellationToken = default)
+        {
+            CategoryListReadCount++;
+            return Task.FromResult<IReadOnlyList<CategorySummary>>([]);
+        }
 
         public Task<IReadOnlyList<ProductSummary>> GetProductsAsync(
             string? searchText = null,
             int? categoryId = null,
+            CancellationToken cancellationToken = default)
+        {
+            ProductListReadCount++;
+            return Task.FromResult<IReadOnlyList<ProductSummary>>([]);
+        }
+
+        public Task<IReadOnlyList<PromotionSummary>> GetPromotionsAsync(
             CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<ProductSummary>>([]);
+            Task.FromResult<IReadOnlyList<PromotionSummary>>([]);
+
+        public Task CreatePromotionAsync(
+            string name,
+            decimal discountPercentage,
+            DateTimeOffset startsAt,
+            DateTimeOffset endsAt,
+            int? productId,
+            int? categoryId,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task UpdatePromotionAsync(
+            int promotionId,
+            string name,
+            decimal discountPercentage,
+            DateTimeOffset startsAt,
+            DateTimeOffset endsAt,
+            int? productId,
+            int? categoryId,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SetPromotionActiveAsync(
+            int promotionId,
+            bool isActive,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task CreateTableAsync(
-            int tableNumber,
+            string tableNumber,
             int seatCount,
+            string area = "Chung",
             CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task UpdateTableAsync(
             int tableId,
-            int tableNumber,
+            string tableNumber,
             int seatCount,
+            string area = "Chung",
             CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task SetTableActiveAsync(
@@ -330,13 +792,11 @@ public class MainWindowViewModelTests
 
         public Task CreateCategoryAsync(
             string name,
-            string? description,
             CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task UpdateCategoryAsync(
             int categoryId,
             string name,
-            string? description,
             CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task SetCategoryActiveAsync(
@@ -348,7 +808,7 @@ public class MainWindowViewModelTests
 
         public Task CreateProductAsync(
             string name,
-            string? description,
+            string? tags,
             decimal price,
             int categoryId,
             string? imagePath,
@@ -357,7 +817,7 @@ public class MainWindowViewModelTests
         public Task UpdateProductAsync(
             int productId,
             string name,
-            string? description,
+            string? tags,
             decimal price,
             int categoryId,
             string? imagePath,

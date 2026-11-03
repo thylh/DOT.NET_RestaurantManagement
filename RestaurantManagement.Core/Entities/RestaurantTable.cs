@@ -4,7 +4,9 @@ public class RestaurantTable
 {
     public int Id { get; set; }
 
-    public int TableNumber { get; set; }
+    public string TableNumber { get; set; } = string.Empty;
+
+    public string Area { get; set; } = "Chung";
 
     public int SeatCount { get; set; }
 

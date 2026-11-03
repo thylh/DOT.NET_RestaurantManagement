@@ -11,8 +11,9 @@ public sealed record EmployeeAccountSummary(
     int? AccountId,
     string? Username,
     UserRole? Role,
-    bool? IsAccountActive,
     bool RequiresPasswordChange)
 {
     public string? TemporaryPassword { get; init; }
+
+    public string EmployeeStatusActionLabel => IsEmployeeActive ? "Tạm đình chỉ" : "Bỏ tạm đình chỉ";
 }

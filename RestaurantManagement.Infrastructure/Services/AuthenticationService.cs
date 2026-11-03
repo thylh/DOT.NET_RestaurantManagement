@@ -32,21 +32,23 @@ public sealed class AuthenticationService(
 
         if (account is null)
         {
-            return null;
+            throw new InvalidOperationException("Tài khoản không tồn tại.");
+        }
+
+        if (account.IsDeleted)
+        {
+            throw new InvalidOperationException("Tài khoản không tồn tại.");
         }
 
         var employee = account.Employee;
-        if (!account.IsActive
-            || (employee is not null && !employee.IsActive)
-            || !global::BCrypt.Net.BCrypt.Verify(password, account.PasswordHash))
+        if (!global::BCrypt.Net.BCrypt.Verify(password, account.PasswordHash))
         {
             return null;
         }
 
-        if (account.Role == UserRole.Staff && employee is null)
+        if (employee is not null && !employee.IsActive)
         {
-            throw new InvalidOperationException(
-                "Tài khoản chưa có hồ sơ nhân viên. Hãy liên hệ Admin để hoàn tất hồ sơ trước khi đăng nhập.");
+            throw new InvalidOperationException("Nhân viên đang bị tạm đình chỉ.");
         }
 
         var user = new AuthenticatedUser(
@@ -55,7 +57,7 @@ public sealed class AuthenticationService(
             account.Role,
             account.EmployeeId,
             employee?.FullName ?? account.FullName,
-            account.RequiresPasswordChange);
+            account.RequiresPasswordChange && employee is not null);
         currentUserSession.SignIn(user);
 
         return user;
@@ -92,7 +94,7 @@ public sealed class AuthenticationService(
         var account = await dbContext.UserAccounts.SingleOrDefaultAsync(
             candidate => candidate.Id == userId,
             cancellationToken);
-        if (account is null || !account.IsActive)
+        if (account is null)
         {
             currentUserSession.SignOut();
             throw new UnauthorizedAccessException("Tài khoản đang đăng nhập không còn hoạt động.");

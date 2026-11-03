@@ -22,12 +22,10 @@ public partial class ChangePasswordWindow : Window
 
         if (string.IsNullOrWhiteSpace(CurrentPasswordBox.Password))
         {
-            MessageBox.Show(
+            MessageDialogWindow.ShowMessage(
                 this,
-                "Hãy nhập mật khẩu hiện tại.",
                 "Thiếu thông tin",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                "Hãy nhập mật khẩu hiện tại.");
             CurrentPasswordBox.Focus();
             return;
         }
@@ -35,12 +33,10 @@ public partial class ChangePasswordWindow : Window
         var newPasswordByteCount = Encoding.UTF8.GetByteCount(NewPasswordBox.Password);
         if (newPasswordByteCount is < 12 or > 72)
         {
-            MessageBox.Show(
+            MessageDialogWindow.ShowMessage(
                 this,
-                "Mật khẩu mới phải có ít nhất 12 ký tự và không vượt quá 72 byte UTF-8.",
                 "Mật khẩu không hợp lệ",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                "Mật khẩu mới phải có ít nhất 12 ký tự và không vượt quá 72 byte UTF-8.");
             NewPasswordBox.Focus();
             return;
         }

@@ -6,6 +6,7 @@ using RestaurantManagement.Core.Entities;
 using RestaurantManagement.Core.Enums;
 using RestaurantManagement.Core.Models;
 using RestaurantManagement.Core.Services;
+using RestaurantManagement.Core.Validation;
 using RestaurantManagement.Infrastructure.Data;
 using RestaurantManagement.Infrastructure.Security;
 
@@ -29,11 +30,18 @@ public sealed class EmployeeManagementService(
                 employee.Phone,
                 employee.Email,
                 employee.IsActive,
-                employee.UserAccount == null ? null : employee.UserAccount.Id,
-                employee.UserAccount == null ? null : employee.UserAccount.Username,
-                employee.UserAccount == null ? null : employee.UserAccount.Role,
-                employee.UserAccount == null ? null : employee.UserAccount.IsActive,
-                employee.UserAccount != null && employee.UserAccount.RequiresPasswordChange))
+                employee.UserAccount == null || employee.UserAccount.IsDeleted
+                    ? null
+                    : employee.UserAccount.Id,
+                employee.UserAccount == null || employee.UserAccount.IsDeleted
+                    ? null
+                    : employee.UserAccount.Username,
+                employee.UserAccount == null || employee.UserAccount.IsDeleted
+                    ? null
+                    : employee.UserAccount.Role,
+                employee.UserAccount != null
+                    && !employee.UserAccount.IsDeleted
+                    && employee.UserAccount.RequiresPasswordChange))
             .ToListAsync(cancellationToken);
     }
 
@@ -44,7 +52,7 @@ public sealed class EmployeeManagementService(
 
         var accounts = await dbContext.UserAccounts
             .AsNoTracking()
-            .Where(account => account.Role == UserRole.Staff)
+            .Where(account => account.Role == UserRole.Staff && !account.IsDeleted)
             .OrderBy(account => account.FullName)
             .Select(account => new
             {
@@ -57,15 +65,16 @@ public sealed class EmployeeManagementService(
                     account.Employee == null || account.Employee.IsActive,
                     account.Username,
                     account.Role,
-                    account.IsActive,
                     account.RequiresPasswordChange),
-                account.EncryptedTemporaryPassword
+                account.EncryptedTemporaryPassword,
+                account.EmployeeProfileDeleted
             })
             .ToListAsync(cancellationToken);
 
         return accounts
             .Select(account => account.Summary with
             {
+                EmployeeProfileDeleted = account.EmployeeProfileDeleted,
                 TemporaryPassword = account.EncryptedTemporaryPassword is null
                     ? null
                     : TemporaryPasswordProtector.Unprotect(account.EncryptedTemporaryPassword)
@@ -84,8 +93,8 @@ public sealed class EmployeeManagementService(
         var employee = new Employee
         {
             FullName = normalizedName,
-            Phone = NormalizeOptional(phone, 30, nameof(phone)),
-            Email = NormalizeOptional(email, 254, nameof(email))
+            Phone = EmployeeContactValidator.NormalizePhone(phone),
+            Email = EmployeeContactValidator.NormalizeEmail(email)
         };
 
         dbContext.Employees.Add(employee);
@@ -105,8 +114,8 @@ public sealed class EmployeeManagementService(
         var account = new UserAccount
         {
             FullName = normalizedName,
-            Phone = NormalizeOptional(phone, 30, nameof(phone)),
-            Email = NormalizeOptional(email, 254, nameof(email)),
+            Phone = EmployeeContactValidator.NormalizePhone(phone),
+            Email = EmployeeContactValidator.NormalizeEmail(email),
             Username = username,
             PasswordHash = global::BCrypt.Net.BCrypt.HashPassword(temporaryPassword),
             EncryptedTemporaryPassword = TemporaryPasswordProtector.Protect(temporaryPassword),
@@ -147,6 +156,8 @@ public sealed class EmployeeManagementService(
             throw new InvalidOperationException("Không tìm thấy tài khoản cần tạo hồ sơ.");
         }
 
+        EnsureAccountNotDeleted(account);
+
         if (account.Role != UserRole.Staff)
         {
             throw new InvalidOperationException("Chỉ tài khoản nhân viên mới được tạo hồ sơ nhân viên.");
@@ -163,6 +174,7 @@ public sealed class EmployeeManagementService(
             Phone = account.Phone,
             Email = account.Email
         };
+        account.EmployeeProfileDeleted = false;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -180,14 +192,34 @@ public sealed class EmployeeManagementService(
             throw new InvalidOperationException("Không tìm thấy tài khoản cần cập nhật.");
         }
 
+        EnsureAccountNotDeleted(account);
+
         var normalizedName = ValidateRequiredText(fullName, 150, nameof(fullName));
+        var username = string.Equals(account.FullName, normalizedName, StringComparison.Ordinal)
+            ? account.Username
+            : await GenerateUsernameAsync(normalizedName, cancellationToken, account.Id);
         account.FullName = normalizedName;
+        account.Username = username;
         if (account.Employee is not null)
         {
             account.Employee.FullName = normalizedName;
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (IsDuplicateKey(exception))
+        {
+            foreach (var entry in exception.Entries)
+            {
+                entry.State = EntityState.Detached;
+            }
+
+            throw new InvalidOperationException(
+                "Không thể cập nhật tên và tên đăng nhập vì tên đăng nhập mới đã được sử dụng. Hãy thử lại.",
+                exception);
+        }
     }
 
     public async Task DeleteAccountAsync(
@@ -210,41 +242,27 @@ public sealed class EmployeeManagementService(
             throw new InvalidOperationException("Bạn không thể xóa tài khoản đang đăng nhập.");
         }
 
+        if (account.IsDeleted)
+        {
+            throw new InvalidOperationException("Tài khoản này đã bị xóa.");
+        }
+
         if (account.Role == UserRole.Admin)
         {
             await EnsureAnotherActiveAdminExistsAsync(account.Id, account.EmployeeId, cancellationToken);
         }
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-        var employeeId = account.EmployeeId;
-        var relatedOrders = await dbContext.RestaurantOrders
-            .Where(order =>
-                order.CreatedByUserId == accountId
-                || (employeeId.HasValue && order.CreatedByEmployeeId == employeeId.Value)
-                || order.CancelledByUserId == accountId
-                || (order.Payment != null && order.Payment.PaidByUserId == accountId))
-            .Include(order => order.OrderDetails)
-            .Include(order => order.Payment)
-            .ToListAsync(cancellationToken);
-
-        foreach (var order in relatedOrders)
-        {
-            dbContext.OrderDetails.RemoveRange(order.OrderDetails);
-            if (order.Payment is not null)
-            {
-                dbContext.Payments.Remove(order.Payment);
-            }
-        }
-
-        dbContext.RestaurantOrders.RemoveRange(relatedOrders);
         if (account.Employee is not null)
         {
-            dbContext.Employees.Remove(account.Employee);
+            account.Employee.IsActive = false;
         }
 
-        dbContext.UserAccounts.Remove(account);
+        account.IsDeleted = true;
+        account.RequiresPasswordChange = false;
+        account.EncryptedTemporaryPassword = null;
+        account.PasswordHash = global::BCrypt.Net.BCrypt.HashPassword(
+            Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
         await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task UpdateEmployeeAsync(
@@ -266,8 +284,8 @@ public sealed class EmployeeManagementService(
         }
 
         employee.FullName = ValidateRequiredText(fullName, 150, nameof(fullName));
-        employee.Phone = NormalizeOptional(phone, 30, nameof(phone));
-        employee.Email = NormalizeOptional(email, 254, nameof(email));
+        employee.Phone = EmployeeContactValidator.NormalizePhone(phone);
+        employee.Email = EmployeeContactValidator.NormalizeEmail(email);
         if (employee.UserAccount is not null)
         {
             employee.UserAccount.FullName = employee.FullName;
@@ -309,7 +327,13 @@ public sealed class EmployeeManagementService(
             order.CreatedByEmployeeId = null;
         }
 
+        var account = employee.UserAccount;
         dbContext.Employees.Remove(employee);
+        if (account is not null)
+        {
+            account.EmployeeProfileDeleted = true;
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -334,6 +358,8 @@ public sealed class EmployeeManagementService(
         {
             throw new InvalidOperationException("Không tìm thấy tài khoản cần cập nhật.");
         }
+
+        EnsureAccountNotDeleted(account);
 
         if (account.Id == currentUserSession.User?.Id && role != UserRole.Admin)
         {
@@ -405,34 +431,12 @@ public sealed class EmployeeManagementService(
                 cancellationToken);
         }
 
+        if (isActive && employee.UserAccount?.IsDeleted == true)
+        {
+            throw new InvalidOperationException("Không thể kích hoạt hồ sơ thuộc tài khoản đã bị xóa.");
+        }
+
         employee.IsActive = isActive;
-        await dbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    public async Task SetAccountActiveAsync(
-        int accountId,
-        bool isActive,
-        CancellationToken cancellationToken = default)
-    {
-        EnsureAdmin();
-        var account = await dbContext.UserAccounts
-            .SingleOrDefaultAsync(candidate => candidate.Id == accountId, cancellationToken);
-        if (account is null)
-        {
-            throw new InvalidOperationException("Không tìm thấy tài khoản cần cập nhật.");
-        }
-
-        if (!isActive && account.Id == currentUserSession.User?.Id)
-        {
-            throw new InvalidOperationException("Bạn không thể tự khóa tài khoản đang đăng nhập.");
-        }
-
-        if (!isActive && account.Role == UserRole.Admin)
-        {
-            await EnsureAnotherActiveAdminExistsAsync(account.Id, account.EmployeeId, cancellationToken);
-        }
-
-        account.IsActive = isActive;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -444,6 +448,14 @@ public sealed class EmployeeManagementService(
         }
     }
 
+    private static void EnsureAccountNotDeleted(UserAccount account)
+    {
+        if (account.IsDeleted)
+        {
+            throw new InvalidOperationException("Tài khoản này đã bị xóa.");
+        }
+    }
+
     private async Task EnsureAnotherActiveAdminExistsAsync(
         int excludedAccountId,
         int? excludedEmployeeId,
@@ -452,7 +464,7 @@ public sealed class EmployeeManagementService(
         var anotherAdminExists = await dbContext.UserAccounts.AnyAsync(
             account => account.Id != excludedAccountId
                 && account.Role == UserRole.Admin
-                && account.IsActive
+                && !account.IsDeleted
                 && (account.EmployeeId == null
                     || account.EmployeeId != excludedEmployeeId && account.Employee!.IsActive),
             cancellationToken);
@@ -480,7 +492,8 @@ public sealed class EmployeeManagementService(
 
     private async Task<string> GenerateUsernameAsync(
         string fullName,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? excludedAccountId = null)
     {
         var normalizedName = fullName
             .Replace('đ', 'd')
@@ -525,7 +538,8 @@ public sealed class EmployeeManagementService(
             var candidateLength = Math.Min(baseUsername.Length, 50 - suffixText.Length);
             var candidate = baseUsername[..candidateLength] + suffixText;
             if (!await dbContext.UserAccounts.AnyAsync(
-                    account => account.Username == candidate,
+                    account => account.Username == candidate
+                        && account.Id != excludedAccountId,
                     cancellationToken))
             {
                 return candidate;
@@ -543,22 +557,6 @@ public sealed class EmployeeManagementService(
                 password[index] = characters[RandomNumberGenerator.GetInt32(characters.Length)];
             }
         });
-    }
-
-    private static string? NormalizeOptional(string? value, int maxLength, string parameterName)
-    {
-        var normalized = value?.Trim();
-        if (string.IsNullOrEmpty(normalized))
-        {
-            return null;
-        }
-
-        if (normalized.Length > maxLength)
-        {
-            throw new ArgumentException($"Nội dung không được vượt quá {maxLength} ký tự.", parameterName);
-        }
-
-        return normalized;
     }
 
     private static void ValidatePassword(string password)

@@ -49,11 +49,11 @@ namespace RestaurantManagement.WPF
             {
                 _host.Services.GetRequiredService<ILogger<App>>()
                     .LogCritical(exception, "Không thể cập nhật cấu trúc cơ sở dữ liệu khi khởi động.");
-                MessageBox.Show(
-                    "Không thể khởi tạo cơ sở dữ liệu. Hãy kiểm tra MySQL Server, tài khoản kết nối và khởi động lại ứng dụng.",
+                MessageDialogWindow.ShowMessage(
+                    null,
                     "Lỗi khởi tạo cơ sở dữ liệu",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                    "Không thể khởi tạo cơ sở dữ liệu. Hãy kiểm tra MySQL Server, tài khoản kết nối và khởi động lại ứng dụng.",
+                    MessageDialogKind.Error);
                 Shutdown(1);
                 return;
             }

@@ -18,12 +18,10 @@ public partial class EditEmployeeNameWindow : Window
     {
         if (string.IsNullOrWhiteSpace(EmployeeName))
         {
-            MessageBox.Show(
+            MessageDialogWindow.ShowMessage(
                 this,
-                "Họ tên không được để trống.",
                 "Thiếu thông tin",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                "Họ tên không được để trống.");
             return;
         }
 

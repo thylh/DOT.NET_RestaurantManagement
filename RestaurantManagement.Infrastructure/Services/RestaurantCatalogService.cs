@@ -21,14 +21,36 @@ public sealed class RestaurantCatalogService(
         return await dbContext.RestaurantTables
             .AsNoTracking()
             .Where(table => isAdmin || table.IsActive)
-            .OrderBy(table => table.TableNumber)
+            .OrderBy(table => table.Area)
+            .ThenBy(table => table.TableNumber)
             .Select(table => new RestaurantTableSummary(
                 table.Id,
                 table.TableNumber,
+                table.Area,
                 table.SeatCount,
                 table.IsActive,
                 table.Orders.Any(order => order.Status == OrderStatus.Open)))
             .ToListAsync(cancellationToken);
+    }
+
+    private static string? NormalizeProductTags(string? tags)
+    {
+        var normalizedTags = tags?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (normalizedTags is null || normalizedTags.Length == 0)
+        {
+            return null;
+        }
+
+        var normalized = string.Join(", ", normalizedTags);
+        if (normalized.Length > 500)
+        {
+            throw new ArgumentOutOfRangeException(nameof(tags), "Tổng độ dài nhãn không được vượt quá 500 ký tự.");
+        }
+
+        return normalized;
     }
 
     public async Task<IReadOnlyList<CategorySummary>> GetCategoriesAsync(
@@ -44,7 +66,6 @@ public sealed class RestaurantCatalogService(
             .Select(category => new CategorySummary(
                 category.Id,
                 category.Name,
-                category.Description,
                 category.IsActive,
                 category.Products.Count()))
             .ToListAsync(cancellationToken);
@@ -71,7 +92,7 @@ public sealed class RestaurantCatalogService(
             var search = searchText.Trim();
             products = products.Where(product =>
                 product.Name.Contains(search)
-                || (product.Description != null && product.Description.Contains(search))
+                || (product.Tags != null && product.Tags.Contains(search))
                 || product.Category.Name.Contains(search));
         }
 
@@ -81,8 +102,8 @@ public sealed class RestaurantCatalogService(
             .Select(product => new ProductSummary(
                 product.Id,
                 product.Name,
-                product.Description,
                 product.ImagePath,
+                product.Tags,
                 product.Price,
                 product.IsAvailable,
                 product.IsActive,
@@ -91,29 +112,127 @@ public sealed class RestaurantCatalogService(
             .ToListAsync(cancellationToken);
     }
 
-    public async Task CreateTableAsync(
-        int tableNumber,
-        int seatCount,
+    public async Task<IReadOnlyList<PromotionSummary>> GetPromotionsAsync(
         CancellationToken cancellationToken = default)
     {
         EnsureAdmin();
-        ValidateTable(tableNumber, seatCount);
+        return await dbContext.Promotions
+            .AsNoTracking()
+            .OrderBy(promotion => promotion.Name)
+            .Select(promotion => new PromotionSummary(
+                promotion.Id,
+                promotion.Name,
+                promotion.DiscountPercentage,
+                promotion.StartsAt,
+                promotion.EndsAt,
+                promotion.IsActive,
+                promotion.ProductId,
+                promotion.Product == null ? null : promotion.Product.Name,
+                promotion.CategoryId,
+                promotion.Category == null ? null : promotion.Category.Name))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task CreatePromotionAsync(
+        string name,
+        decimal discountPercentage,
+        DateTimeOffset startsAt,
+        DateTimeOffset endsAt,
+        int? productId,
+        int? categoryId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureAdmin();
+        await ValidatePromotionAsync(
+            discountPercentage, startsAt, endsAt, productId, categoryId, cancellationToken);
+        dbContext.Promotions.Add(new Promotion
+        {
+            Name = ValidateRequiredText(name, 100, nameof(name)),
+            DiscountPercentage = discountPercentage,
+            StartsAt = startsAt.ToUniversalTime(),
+            EndsAt = endsAt.ToUniversalTime(),
+            ProductId = productId,
+            CategoryId = categoryId
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdatePromotionAsync(
+        int promotionId,
+        string name,
+        decimal discountPercentage,
+        DateTimeOffset startsAt,
+        DateTimeOffset endsAt,
+        int? productId,
+        int? categoryId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureAdmin();
+        var promotion = await dbContext.Promotions.SingleOrDefaultAsync(
+            candidate => candidate.Id == promotionId,
+            cancellationToken);
+        if (promotion is null)
+        {
+            throw new InvalidOperationException("Không tìm thấy khuyến mãi cần cập nhật.");
+        }
+
+        await ValidatePromotionAsync(
+            discountPercentage, startsAt, endsAt, productId, categoryId, cancellationToken);
+        promotion.Name = ValidateRequiredText(name, 100, nameof(name));
+        promotion.DiscountPercentage = discountPercentage;
+        promotion.StartsAt = startsAt.ToUniversalTime();
+        promotion.EndsAt = endsAt.ToUniversalTime();
+        promotion.ProductId = productId;
+        promotion.CategoryId = categoryId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SetPromotionActiveAsync(
+        int promotionId,
+        bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureAdmin();
+        var promotion = await dbContext.Promotions.SingleOrDefaultAsync(
+            candidate => candidate.Id == promotionId,
+            cancellationToken);
+        if (promotion is null)
+        {
+            throw new InvalidOperationException("Không tìm thấy khuyến mãi cần cập nhật.");
+        }
+
+        promotion.IsActive = isActive;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task CreateTableAsync(
+        string tableNumber,
+        int seatCount,
+        string area = "Chung",
+        CancellationToken cancellationToken = default)
+    {
+        EnsureAdmin();
+        var normalizedTableNumber = ValidateTable(tableNumber, area, seatCount);
         dbContext.RestaurantTables.Add(new RestaurantTable
         {
-            TableNumber = tableNumber,
+            TableNumber = normalizedTableNumber,
+            Area = area.Trim(),
             SeatCount = seatCount
         });
-        await SaveChangesAsync("Số bàn này đã được sử dụng.", cancellationToken);
+        await SaveChangesAsync(
+            "Số hiệu bàn này đã được sử dụng trong khu vực đã chọn.",
+            cancellationToken);
     }
 
     public async Task UpdateTableAsync(
         int tableId,
-        int tableNumber,
+        string tableNumber,
         int seatCount,
+        string area = "Chung",
         CancellationToken cancellationToken = default)
     {
         EnsureAdmin();
-        ValidateTable(tableNumber, seatCount);
+        var normalizedTableNumber = ValidateTable(tableNumber, area, seatCount);
         var table = await dbContext.RestaurantTables.SingleOrDefaultAsync(
             candidate => candidate.Id == tableId,
             cancellationToken);
@@ -122,9 +241,19 @@ public sealed class RestaurantCatalogService(
             throw new InvalidOperationException("Không tìm thấy bàn cần cập nhật.");
         }
 
-        table.TableNumber = tableNumber;
+        if (await dbContext.RestaurantOrders.AnyAsync(
+                order => order.RestaurantTableId == tableId && order.Status == OrderStatus.Open,
+                cancellationToken))
+        {
+            throw new InvalidOperationException("Không thể thay đổi bố trí bàn đang có order mở.");
+        }
+
+        table.TableNumber = normalizedTableNumber;
+        table.Area = area.Trim();
         table.SeatCount = seatCount;
-        await SaveChangesAsync("Số bàn này đã được sử dụng.", cancellationToken);
+        await SaveChangesAsync(
+            "Số hiệu bàn này đã được sử dụng trong khu vực đã chọn.",
+            cancellationToken);
     }
 
     public async Task SetTableActiveAsync(
@@ -145,7 +274,7 @@ public sealed class RestaurantCatalogService(
                 order => order.RestaurantTableId == tableId && order.Status == OrderStatus.Open,
                 cancellationToken))
         {
-            throw new InvalidOperationException("Không thể ngừng sử dụng bàn đang có order mở.");
+            throw new InvalidOperationException("Không thể ngừng phục vụ bàn đang có order mở.");
         }
 
         table.IsActive = isActive;
@@ -167,7 +296,8 @@ public sealed class RestaurantCatalogService(
                 order => order.RestaurantTableId == tableId,
                 cancellationToken))
         {
-            throw new InvalidOperationException("Bàn đã có lịch sử order. Hãy ngừng sử dụng thay vì xóa.");
+            throw new InvalidOperationException(
+                "Không thể xóa bàn đã phát sinh order. Hãy ngừng phục vụ bàn nếu không còn sử dụng.");
         }
 
         dbContext.RestaurantTables.Remove(table);
@@ -176,14 +306,12 @@ public sealed class RestaurantCatalogService(
 
     public async Task CreateCategoryAsync(
         string name,
-        string? description,
         CancellationToken cancellationToken = default)
     {
         EnsureAdmin();
         dbContext.Categories.Add(new Category
         {
-            Name = ValidateRequiredText(name, 100, nameof(name)),
-            Description = NormalizeOptionalText(description, 500, nameof(description))
+            Name = ValidateRequiredText(name, 100, nameof(name))
         });
         await SaveChangesAsync("Tên danh mục này đã được sử dụng.", cancellationToken);
     }
@@ -191,7 +319,6 @@ public sealed class RestaurantCatalogService(
     public async Task UpdateCategoryAsync(
         int categoryId,
         string name,
-        string? description,
         CancellationToken cancellationToken = default)
     {
         EnsureAdmin();
@@ -202,9 +329,7 @@ public sealed class RestaurantCatalogService(
         {
             throw new InvalidOperationException("Không tìm thấy danh mục cần cập nhật.");
         }
-
         category.Name = ValidateRequiredText(name, 100, nameof(name));
-        category.Description = NormalizeOptionalText(description, 500, nameof(description));
         await SaveChangesAsync("Tên danh mục này đã được sử dụng.", cancellationToken);
     }
 
@@ -242,13 +367,20 @@ public sealed class RestaurantCatalogService(
             throw new InvalidOperationException("Danh mục đang có món ăn. Hãy ngừng kinh doanh danh mục thay vì xóa.");
         }
 
+        if (await dbContext.Promotions.AnyAsync(
+                promotion => promotion.CategoryId == categoryId, cancellationToken))
+        {
+            throw new InvalidOperationException(
+                "Danh mục đang được khuyến mãi tham chiếu. Hãy ngừng chương trình trước khi xóa danh mục.");
+        }
+
         dbContext.Categories.Remove(category);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task CreateProductAsync(
         string name,
-        string? description,
+        string? tags,
         decimal price,
         int categoryId,
         string? imagePath,
@@ -260,7 +392,7 @@ public sealed class RestaurantCatalogService(
         var product = new Product
         {
             Name = ValidateRequiredText(name, 150, nameof(name)),
-            Description = NormalizeOptionalText(description, 1000, nameof(description)),
+            Tags = NormalizeProductTags(tags),
             Price = price,
             CategoryId = categoryId,
             ImagePath = NormalizeOptionalText(imagePath, 500, nameof(imagePath))
@@ -272,7 +404,7 @@ public sealed class RestaurantCatalogService(
     public async Task UpdateProductAsync(
         int productId,
         string name,
-        string? description,
+        string? tags,
         decimal price,
         int categoryId,
         string? imagePath,
@@ -290,7 +422,7 @@ public sealed class RestaurantCatalogService(
 
         await EnsureActiveCategoryAsync(categoryId, cancellationToken);
         product.Name = ValidateRequiredText(name, 150, nameof(name));
-        product.Description = NormalizeOptionalText(description, 1000, nameof(description));
+        product.Tags = NormalizeProductTags(tags);
         product.Price = price;
         product.CategoryId = categoryId;
         product.ImagePath = NormalizeOptionalText(imagePath, 500, nameof(imagePath));
@@ -302,7 +434,7 @@ public sealed class RestaurantCatalogService(
         bool isAvailable,
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        await EnsureCanManageProductAvailabilityAsync(cancellationToken);
         var product = await dbContext.Products.SingleOrDefaultAsync(
             candidate => candidate.Id == productId,
             cancellationToken);
@@ -313,6 +445,32 @@ public sealed class RestaurantCatalogService(
 
         product.IsAvailable = isAvailable;
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsureCanManageProductAvailabilityAsync(CancellationToken cancellationToken)
+    {
+        var user = currentUserSession.User
+            ?? throw new UnauthorizedAccessException("Vui lòng đăng nhập để cập nhật tình trạng món.");
+        if (user.Role == UserRole.Admin)
+        {
+            return;
+        }
+
+        if (user.Role != UserRole.Staff
+            || user.EmployeeId is not { } employeeId
+            || !await dbContext.UserAccounts.AnyAsync(
+                account => account.Id == user.Id
+                    && account.Role == UserRole.Staff
+                    && !account.IsDeleted
+                    && account.EmployeeId == employeeId
+                    && !account.EmployeeProfileDeleted
+                    && account.Employee != null
+                    && account.Employee.IsActive,
+                cancellationToken))
+        {
+            throw new UnauthorizedAccessException(
+                "Chỉ Admin hoặc nhân viên có hồ sơ đang hoạt động mới được cập nhật tình trạng món.");
+        }
     }
 
     public async Task SetProductActiveAsync(
@@ -349,6 +507,13 @@ public sealed class RestaurantCatalogService(
             throw new InvalidOperationException("Món ăn đã xuất hiện trong order. Hãy ngừng kinh doanh thay vì xóa.");
         }
 
+        if (await dbContext.Promotions.AnyAsync(
+                promotion => promotion.ProductId == productId, cancellationToken))
+        {
+            throw new InvalidOperationException(
+                "Món ăn đang được khuyến mãi tham chiếu. Hãy ngừng chương trình trước khi xóa món.");
+        }
+
         dbContext.Products.Remove(product);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -361,6 +526,41 @@ public sealed class RestaurantCatalogService(
         if (!categoryIsActive)
         {
             throw new InvalidOperationException("Hãy chọn một danh mục đang kinh doanh.");
+        }
+    }
+
+    private async Task ValidatePromotionAsync(
+        decimal discountPercentage,
+        DateTimeOffset startsAt,
+        DateTimeOffset endsAt,
+        int? productId,
+        int? categoryId,
+        CancellationToken cancellationToken)
+    {
+        if (discountPercentage is <= 0 or > 100)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(discountPercentage), "Mức giảm phải lớn hơn 0% và không vượt quá 100%.");
+        }
+
+        if (endsAt <= startsAt)
+        {
+            throw new ArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu.", nameof(endsAt));
+        }
+
+        if (productId.HasValue == categoryId.HasValue)
+        {
+            throw new ArgumentException("Khuyến mãi phải áp dụng cho đúng một món hoặc một danh mục.");
+        }
+
+        var targetExists = productId is { } selectedProductId
+            ? await dbContext.Products.AnyAsync(
+                product => product.Id == selectedProductId, cancellationToken)
+            : await dbContext.Categories.AnyAsync(
+                category => category.Id == categoryId, cancellationToken);
+        if (!targetExists)
+        {
+            throw new InvalidOperationException("Món ăn hoặc danh mục áp dụng không còn tồn tại.");
         }
     }
 
@@ -400,17 +600,15 @@ public sealed class RestaurantCatalogService(
         }
     }
 
-    private static void ValidateTable(int tableNumber, int seatCount)
+    private static string ValidateTable(string tableNumber, string area, int seatCount)
     {
-        if (tableNumber <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(tableNumber), "Số bàn phải lớn hơn 0.");
-        }
-
         if (seatCount <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(seatCount), "Số chỗ ngồi phải lớn hơn 0.");
         }
+
+        _ = ValidateRequiredText(area, 100, nameof(area));
+        return ValidateRequiredText(tableNumber, 50, nameof(tableNumber));
     }
 
     private static void ValidatePrice(decimal price)

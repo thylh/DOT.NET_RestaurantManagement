@@ -11,10 +11,11 @@ public sealed record AccountSummary(
     bool IsEmployeeActive,
     string Username,
     UserRole Role,
-    bool IsAccountActive,
     bool RequiresPasswordChange)
 {
     public string? TemporaryPassword { get; init; }
+
+    public bool EmployeeProfileDeleted { get; init; }
 
     public string PasswordDisplay => RequiresPasswordChange
         ? TemporaryPassword ?? "Cần đặt lại mật khẩu"
@@ -26,7 +27,12 @@ public sealed record AccountSummary(
 
     public bool CanCreateEmployeeProfile => Role == UserRole.Staff && !HasEmployeeProfile;
 
-    public string ProfileActionLabel => HasEmployeeProfile ? "Đã tạo hs" : "Tạo hồ sơ";
+    public string ProfileActionLabel => HasEmployeeProfile ? "Đã tạo hồ sơ" : "Tạo hồ sơ";
 
-    public string AccountStatusActionLabel => IsAccountActive ? "Khóa tài khoản" : "Mở khóa tài khoản";
+    public string EmployeeProfileStatusLabel => HasEmployeeProfile
+        ? "Đã tạo hồ sơ"
+        : EmployeeProfileDeleted
+            ? "Hồ sơ đã bị xóa"
+            : "Chưa tạo hồ sơ";
+
 }

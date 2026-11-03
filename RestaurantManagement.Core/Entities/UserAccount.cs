@@ -22,9 +22,11 @@ public class UserAccount
 
     public bool RequiresPasswordChange { get; set; }
 
-    public bool IsActive { get; set; } = true;
+    public bool IsDeleted { get; set; }
 
     public int? EmployeeId { get; set; }
+
+    public bool EmployeeProfileDeleted { get; set; }
 
     public Employee? Employee { get; set; }
 

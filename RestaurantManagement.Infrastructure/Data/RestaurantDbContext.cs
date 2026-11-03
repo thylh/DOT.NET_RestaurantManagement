@@ -21,6 +21,8 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
 
     public DbSet<Payment> Payments => Set<Payment>();
 
+    public DbSet<Promotion> Promotions => Set<Promotion>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Employee>(entity =>
@@ -54,17 +56,17 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
         {
             entity.ToTable("RestaurantTables", table =>
             {
-                table.HasCheckConstraint("CK_RestaurantTables_TableNumber", "`TableNumber` > 0");
                 table.HasCheckConstraint("CK_RestaurantTables_SeatCount", "`SeatCount` > 0");
             });
-            entity.HasIndex(table => table.TableNumber).IsUnique();
+            entity.Property(table => table.Area).HasMaxLength(100).IsRequired();
+            entity.Property(table => table.TableNumber).HasMaxLength(50).IsRequired();
+            entity.HasIndex(table => new { table.Area, table.TableNumber }).IsUnique();
         });
 
         modelBuilder.Entity<Category>(entity =>
         {
             entity.ToTable("Categories");
             entity.Property(category => category.Name).HasMaxLength(100).IsRequired();
-            entity.Property(category => category.Description).HasMaxLength(500);
             entity.HasIndex(category => category.Name).IsUnique();
         });
 
@@ -73,7 +75,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
             entity.ToTable("Products", table =>
                 table.HasCheckConstraint("CK_Products_Price", "`Price` > 0"));
             entity.Property(product => product.Name).HasMaxLength(150).IsRequired();
-            entity.Property(product => product.Description).HasMaxLength(1000);
+            entity.Property(product => product.Tags).HasMaxLength(500);
             entity.Property(product => product.ImagePath).HasMaxLength(500);
             entity.Property(product => product.Price).HasPrecision(18, 2);
             entity.HasOne(product => product.Category)
@@ -91,6 +93,8 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
             entity.Property(order => order.Status).HasConversion<int>();
             entity.Property(order => order.CancellationReason).HasMaxLength(500);
             entity.Property(order => order.CreatedByEmployeeNameSnapshot).HasMaxLength(150).IsRequired();
+            entity.Property(order => order.AppliedPromotionNameSnapshot).HasMaxLength(100);
+            entity.Property(order => order.DiscountAmountSnapshot).HasPrecision(18, 2);
             entity.Property<int?>("OpenRestaurantTableId")
                 .HasComputedColumnSql(
                     "CASE WHEN `Status` = 0 THEN `RestaurantTableId` ELSE NULL END",
@@ -138,7 +142,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
         {
             entity.ToTable("Payments", table =>
             {
-                table.HasCheckConstraint("CK_Payments_Amount", "`Amount` > 0");
+                table.HasCheckConstraint("CK_Payments_Amount", "`Amount` >= 0");
                 table.HasCheckConstraint("CK_Payments_Status", "`Status` = 1");
             });
             entity.Property(payment => payment.Amount).HasPrecision(18, 2);
@@ -153,6 +157,33 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
                 .WithMany(account => account.Payments)
                 .HasForeignKey(payment => payment.PaidByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Promotion>(entity =>
+        {
+            entity.ToTable("Promotions", table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_Promotions_DiscountPercentage",
+                    "`DiscountPercentage` > 0 AND `DiscountPercentage` <= 100");
+                table.HasCheckConstraint(
+                    "CK_Promotions_ValidPeriod",
+                    "`EndsAt` > `StartsAt`");
+                table.HasCheckConstraint(
+                    "CK_Promotions_ExactlyOneTarget",
+                    "(`ProductId` IS NOT NULL AND `CategoryId` IS NULL) OR (`ProductId` IS NULL AND `CategoryId` IS NOT NULL)");
+            });
+            entity.Property(promotion => promotion.Name).HasMaxLength(100).IsRequired();
+            entity.Property(promotion => promotion.DiscountPercentage).HasPrecision(5, 2);
+            entity.HasOne(promotion => promotion.Product)
+                .WithMany()
+                .HasForeignKey(promotion => promotion.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(promotion => promotion.Category)
+                .WithMany()
+                .HasForeignKey(promotion => promotion.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(promotion => new { promotion.IsActive, promotion.StartsAt, promotion.EndsAt });
         });
     }
 }

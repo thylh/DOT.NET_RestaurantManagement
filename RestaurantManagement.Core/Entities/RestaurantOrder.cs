@@ -32,6 +32,10 @@ public class RestaurantOrder
 
     public string? CancellationReason { get; set; }
 
+    public string? AppliedPromotionNameSnapshot { get; set; }
+
+    public decimal DiscountAmountSnapshot { get; set; }
+
     public ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
 
     public Payment? Payment { get; set; }

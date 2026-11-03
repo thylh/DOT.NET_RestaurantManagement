@@ -18,10 +18,15 @@ namespace RestaurantManagement.WPF
         private readonly DispatcherTimer _statusMessageTimer;
         private readonly DispatcherTimer _errorMessageTimer;
         private AccountSummary? _accountRowToCollapse;
+        private EmployeeAccountSummary? _employeeRowToCollapse;
 
         public MainWindow(MainWindowViewModel viewModel, ILogger<MainWindow> logger)
         {
             InitializeComponent();
+            var workArea = SystemParameters.WorkArea;
+            Width = Math.Max(MinWidth, workArea.Width * 0.8);
+            Height = Math.Max(MinHeight, workArea.Height * 0.97);
+            LoadCoverImage(logger);
             DataContext = viewModel;
             _statusMessageTimer = new DispatcherTimer
             {
@@ -38,7 +43,6 @@ namespace RestaurantManagement.WPF
             Deactivated += MainWindow_Deactivated;
             Loaded += async (_, _) =>
             {
-                LoadCoverImage(logger);
                 await viewModel.InitializeAsync();
             };
             Closed += (_, _) =>
@@ -50,7 +54,7 @@ namespace RestaurantManagement.WPF
                 PreviewMouseDown -= Application_PreviewMouseDown;
                 Deactivated -= MainWindow_Deactivated;
                 viewModel.PropertyChanged -= ViewModel_PropertyChanged;
-                CollapseAccountActions();
+                CollapseAllRowActions();
             };
         }
 
@@ -96,6 +100,29 @@ namespace RestaurantManagement.WPF
             }
         }
 
+        private async void StateSwitch_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not ToggleButton
+                {
+                    Tag: IAsyncRelayCommand command
+                } toggle)
+            {
+                return;
+            }
+
+            try
+            {
+                if (command.CanExecute(null))
+                {
+                    await command.ExecuteAsync(null);
+                }
+            }
+            finally
+            {
+                toggle.GetBindingExpression(ToggleButton.IsCheckedProperty)?.UpdateTarget();
+            }
+        }
+
         private void StatusMessageTimer_Tick(object? sender, EventArgs e)
         {
             _statusMessageTimer.Stop();
@@ -116,12 +143,86 @@ namespace RestaurantManagement.WPF
 
         private void Application_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (!IsInsideAccountRow(e.OriginalSource as DependencyObject))
+            var source = e.OriginalSource as DependencyObject;
+            if (!IsInsideKeepTableSelectionRegion(source))
+            {
+                var clickedGrid = FindContainingDataGridRow(source);
+                foreach (var dataGrid in FindVisualChildren<DataGrid>(this))
+                {
+                    if (!ReferenceEquals(dataGrid, clickedGrid))
+                    {
+                        dataGrid.SelectedItem = null;
+                    }
+                }
+            }
+
+            if (!IsInsideAccountRow(source))
             {
                 CollapseAccountActions();
             }
 
+            if (!IsInsideEmployeeRow(source))
+            {
+                CollapseEmployeeActions();
+            }
+
             ClearNotifications();
+        }
+
+        private static DataGrid? FindContainingDataGridRow(DependencyObject? source)
+        {
+            while (source is not null)
+            {
+                if (source is DataGridRow row)
+                {
+                    return ItemsControl.ItemsControlFromItemContainer(row) as DataGrid;
+                }
+
+                source = GetParent(source);
+            }
+
+            return null;
+        }
+
+        private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent)
+            where T : DependencyObject
+        {
+            if (parent is not System.Windows.Media.Visual
+                && parent is not System.Windows.Media.Media3D.Visual3D)
+            {
+                yield break;
+            }
+
+            var childCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (var index = 0; index < childCount; index++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, index);
+                if (child is T match)
+                {
+                    yield return match;
+                }
+
+                foreach (var descendant in FindVisualChildren<T>(child))
+                {
+                    yield return descendant;
+                }
+            }
+        }
+
+        private static DependencyObject? GetParent(DependencyObject element)
+        {
+            if (element is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D)
+            {
+                return System.Windows.Media.VisualTreeHelper.GetParent(element);
+            }
+
+            if (element is ContentElement contentElement)
+            {
+                return ContentOperations.GetParent(contentElement)
+                    ?? (contentElement as FrameworkContentElement)?.Parent;
+            }
+
+            return LogicalTreeHelper.GetParent(element);
         }
 
         private void AccountMenuButton_Click(object sender, RoutedEventArgs e)
@@ -173,14 +274,20 @@ namespace RestaurantManagement.WPF
         }
 
         private void MainWindow_Deactivated(object? sender, EventArgs e) =>
-            CollapseAccountActions();
+            CollapseAllRowActions();
 
         private void AdminTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (ReferenceEquals(sender, e.OriginalSource))
             {
-                CollapseAccountActions();
+                CollapseAllRowActions();
             }
+        }
+
+        private void CollapseAllRowActions()
+        {
+            CollapseAccountActions();
+            CollapseEmployeeActions();
         }
 
         private void CollapseAccountActions()
@@ -192,6 +299,15 @@ namespace RestaurantManagement.WPF
             }
         }
 
+        private void CollapseEmployeeActions()
+        {
+            _employeeRowToCollapse = null;
+            if (DataContext is MainWindowViewModel viewModel)
+            {
+                viewModel.SelectedEmployee = null;
+            }
+        }
+
         private void LoadCoverImage(ILogger<MainWindow> logger)
         {
             var imageDirectory = Path.Combine(AppContext.BaseDirectory, "Assets", "Images");
@@ -200,6 +316,24 @@ namespace RestaurantManagement.WPF
                 if (!Directory.Exists(imageDirectory))
                 {
                     return;
+                }
+
+                var iconPath = Path.Combine(imageDirectory, "icon.png");
+                if (File.Exists(iconPath))
+                {
+                    var windowIcon = new BitmapImage();
+                    windowIcon.BeginInit();
+                    windowIcon.CacheOption = BitmapCacheOption.OnLoad;
+                    windowIcon.DecodePixelWidth = 740;
+                    windowIcon.DecodePixelHeight = 740;
+                    windowIcon.UriSource = new Uri(iconPath, UriKind.Absolute);
+                    windowIcon.EndInit();
+                    windowIcon.Freeze();
+                    Icon = windowIcon;
+                }
+                else
+                {
+                    logger.LogWarning("Không tìm thấy biểu tượng ứng dụng tại {IconPath}.", iconPath);
                 }
 
                 var logoPath = Path.Combine(imageDirectory, "logo.png");
@@ -221,29 +355,209 @@ namespace RestaurantManagement.WPF
             catch (Exception exception) when (
                 exception is IOException or UnauthorizedAccessException or NotSupportedException or FormatException)
             {
-                logger.LogWarning(exception, "Không thể tải ảnh nền từ thư mục {ImageDirectory}.", imageDirectory);
+                logger.LogWarning(exception, "Không thể tải hình ảnh ứng dụng từ thư mục {ImageDirectory}.", imageDirectory);
             }
         }
 
-        private async void DeleteTable_Click(object sender, RoutedEventArgs e) =>
-            await ConfirmAndExecuteAsync(
-                viewModel => viewModel.DeleteTableCommand,
-                "Bạn có chắc muốn xóa bàn chưa phát sinh order?");
+        private async void DeleteTable_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainWindowViewModel viewModel
+                || viewModel.SelectedTable is not { } table)
+            {
+                return;
+            }
+
+            var message =
+                $"Xóa bàn “{table.TableNumber}” thuộc khu vực “{table.Area}”? "
+                + "Bàn đã phát sinh order sẽ không thể xóa.";
+            if (!MessageDialogWindow.ShowConfirmation(this, "Xác nhận xóa bàn", message))
+            {
+                return;
+            }
+
+            if (viewModel.DeleteTableCommand.CanExecute(null))
+            {
+                await viewModel.DeleteTableCommand.ExecuteAsync(null);
+            }
+        }
+
+        private async void CancelOpenOrder_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainWindowViewModel viewModel
+                || viewModel.CurrentOpenOrder is null)
+            {
+                return;
+            }
+
+            if (!MessageDialogWindow.ShowConfirmation(
+                    this,
+                    "Xác nhận hủy order",
+                    "Hủy order đang mở? Order vẫn được giữ trong lịch sử và bàn sẽ trở lại trạng thái trống."))
+            {
+                return;
+            }
+
+            if (viewModel.CancelOpenOrderCommand.CanExecute(null))
+            {
+                await viewModel.CancelOpenOrderCommand.ExecuteAsync(null);
+            }
+        }
 
         private async void DeleteCategory_Click(object sender, RoutedEventArgs e) =>
             await ConfirmAndExecuteAsync(
                 viewModel => viewModel.DeleteCategoryCommand,
                 "Bạn có chắc muốn xóa danh mục trống?");
 
-        private async void DeleteProduct_Click(object sender, RoutedEventArgs e) =>
-            await ConfirmAndExecuteAsync(
-                viewModel => viewModel.DeleteProductCommand,
-                "Bạn có chắc muốn xóa món chưa phát sinh order?");
+        private async void DeleteProduct_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainWindowViewModel viewModel)
+            {
+                return;
+            }
 
-        private async void DeleteEmployeeProfile_Click(object sender, RoutedEventArgs e) =>
-            await ConfirmAndExecuteAsync(
-                viewModel => viewModel.DeleteEmployeeProfileCommand,
-                "Xóa hồ sơ nhân viên đã chọn? Các order và lịch sử nghiệp vụ vẫn được giữ lại. Tài khoản đăng nhập (nếu có) cũng được giữ lại.");
+            if (viewModel.SelectedProduct is not { } product)
+            {
+                MessageDialogWindow.ShowMessage(
+                    this,
+                    "Chưa chọn món ăn",
+                    "Hãy chọn món trong danh sách trước khi xóa.",
+                    MessageDialogKind.Warning);
+                return;
+            }
+
+            if (!MessageDialogWindow.ShowConfirmation(
+                    this,
+                    "Xác nhận xóa món",
+                    $"Xóa món “{product.Name}”? Món đã phát sinh order sẽ không thể xóa; hãy ngừng kinh doanh món đó thay thế."))
+            {
+                return;
+            }
+
+            if (viewModel.DeleteProductCommand.CanExecute(null))
+            {
+                await viewModel.DeleteProductCommand.ExecuteAsync(null);
+            }
+        }
+
+        private void EmployeeRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not DataGridRow { DataContext: EmployeeAccountSummary employee })
+            {
+                return;
+            }
+
+            _employeeRowToCollapse = DataContext is MainWindowViewModel viewModel
+                && ReferenceEquals(viewModel.SelectedEmployee, employee)
+                && !IsInsideButton(e.OriginalSource as DependencyObject)
+                    ? employee
+                    : null;
+        }
+
+        private void EmployeeRow_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is DataGridRow { DataContext: EmployeeAccountSummary employee }
+                && ReferenceEquals(_employeeRowToCollapse, employee)
+                && DataContext is MainWindowViewModel viewModel
+                && ReferenceEquals(viewModel.SelectedEmployee, employee))
+            {
+                viewModel.SelectedEmployee = null;
+            }
+
+            _employeeRowToCollapse = null;
+        }
+
+        private async void EditEmployeeContact_Click(object sender, RoutedEventArgs e)
+        {
+            if (!TrySelectEmployee(sender, out var viewModel, out var employee)
+                || viewModel is null
+                || employee is null)
+            {
+                return;
+            }
+
+            var dialog = new EditEmployeeContactWindow(employee.Phone, employee.Email) { Owner = this };
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            viewModel.SelectedEmployee = employee;
+            viewModel.EmployeePhone = dialog.EmployeePhone;
+            viewModel.EmployeeEmail = dialog.EmployeeEmail;
+            if (viewModel.UpdateEmployeeCommand.CanExecute(null))
+            {
+                await viewModel.UpdateEmployeeCommand.ExecuteAsync(null);
+            }
+
+            viewModel.SelectedEmployee = null;
+        }
+
+        private async void ToggleEmployeeStatus_Click(object sender, RoutedEventArgs e)
+        {
+            if (!TrySelectEmployee(sender, out var viewModel, out var employee)
+                || viewModel is null
+                || employee is null)
+            {
+                RefreshSwitchState(sender);
+                return;
+            }
+
+            if (employee.IsEmployeeActive
+                && !MessageDialogWindow.ShowConfirmation(
+                    this,
+                    "Xác nhận tạm đình chỉ",
+                    $"Tạm đình chỉ nhân viên “{employee.FullName}”? Nhân viên sẽ không thể đăng nhập cho tới khi được bỏ đình chỉ."))
+            {
+                viewModel.SelectedEmployee = null;
+                RefreshSwitchState(sender);
+                return;
+            }
+
+            viewModel.SelectedEmployee = employee;
+            if (viewModel.ToggleEmployeeStatusCommand.CanExecute(null))
+            {
+                await viewModel.ToggleEmployeeStatusCommand.ExecuteAsync(null);
+            }
+
+            viewModel.SelectedEmployee = null;
+            RefreshSwitchState(sender);
+        }
+
+        private static void RefreshSwitchState(object sender)
+        {
+            if (sender is ToggleButton toggle)
+            {
+                toggle.GetBindingExpression(ToggleButton.IsCheckedProperty)?.UpdateTarget();
+            }
+        }
+
+        private async void DeleteEmployeeProfile_Click(object sender, RoutedEventArgs e)
+        {
+            if (!TrySelectEmployee(sender, out var viewModel, out var employee)
+                || viewModel is null
+                || employee is null)
+            {
+                return;
+            }
+
+            if (!MessageDialogWindow.ShowConfirmation(
+                    this,
+                    "Xác nhận xóa hồ sơ",
+                    $"Xóa hồ sơ nhân viên “{employee.FullName}”? Lịch sử order và tài khoản đăng nhập vẫn được giữ lại. Có thể tạo lại hồ sơ từ mục Cấp tài khoản."))
+            {
+                viewModel.SelectedEmployee = null;
+                return;
+            }
+
+            viewModel.SelectedEmployee = employee;
+            if (viewModel.DeleteEmployeeProfileCommand.CanExecute(null))
+            {
+                await viewModel.DeleteEmployeeProfileCommand.ExecuteAsync(null);
+            }
+
+            viewModel.SelectedEmployee = null;
+        }
+
 
         private void AccountRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -293,17 +607,59 @@ namespace RestaurantManagement.WPF
             return false;
         }
 
-        private static bool IsInsideButton(DependencyObject? source)
+        private bool IsInsideEmployeeRow(DependencyObject? source)
         {
             while (source is not null)
             {
-                if (source is Button)
+                if (source is DataGridRow)
                 {
                     return true;
                 }
 
+                if (ReferenceEquals(source, EmployeeDataGrid))
+                {
+                    return false;
+                }
+
                 source = System.Windows.Media.VisualTreeHelper.GetParent(source)
                     ?? LogicalTreeHelper.GetParent(source);
+            }
+
+            return false;
+        }
+
+        private static bool IsInsideButton(DependencyObject? source)
+        {
+            while (source is not null)
+            {
+                if (source is ButtonBase)
+                {
+                    return true;
+                }
+
+                source = GetParent(source);
+            }
+
+            return false;
+        }
+
+        private static bool IsInsideKeepTableSelectionRegion(DependencyObject? source)
+        {
+            while (source is not null)
+            {
+                if (source is FrameworkElement { Tag: "KeepTableSelection" })
+                {
+                    return true;
+                }
+
+                if (source is ComboBoxItem comboBoxItem
+                    && ItemsControl.ItemsControlFromItemContainer(comboBoxItem)
+                        is ComboBox { Tag: "KeepTableSelection" })
+                {
+                    return true;
+                }
+
+                source = GetParent(source);
             }
 
             return false;
@@ -376,37 +732,6 @@ namespace RestaurantManagement.WPF
             viewModel.SelectedAccount = null;
         }
 
-        private async void ToggleAccountStatus_Click(object sender, RoutedEventArgs e)
-        {
-            CollapseAccountActions();
-            if (!TrySelectAccount(sender, out var viewModel, out var account)
-                || viewModel is null
-                || account is null)
-            {
-                return;
-            }
-
-            if (account.IsAccountActive
-                && MessageBox.Show(
-                    this,
-                    $"Khóa tài khoản “{account.Username}”? Nhân viên sẽ không thể đăng nhập cho tới khi tài khoản được mở khóa.",
-                    "Xác nhận khóa tài khoản",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning) != MessageBoxResult.Yes)
-            {
-                viewModel.SelectedAccount = null;
-                return;
-            }
-
-            viewModel.SelectedAccount = account;
-            if (viewModel.ToggleAccountStatusCommand.CanExecute(null))
-            {
-                await viewModel.ToggleAccountStatusCommand.ExecuteAsync(null);
-            }
-
-            viewModel.SelectedAccount = null;
-        }
-
         private async void DeleteAccount_Click(object sender, RoutedEventArgs e)
         {
             CollapseAccountActions();
@@ -417,12 +742,10 @@ namespace RestaurantManagement.WPF
                 return;
             }
 
-            if (MessageBox.Show(
+            if (!MessageDialogWindow.ShowConfirmation(
                     this,
-                    $"Bạn có chắc muốn xóa vĩnh viễn tài khoản “{account.Username}” của {account.FullName} không? Thao tác này sẽ xóa cả hồ sơ nhân viên và lịch sử order, thanh toán liên quan; không thể hoàn tác.",
                     "Xác nhận xóa tài khoản",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                    $"Bạn có chắc muốn thu hồi vĩnh viễn quyền đăng nhập của tài khoản “{account.Username}” ({account.FullName}) không? Hồ sơ nhân viên và lịch sử order/thanh toán sẽ được giữ lại. Không thể khôi phục quyền đăng nhập."))
             {
                 viewModel.SelectedAccount = null;
                 return;
@@ -456,17 +779,31 @@ namespace RestaurantManagement.WPF
             return false;
         }
 
+        private bool TrySelectEmployee(
+            object sender,
+            out MainWindowViewModel? viewModel,
+            out EmployeeAccountSummary? employee)
+        {
+            if (DataContext is MainWindowViewModel currentViewModel
+                && sender is FrameworkElement { Tag: EmployeeAccountSummary selectedEmployee })
+            {
+                currentViewModel.SelectedEmployee = selectedEmployee;
+                viewModel = currentViewModel;
+                employee = selectedEmployee;
+                return true;
+            }
+
+            viewModel = null;
+            employee = null;
+            return false;
+        }
+
         private async Task ConfirmAndExecuteAsync(
             Func<MainWindowViewModel, IAsyncRelayCommand> getCommand,
             string message)
         {
             if (DataContext is not MainWindowViewModel viewModel
-                || MessageBox.Show(
-                    this,
-                    message,
-                    "Xác nhận xóa",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                || !MessageDialogWindow.ShowConfirmation(this, "Xác nhận xóa", message))
             {
                 return;
             }

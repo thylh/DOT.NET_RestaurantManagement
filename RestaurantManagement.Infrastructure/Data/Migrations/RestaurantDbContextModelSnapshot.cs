@@ -25,10 +25,6 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
@@ -155,7 +151,7 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
 
                     b.ToTable("Payments", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Payments_Amount", "`Amount` > 0");
+                            t.HasCheckConstraint("CK_Payments_Amount", "`Amount` >= 0");
 
                             t.HasCheckConstraint("CK_Payments_Status", "`Status` = 1");
                         });
@@ -169,10 +165,6 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
 
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("ImagePath")
                         .HasMaxLength(500)
@@ -193,6 +185,10 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("Tags")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
@@ -203,11 +199,63 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("RestaurantManagement.Core.Entities.Promotion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DiscountPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<DateTimeOffset>("EndsAt")
+                        .HasColumnType("datetime");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("StartsAt")
+                        .HasColumnType("datetime");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("IsActive", "StartsAt", "EndsAt");
+
+                    b.ToTable("Promotions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Promotions_DiscountPercentage", "`DiscountPercentage` > 0 AND `DiscountPercentage` <= 100");
+
+                            t.HasCheckConstraint("CK_Promotions_ExactlyOneTarget", "(`ProductId` IS NOT NULL AND `CategoryId` IS NULL) OR (`ProductId` IS NULL AND `CategoryId` IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Promotions_ValidPeriod", "`EndsAt` > `StartsAt`");
+                        });
+                });
+
             modelBuilder.Entity("RestaurantManagement.Core.Entities.RestaurantOrder", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    b.Property<string>("AppliedPromotionNameSnapshot")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<string>("CancellationReason")
                         .HasMaxLength(500)
@@ -232,6 +280,10 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
 
                     b.Property<int?>("CreatedByUserId")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("DiscountAmountSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int?>("OpenRestaurantTableId")
                         .ValueGeneratedOnAddOrUpdate()
@@ -269,25 +321,30 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
+                    b.Property<string>("Area")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<int>("SeatCount")
                         .HasColumnType("int");
 
-                    b.Property<int>("TableNumber")
-                        .HasColumnType("int");
+                    b.Property<string>("TableNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TableNumber")
+                    b.HasIndex("Area", "TableNumber")
                         .IsUnique();
 
                     b.ToTable("RestaurantTables", null, t =>
                         {
                             t.HasCheckConstraint("CK_RestaurantTables_SeatCount", "`SeatCount` > 0");
-
-                            t.HasCheckConstraint("CK_RestaurantTables_TableNumber", "`TableNumber` > 0");
                         });
                 });
 
@@ -304,6 +361,9 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                     b.Property<int?>("EmployeeId")
                         .HasColumnType("int");
 
+                    b.Property<bool>("EmployeeProfileDeleted")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("EncryptedTemporaryPassword")
                         .HasMaxLength(2048)
                         .HasColumnType("varchar(2048)");
@@ -313,7 +373,7 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
 
-                    b.Property<bool>("IsActive")
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("PasswordHash")
@@ -396,6 +456,23 @@ namespace RestaurantManagement.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("RestaurantManagement.Core.Entities.Promotion", b =>
+                {
+                    b.HasOne("RestaurantManagement.Core.Entities.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("RestaurantManagement.Core.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("RestaurantManagement.Core.Entities.RestaurantOrder", b =>

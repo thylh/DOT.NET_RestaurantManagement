@@ -59,8 +59,4 @@ public interface IEmployeeManagementService
         bool isActive,
         CancellationToken cancellationToken = default);
 
-    Task SetAccountActiveAsync(
-        int accountId,
-        bool isActive,
-        CancellationToken cancellationToken = default);
 }

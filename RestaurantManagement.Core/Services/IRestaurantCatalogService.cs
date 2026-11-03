@@ -15,15 +15,44 @@ public interface IRestaurantCatalogService
         int? categoryId = null,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<PromotionSummary>> GetPromotionsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task CreatePromotionAsync(
+        string name,
+        decimal discountPercentage,
+        DateTimeOffset startsAt,
+        DateTimeOffset endsAt,
+        int? productId,
+        int? categoryId,
+        CancellationToken cancellationToken = default);
+
+    Task UpdatePromotionAsync(
+        int promotionId,
+        string name,
+        decimal discountPercentage,
+        DateTimeOffset startsAt,
+        DateTimeOffset endsAt,
+        int? productId,
+        int? categoryId,
+        CancellationToken cancellationToken = default);
+
+    Task SetPromotionActiveAsync(
+        int promotionId,
+        bool isActive,
+        CancellationToken cancellationToken = default);
+
     Task CreateTableAsync(
-        int tableNumber,
+        string tableNumber,
         int seatCount,
+        string area = "Chung",
         CancellationToken cancellationToken = default);
 
     Task UpdateTableAsync(
         int tableId,
-        int tableNumber,
+        string tableNumber,
         int seatCount,
+        string area = "Chung",
         CancellationToken cancellationToken = default);
 
     Task SetTableActiveAsync(
@@ -35,13 +64,11 @@ public interface IRestaurantCatalogService
 
     Task CreateCategoryAsync(
         string name,
-        string? description,
         CancellationToken cancellationToken = default);
 
     Task UpdateCategoryAsync(
         int categoryId,
         string name,
-        string? description,
         CancellationToken cancellationToken = default);
 
     Task SetCategoryActiveAsync(
@@ -53,7 +80,7 @@ public interface IRestaurantCatalogService
 
     Task CreateProductAsync(
         string name,
-        string? description,
+        string? tags,
         decimal price,
         int categoryId,
         string? imagePath,
@@ -62,7 +89,7 @@ public interface IRestaurantCatalogService
     Task UpdateProductAsync(
         int productId,
         string name,
-        string? description,
+        string? tags,
         decimal price,
         int categoryId,
         string? imagePath,
