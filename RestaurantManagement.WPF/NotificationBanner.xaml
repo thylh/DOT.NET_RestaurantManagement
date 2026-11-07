@@ -1,33 +1,45 @@
 <UserControl x:Class="RestaurantManagement.WPF.NotificationBanner"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:behaviors="clr-namespace:RestaurantManagement.WPF.Behaviors"
              x:Name="Root">
     <Border x:Name="BannerBorder"
+            behaviors:MotionTransitionBehavior.AnimateOnVisible="True"
             Background="{StaticResource PrimaryTintBrush}"
             BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="1"
-            CornerRadius="9"
-            Padding="10">
-        <StackPanel Orientation="Horizontal">
+            CornerRadius="10"
+            Padding="12,9"
+            SnapsToDevicePixels="True">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
             <Border x:Name="KindBadge"
+                    Grid.Column="0"
                     Width="24"
                     Height="24"
-                    CornerRadius="7"
+                    CornerRadius="12"
                     Background="{StaticResource SuccessTintBrush}"
-                    Margin="0,0,9,0">
+                    Margin="0,0,10,0"
+                    VerticalAlignment="Center">
                 <TextBlock x:Name="KindGlyph"
                            Text="✓"
-                           FontSize="14"
+                           FontSize="13"
                            FontWeight="Bold"
                            Foreground="{StaticResource SuccessBrush}"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"/>
             </Border>
-            <TextBlock Text="{Binding Message, ElementName=Root}"
+            <TextBlock Grid.Column="1"
+                       Text="{Binding Message, ElementName=Root}"
                        ToolTip="{Binding Message, ElementName=Root}"
                        Foreground="{StaticResource TextPrimaryBrush}"
+                       FontSize="13"
+                       FontWeight="Medium"
                        TextWrapping="Wrap"
                        VerticalAlignment="Center"/>
-        </StackPanel>
+        </Grid>
     </Border>
 </UserControl>

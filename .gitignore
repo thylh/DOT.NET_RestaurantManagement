@@ -3,6 +3,7 @@
 *.suo
 *.user
 .github/
+.agents/
 
 # Build output
 **/bin/

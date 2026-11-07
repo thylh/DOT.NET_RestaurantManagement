@@ -27,6 +27,13 @@ public partial class NotificationBanner : UserControl
             typeof(NotificationBanner),
             new PropertyMetadata(false, OnVisibilityInputsChanged));
 
+    public static readonly DependencyProperty UseOpenBottomFrameProperty =
+        DependencyProperty.Register(
+            nameof(UseOpenBottomFrame),
+            typeof(bool),
+            typeof(NotificationBanner),
+            new PropertyMetadata(false, OnFrameStyleChanged));
+
     public NotificationBanner()
     {
         InitializeComponent();
@@ -52,6 +59,12 @@ public partial class NotificationBanner : UserControl
         set => SetValue(IsSuppressedProperty, value);
     }
 
+    public bool UseOpenBottomFrame
+    {
+        get => (bool)GetValue(UseOpenBottomFrameProperty);
+        set => SetValue(UseOpenBottomFrameProperty, value);
+    }
+
     private static void OnMessageChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e)
     {
         UpdateVisibility((NotificationBanner)dependencyObject);
@@ -62,6 +75,24 @@ public partial class NotificationBanner : UserControl
 
     private static void OnVisibilityInputsChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e) =>
         UpdateVisibility((NotificationBanner)dependencyObject);
+
+    private static void OnFrameStyleChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e)
+    {
+        var banner = (NotificationBanner)dependencyObject;
+        if (banner.BannerBorder is null)
+        {
+            return;
+        }
+
+        var useOpenBottomFrame = (bool)e.NewValue;
+        banner.BannerBorder.BorderThickness = useOpenBottomFrame
+            ? new Thickness(1, 1, 1, 0)
+            : new Thickness(1);
+        banner.BannerBorder.CornerRadius = useOpenBottomFrame
+            ? new CornerRadius(14, 14, 0, 0)
+            : new CornerRadius(10);
+        Behaviors.OpenBottomFrameBehavior.SetIsEnabled(banner.BannerBorder, useOpenBottomFrame);
+    }
 
     private static void UpdateVisibility(NotificationBanner banner) =>
         banner.Visibility = !banner.IsSuppressed && !string.IsNullOrWhiteSpace(banner.Message)

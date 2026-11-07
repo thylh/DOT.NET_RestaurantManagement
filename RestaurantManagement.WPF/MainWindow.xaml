@@ -16,42 +16,81 @@
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        <Style x:Key="StateSwitchStyle" TargetType="{x:Type ToggleButton}">
-            <EventSetter Event="Click" Handler="StateSwitch_Click"/>
-            <Setter Property="Width" Value="29"/>
-            <Setter Property="Height" Value="17"/>
-            <Setter Property="MinWidth" Value="29"/>
-            <Setter Property="MinHeight" Value="17"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Focusable" Value="True"/>
-            <Setter Property="ToolTip" Value="Bật hoặc tắt trạng thái"/>
+        <Style x:Key="StateSwitchStyle"
+               TargetType="{x:Type ToggleButton}">
+            <EventSetter Event="Click"
+                         Handler="StateSwitch_Click"/>
+            <Setter Property="Width"
+                    Value="34"/>
+            <Setter Property="Height"
+                    Value="20"/>
+            <Setter Property="MinWidth"
+                    Value="34"/>
+            <Setter Property="MinHeight"
+                    Value="20"/>
+            <Setter Property="Cursor"
+                    Value="Hand"/>
+            <Setter Property="Focusable"
+                    Value="True"/>
+            <Setter Property="FocusVisualStyle"
+                    Value="{StaticResource FocusRingStyle}"/>
+            <Setter Property="behaviors:MotionTransitionBehavior.AnimateToggleState"
+                    Value="True"/>
+            <Setter Property="ToolTip"
+                    Value="Bật hoặc tắt trạng thái"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ToggleButton}">
-                        <Grid Width="29" Height="17" Background="Transparent">
+                        <Grid Width="34"
+                              Height="20"
+                              Background="Transparent">
                             <Border x:Name="SwitchTrack"
-                                    Width="29" Height="17"
-                                    Background="{StaticResource BorderBrush}"
-                                    CornerRadius="9"/>
+                                    Width="34"
+                                    Height="20"
+                                    Background="#D5C1AA"
+                                    CornerRadius="10"
+                                    SnapsToDevicePixels="True"/>
+                            <Border x:Name="SwitchCheckedOverlay"
+                                    Width="34"
+                                    Height="20"
+                                    Background="{StaticResource PrimaryBrush}"
+                                    CornerRadius="10"
+                                    Opacity="0"
+                                    IsHitTestVisible="False"/>
                             <Ellipse x:Name="SwitchThumb"
-                                     Width="12" Height="12"
+                                     Width="14"
+                                     Height="14"
                                      Fill="{StaticResource SurfaceBrush}"
                                      HorizontalAlignment="Left"
-                                     Margin="2.5,0"/>
+                                     Margin="3,0"
+                                     SnapsToDevicePixels="True">
+                                <Ellipse.RenderTransform>
+                                    <TranslateTransform x:Name="ThumbTransform"/>
+                                </Ellipse.RenderTransform>
+                            </Ellipse>
                         </Grid>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="SwitchTrack" Property="Background"
+                            <Trigger Property="IsMouseOver"
+                                     Value="True">
+                                <Setter TargetName="SwitchTrack"
+                                        Property="Opacity"
+                                        Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused"
+                                     Value="True">
+                                <Setter TargetName="SwitchTrack"
+                                        Property="BorderBrush"
                                         Value="{StaticResource PrimaryBrush}"/>
-                                <Setter TargetName="SwitchThumb" Property="HorizontalAlignment"
-                                        Value="Right"/>
+                                <Setter TargetName="SwitchTrack"
+                                        Property="BorderThickness"
+                                        Value="1.5"/>
                             </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="SwitchTrack" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.55"/>
-                                <Setter Property="Cursor" Value="Arrow"/>
+                            <Trigger Property="IsEnabled"
+                                     Value="False">
+                                <Setter Property="Opacity"
+                                        Value="0.5"/>
+                                <Setter Property="Cursor"
+                                        Value="Arrow"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -126,12 +165,17 @@
                         </DataGrid>
                     </Border>
                     <Border Grid.Column="2"
+                            Style="{StaticResource OpenBottomFrameStyle}"
                             Background="{StaticResource SurfaceBrush}"
                             BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="14"
                             Padding="14">
-                        <StackPanel>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0">
                                 <TextBlock Text="{Binding CurrentOrderReceipt.OrderId, StringFormat=Chi tiết order #{0}}"
                                            FontSize="17"
                                            FontWeight="SemiBold"
@@ -142,7 +186,8 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Trạng thái: " FontWeight="SemiBold"/>
+                                        <TextBlock Text="Trạng thái: "
+                                                   FontWeight="SemiBold"/>
                                         <TextBlock Text="{Binding CurrentOrderReceipt.StatusDisplay}"/>
                                     </StackPanel>
                                     <TextBlock Grid.Column="1"
@@ -151,10 +196,13 @@
                                                Margin="12,0,0,0">
                                         <TextBlock.Style>
                                             <Style TargetType="{x:Type TextBlock}">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Setter Property="Visibility"
+                                                        Value="Collapsed"/>
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding CurrentOrderReceipt.IsCancelled}" Value="True">
-                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    <DataTrigger Binding="{Binding CurrentOrderReceipt.IsCancelled}"
+                                                                 Value="True">
+                                                        <Setter Property="Visibility"
+                                                                Value="Visible"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -168,7 +216,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Bàn: " FontWeight="SemiBold"/>
+                                    <TextBlock Text="Bàn: "
+                                               FontWeight="SemiBold"/>
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding CurrentOrderReceipt.TableNumber}"/>
                                     <TextBlock Grid.Column="2"
@@ -186,34 +235,37 @@
                                            Margin="0,0,0,8"/>
                                 <TextBlock Text="{Binding CurrentOrderReceipt.PaymentMethodDisplay, StringFormat=Phương thức: {0}}"
                                            Margin="0,0,0,8"/>
-                                <Border Style="{StaticResource DataGridFrameStyle}"
-                                        Margin="0,0,0,8">
-                                    <DataGrid ItemsSource="{Binding CurrentOrderReceipt.Details}"
-                                              AutoGenerateColumns="False"
-                                              IsReadOnly="True"
-                                              CanUserAddRows="False"
-                                              HorizontalAlignment="Stretch"
-                                              MaxHeight="220">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="Món"
-                                                                Binding="{Binding ProductName}"
-                                                                Width="2*"
-                                                                MinWidth="100"/>
-                                            <DataGridTextColumn Header="SL"
-                                                                Binding="{Binding Quantity}"
-                                                                Width="0.65*"
-                                                                MinWidth="45"/>
-                                            <DataGridTextColumn Header="Đơn giá"
-                                                                Binding="{Binding UnitPrice, StringFormat={}{0:N0}}"
-                                                                Width="1.2*"
-                                                                MinWidth="80"/>
-                                            <DataGridTextColumn Header="Thành tiền"
-                                                                Binding="{Binding LineTotal, StringFormat={}{0:N0}}"
-                                                                Width="1.4*"
-                                                                MinWidth="90"/>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
-                                </Border>
+                            </StackPanel>
+                            <Border Grid.Row="1"
+                                    Style="{StaticResource DataGridFrameStyle}"
+                                    Margin="0,0,0,8">
+                                <DataGrid ItemsSource="{Binding CurrentOrderReceipt.Details}"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          CanUserAddRows="False"
+                                          HorizontalAlignment="Stretch"
+                                          MinHeight="0">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Món"
+                                                            Binding="{Binding ProductName}"
+                                                            Width="2*"
+                                                            MinWidth="100"/>
+                                        <DataGridTextColumn Header="SL"
+                                                            Binding="{Binding Quantity}"
+                                                            Width="0.65*"
+                                                            MinWidth="45"/>
+                                        <DataGridTextColumn Header="Đơn giá"
+                                                            Binding="{Binding UnitPrice, StringFormat={}{0:N0}}"
+                                                            Width="1.2*"
+                                                            MinWidth="80"/>
+                                        <DataGridTextColumn Header="Thành tiền"
+                                                            Binding="{Binding LineTotal, StringFormat={}{0:N0}}"
+                                                            Width="1.4*"
+                                                            MinWidth="90"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+                            <StackPanel Grid.Row="2">
                                 <TextBlock Text="{Binding CurrentOrderReceipt.PromotionDisplay}"
                                            HorizontalAlignment="Right"
                                            Margin="0,0,0,4"/>
@@ -226,13 +278,14 @@
                                            FontSize="16"
                                            FontWeight="SemiBold"
                                            HorizontalAlignment="Right"/>
-                        </StackPanel>
+                            </StackPanel>
+                        </Grid>
                     </Border>
                 </Grid>
             </Grid>
         </DataTemplate>
         <Style x:Key="ProductTagsDropDownButtonStyle"
-                TargetType="{x:Type ToggleButton}">
+               TargetType="{x:Type ToggleButton}">
             <Setter Property="Height"
                     Value="40"/>
             <Setter Property="MinHeight"
@@ -270,37 +323,37 @@
                                                   HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                                   RecognizesAccessKey="True"/>
                                 <Path Grid.Column="1"
-                                        Width="9"
-                                        Height="5"
+                                      Width="9"
+                                      Height="5"
                                       HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
+                                      VerticalAlignment="Center"
                                       Data="M 0 0 L 4.5 4.5 L 9 0"
                                       Stroke="{StaticResource TextSecondaryBrush}"
                                       StrokeThickness="1.6"
-                                        StrokeLineJoin="Round"/>
+                                      StrokeLineJoin="Round"/>
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver"
-                                    Value="True">
+                                     Value="True">
                                 <Setter TargetName="TagsButtonBorder"
                                         Property="BorderBrush"
                                         Value="{StaticResource PrimaryBrush}"/>
                             </Trigger>
                             <Trigger Property="IsKeyboardFocusWithin"
-                                    Value="True">
+                                     Value="True">
                                 <Setter TargetName="TagsButtonBorder"
                                         Property="BorderBrush"
                                         Value="{StaticResource PrimaryBrush}"/>
                             </Trigger>
                             <Trigger Property="IsChecked"
-                                    Value="True">
+                                     Value="True">
                                 <Setter TargetName="TagsButtonBorder"
                                         Property="BorderBrush"
                                         Value="{StaticResource PrimaryBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled"
-                                    Value="False">
+                                     Value="False">
                                 <Setter TargetName="TagsButtonBorder"
                                         Property="Opacity"
                                         Value="0.6"/>
@@ -311,7 +364,7 @@
             </Setter>
         </Style>
         <Style x:Key="ProductTagCheckBoxStyle"
-                TargetType="{x:Type CheckBox}">
+               TargetType="{x:Type CheckBox}">
             <Setter Property="Foreground"
                     Value="{StaticResource TextPrimaryBrush}"/>
             <Setter Property="FontSize"
@@ -335,27 +388,27 @@
                                     CornerRadius="5"
                                     VerticalAlignment="Center">
                                 <Path x:Name="CheckMark"
-                                        Data="M 3 8 L 7 12 L 14 4"
+                                      Data="M 3 8 L 7 12 L 14 4"
                                       Stroke="{StaticResource SurfaceBrush}"
-                                        StrokeThickness="2"
+                                      StrokeThickness="2"
                                       StrokeLineJoin="Round"
-                                        Visibility="Collapsed"/>
+                                      Visibility="Collapsed"/>
                             </Border>
                             <ContentPresenter Grid.Column="1"
-                                    ContentSource="Content"
+                                              ContentSource="Content"
                                               Margin="{TemplateBinding Padding}"
                                               VerticalAlignment="Center"
                                               RecognizesAccessKey="True"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver"
-                                    Value="True">
+                                     Value="True">
                                 <Setter TargetName="CheckBoxBorder"
                                         Property="BorderBrush"
                                         Value="{StaticResource PrimaryBrush}"/>
                             </Trigger>
                             <Trigger Property="IsChecked"
-                                    Value="True">
+                                     Value="True">
                                 <Setter TargetName="CheckBoxBorder"
                                         Property="Background"
                                         Value="{StaticResource PrimaryBrush}"/>
@@ -367,7 +420,7 @@
                                         Value="Visible"/>
                             </Trigger>
                             <Trigger Property="IsEnabled"
-                                    Value="False">
+                                     Value="False">
                                 <Setter Property="Opacity"
                                         Value="0.55"/>
                             </Trigger>
@@ -377,8 +430,83 @@
             </Setter>
         </Style>
     </Window.Resources>
-    <Grid Margin="30,30,30,0">
+    <Grid Margin="30,15,30,0">
+        <Grid Margin="-30,-15,-30,0"
+              Background="{StaticResource PrimaryBrush}"
+              Visibility="{Binding IsAuthenticatedWorkspace, Converter={StaticResource BooleanToVisibilityConverter}}"
+              IsHitTestVisible="False">
+            <Ellipse Width="390"
+                     Height="390"
+                     Fill="#8A4E37"
+                     Opacity="0.28"
+                     HorizontalAlignment="Right"
+                     VerticalAlignment="Top"
+                     Margin="0,-150,-120,0"
+                     RenderTransformOrigin="0.5,0.5"
+                     behaviors:MotionTransitionBehavior.FlyInOnVisible="True"
+                     behaviors:MotionTransitionBehavior.FlyInFromX="520"
+                     behaviors:MotionTransitionBehavior.FlyInFromY="-90"
+                     behaviors:MotionTransitionBehavior.BreatheOnVisible="True"
+                     behaviors:MotionTransitionBehavior.BreatheDelay="1200"/>
+            <Ellipse Width="78"
+                     Height="78"
+                     Fill="#A66449"
+                     Opacity="0.48"
+                     HorizontalAlignment="Right"
+                     VerticalAlignment="Top"
+                     Margin="0,48,255,0"
+                     RenderTransformOrigin="0.5,0.5"
+                     behaviors:MotionTransitionBehavior.FlyInOnVisible="True"
+                     behaviors:MotionTransitionBehavior.FlyInFromX="180"
+                     behaviors:MotionTransitionBehavior.FlyInFromY="-100"
+                     behaviors:MotionTransitionBehavior.FlyInDelay="120"
+                     behaviors:MotionTransitionBehavior.BreatheOnVisible="True"
+                     behaviors:MotionTransitionBehavior.BreatheDelay="1400"/>
+            <Ellipse Width="312"
+                     Height="312"
+                     Fill="#8A4E37"
+                     Opacity="0.20"
+                     HorizontalAlignment="Left"
+                     VerticalAlignment="Top"
+                     Margin="-106,-110,0,0"
+                     RenderTransformOrigin="0.5,0.5"
+                     behaviors:MotionTransitionBehavior.FlyInOnVisible="True"
+                     behaviors:MotionTransitionBehavior.FlyInFromX="-420"
+                     behaviors:MotionTransitionBehavior.FlyInFromY="-90"
+                     behaviors:MotionTransitionBehavior.FlyInDelay="220"
+                     behaviors:MotionTransitionBehavior.BreatheOnVisible="True"
+                     behaviors:MotionTransitionBehavior.BreatheDelay="1600"/>
+            <Ellipse Width="290"
+                     Height="290"
+                     Fill="#8A4E37"
+                     Opacity="0.34"
+                     HorizontalAlignment="Left"
+                     VerticalAlignment="Bottom"
+                     Margin="-110,0,0,-100"
+                     RenderTransformOrigin="0.5,0.5"
+                     behaviors:MotionTransitionBehavior.FlyInOnVisible="True"
+                     behaviors:MotionTransitionBehavior.FlyInFromX="-360"
+                     behaviors:MotionTransitionBehavior.FlyInFromY="240"
+                     behaviors:MotionTransitionBehavior.FlyInDelay="320"
+                     behaviors:MotionTransitionBehavior.BreatheOnVisible="True"
+                     behaviors:MotionTransitionBehavior.BreatheDelay="1800"/>
+            <Ellipse Width="250"
+                     Height="250"
+                     Fill="#A66449"
+                     Opacity="0.24"
+                     HorizontalAlignment="Right"
+                     VerticalAlignment="Center"
+                     Margin="0,150,5,0"
+                     RenderTransformOrigin="0.5,0.5"
+                     behaviors:MotionTransitionBehavior.FlyInOnVisible="True"
+                     behaviors:MotionTransitionBehavior.FlyInFromX="300"
+                     behaviors:MotionTransitionBehavior.FlyInFromY="120"
+                     behaviors:MotionTransitionBehavior.FlyInDelay="420"
+                     behaviors:MotionTransitionBehavior.BreatheOnVisible="True"
+                     behaviors:MotionTransitionBehavior.BreatheDelay="2000"/>
+        </Grid>
         <Grid Margin="0,0,0,30"
+              behaviors:MotionTransitionBehavior.AnimateOnVisible="True"
               Visibility="{Binding IsSetupScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Border MaxWidth="1050"
                     MinHeight="560"
@@ -390,9 +518,9 @@
                     BorderThickness="1">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="36"
-                            ShadowDepth="8"
-                            Opacity="0.12"
-                            Color="#542B1C"/>
+                                      ShadowDepth="8"
+                                      Opacity="0.12"
+                                      Color="#542B1C"/>
                 </Border.Effect>
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -404,19 +532,19 @@
                             ClipToBounds="True">
                         <Grid Background="{StaticResource PrimaryBrush}">
                             <Ellipse Width="390"
-                                    Height="390"
-                                    Fill="#1FFFFFFF"
+                                     Height="390"
+                                     Fill="#1FFFFFFF"
                                      HorizontalAlignment="Right"
-                                    VerticalAlignment="Top"
-                                    Margin="0,-150,-120,0"/>
+                                     VerticalAlignment="Top"
+                                     Margin="0,-150,-120,0"/>
                             <Ellipse Width="290"
-                                    Height="290"
-                                    Fill="#16FFFFFF"
+                                     Height="290"
+                                     Fill="#16FFFFFF"
                                      HorizontalAlignment="Left"
-                                    VerticalAlignment="Bottom"
-                                    Margin="-110,0,0,-100"/>
+                                     VerticalAlignment="Bottom"
+                                     Margin="-110,0,0,-100"/>
                             <StackPanel Margin="54"
-                                    VerticalAlignment="Center">
+                                        VerticalAlignment="Center">
                                 <Border Width="148"
                                         Height="148"
                                         CornerRadius="22"
@@ -425,67 +553,67 @@
                                         Margin="0,0,0,26"
                                         Padding="8">
                                     <Image x:Name="SetupBrandLogo"
-                                            Stretch="Uniform"/>
+                                           Stretch="Uniform"/>
                                 </Border>
                                 <TextBlock Text="DineEase · QUẢN LÝ NHÀ HÀNG"
-                                        Foreground="#F6C28E"
-                                        FontSize="12"
+                                           Foreground="#F6C28E"
+                                           FontSize="12"
                                            FontWeight="Bold"
-                                        Margin="0,0,0,14"/>
+                                           Margin="0,0,0,14"/>
                                 <TextBlock Text="Vận hành gọn gàng.&#10;Phục vụ tận tâm."
                                            Foreground="White"
-                                        FontSize="34"
-                                        FontWeight="SemiBold"
+                                           FontSize="34"
+                                           FontWeight="SemiBold"
                                            TextWrapping="Wrap"
-                                        LineHeight="43"
-                                        Margin="0,0,0,18"/>
+                                           LineHeight="43"
+                                           Margin="0,0,0,18"/>
                                 <TextBlock Text="Một nơi tập trung cho đội ngũ và hoạt động mỗi ngày."
                                            Foreground="#F4E7D8"
-                                        FontSize="15"
-                                        TextWrapping="Wrap"
-                                        MaxWidth="360"/>
+                                           FontSize="15"
+                                           TextWrapping="Wrap"
+                                           MaxWidth="360"/>
                                 <StackPanel Margin="0,36,0,0">
                                     <TextBlock Text="●   Quản lý bàn và thực đơn"
-                                            Foreground="#FFF8EF"
-                                            Margin="0,0,0,12"/>
+                                               Foreground="#FFF8EF"
+                                               Margin="0,0,0,12"/>
                                     <TextBlock Text="●   Phân quyền theo vai trò"
-                                            Foreground="#FFF8EF"
-                                            Margin="0,0,0,12"/>
+                                               Foreground="#FFF8EF"
+                                               Margin="0,0,0,12"/>
                                     <TextBlock Text="●   Dữ liệu lưu trên thiết bị của bạn"
-                                            Foreground="#FFF8EF"/>
+                                               Foreground="#FFF8EF"/>
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
                     </Border>
                     <StackPanel Grid.Column="1"
-                            VerticalAlignment="Center"
-                            Margin="54">
+                                VerticalAlignment="Center"
+                                Margin="54">
                         <TextBlock Text="Bắt đầu sử dụng"
-                                FontSize="26"
-                                FontWeight="SemiBold"
-                                Margin="0,0,0,8"/>
+                                   FontSize="26"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8"/>
                         <TextBlock Text="Thiết lập Admin lần đầu"
-                                FontSize="15"
+                                   FontSize="15"
                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                Margin="0,0,0,28"/>
+                                   Margin="0,0,0,28"/>
                         <TextBlock Text="Tên đăng nhập"
-                                FontWeight="SemiBold"
-                                Margin="0,0,0,6"/>
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,6"/>
                         <TextBox Text="{Binding SetupUsername, UpdateSourceTrigger=PropertyChanged}"
-                                behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên đăng nhập Admin"
-                                Margin="0,0,0,18"/>
+                                 behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên đăng nhập Admin"
+                                 Margin="0,0,0,18"/>
                         <TextBlock Text="Mật khẩu"
-                                FontWeight="SemiBold"
-                                Margin="0,0,0,6"/>
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,6"/>
                         <PasswordBox x:Name="SetupPasswordBox"
-                                Tag="setup"
-                                behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText="Nhập mật khẩu Admin"
-                                PasswordChanged="PasswordBox_PasswordChanged"
-                                Margin="0,0,0,10"/>
+                                     Tag="setup"
+                                     behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText="Nhập mật khẩu Admin"
+                                     PasswordChanged="PasswordBox_PasswordChanged"
+                                     Margin="0,0,0,10"/>
                         <TextBlock Text="Dùng ít nhất 12 ký tự để bảo vệ tài khoản."
-                                FontSize="12"
+                                   FontSize="12"
                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                Margin="0,0,0,22"/>
+                                   Margin="0,0,0,22"/>
                         <Button Content="Tạo tài khoản Admin"
                                 Command="{Binding CreateInitialAdminCommand}"
                                 Style="{StaticResource PrimaryButtonStyle}"
@@ -505,6 +633,7 @@
         </Grid>
 
         <Grid Margin="0,0,0,30"
+              behaviors:MotionTransitionBehavior.AnimateOnVisible="True"
               Visibility="{Binding IsLoginScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Border MaxWidth="1050"
                     MinHeight="560"
@@ -516,9 +645,9 @@
                     BorderThickness="1">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="36"
-                            ShadowDepth="8"
-                            Opacity="0.12"
-                            Color="#542B1C"/>
+                                      ShadowDepth="8"
+                                      Opacity="0.12"
+                                      Color="#542B1C"/>
                 </Border.Effect>
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -530,19 +659,19 @@
                             ClipToBounds="True">
                         <Grid Background="{StaticResource PrimaryBrush}">
                             <Ellipse Width="390"
-                                    Height="390"
-                                    Fill="#1FFFFFFF"
+                                     Height="390"
+                                     Fill="#1FFFFFFF"
                                      HorizontalAlignment="Right"
-                                    VerticalAlignment="Top"
-                                    Margin="0,-150,-120,0"/>
+                                     VerticalAlignment="Top"
+                                     Margin="0,-150,-120,0"/>
                             <Ellipse Width="290"
-                                    Height="290"
-                                    Fill="#16FFFFFF"
+                                     Height="290"
+                                     Fill="#16FFFFFF"
                                      HorizontalAlignment="Left"
-                                    VerticalAlignment="Bottom"
-                                    Margin="-110,0,0,-100"/>
+                                     VerticalAlignment="Bottom"
+                                     Margin="-110,0,0,-100"/>
                             <StackPanel Margin="54"
-                                    VerticalAlignment="Center">
+                                        VerticalAlignment="Center">
                                 <Border Width="148"
                                         Height="148"
                                         CornerRadius="22"
@@ -551,74 +680,74 @@
                                         Margin="0,0,0,26"
                                         Padding="8">
                                     <Image x:Name="LoginBrandLogo"
-                                            Stretch="Uniform"/>
+                                           Stretch="Uniform"/>
                                 </Border>
                                 <TextBlock Text="DineEase · QUẢN LÝ NHÀ HÀNG"
-                                        Foreground="#F6C28E"
-                                        FontSize="12"
+                                           Foreground="#F6C28E"
+                                           FontSize="12"
                                            FontWeight="Bold"
-                                        Margin="0,0,0,14"/>
+                                           Margin="0,0,0,14"/>
                                 <TextBlock Text="Vận hành gọn gàng.&#10;Phục vụ tận tâm."
                                            Foreground="White"
-                                        FontSize="34"
-                                        FontWeight="SemiBold"
+                                           FontSize="34"
+                                           FontWeight="SemiBold"
                                            TextWrapping="Wrap"
-                                        LineHeight="43"
-                                        Margin="0,0,0,18"/>
+                                           LineHeight="43"
+                                           Margin="0,0,0,18"/>
                                 <TextBlock Text="Một nơi tập trung cho đội ngũ và hoạt động mỗi ngày."
                                            Foreground="#F4E7D8"
-                                        FontSize="15"
-                                        TextWrapping="Wrap"
-                                        MaxWidth="360"/>
+                                           FontSize="15"
+                                           TextWrapping="Wrap"
+                                           MaxWidth="360"/>
                                 <StackPanel Margin="0,36,0,0">
                                     <TextBlock Text="●   Quản lý bàn và thực đơn"
-                                            Foreground="#FFF8EF"
-                                            Margin="0,0,0,12"/>
+                                               Foreground="#FFF8EF"
+                                               Margin="0,0,0,12"/>
                                     <TextBlock Text="●   Phân quyền theo vai trò"
-                                            Foreground="#FFF8EF"
-                                            Margin="0,0,0,12"/>
+                                               Foreground="#FFF8EF"
+                                               Margin="0,0,0,12"/>
                                     <TextBlock Text="●   Dữ liệu lưu trên thiết bị của bạn"
-                                            Foreground="#FFF8EF"/>
+                                               Foreground="#FFF8EF"/>
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
                     </Border>
                     <StackPanel Grid.Column="1"
-                            VerticalAlignment="Center"
-                            Margin="54">
+                                VerticalAlignment="Center"
+                                Margin="54">
                         <TextBlock Text="Chào mừng trở lại"
-                                FontSize="26"
-                                FontWeight="SemiBold"
-                                Margin="0,0,0,8"/>
+                                   FontSize="26"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8"/>
                         <TextBlock Text="Đăng nhập để tiếp tục quản lý nhà hàng"
                                    FontSize="15"
-                                Foreground="{StaticResource TextSecondaryBrush}"
-                                TextWrapping="Wrap"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap"
                                    Margin="0,0,0,28"/>
                         <TextBlock Text="Tên đăng nhập"
-                                FontWeight="SemiBold"
-                                Margin="0,0,0,6"/>
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,6"/>
                         <TextBox Text="{Binding LoginUsername, UpdateSourceTrigger=PropertyChanged}"
-                                behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên đăng nhập"
-                                Margin="0,0,0,18"/>
+                                 behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên đăng nhập"
+                                 Margin="0,0,0,18"/>
                         <TextBlock Text="Mật khẩu"
-                                FontWeight="SemiBold"
-                                Margin="0,0,0,6"/>
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,6"/>
                         <PasswordBox x:Name="LoginPasswordBox"
-                                Tag="login"
-                                behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText="Nhập mật khẩu"
-                                PasswordChanged="PasswordBox_PasswordChanged"
-                                Margin="0,0,0,22"/>
+                                     Tag="login"
+                                     behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText="Nhập mật khẩu"
+                                     PasswordChanged="PasswordBox_PasswordChanged"
+                                     Margin="0,0,0,22"/>
                         <Button Content="Đăng nhập"
                                 Command="{Binding SignInCommand}"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 HorizontalAlignment="Stretch"/>
                     </StackPanel>
                     <Grid Grid.Column="1"
-                            VerticalAlignment="Bottom"
+                          VerticalAlignment="Bottom"
                           Margin="54,0,54,18"
-                            Panel.ZIndex="1"
-                            IsHitTestVisible="False">
+                          Panel.ZIndex="1"
+                          IsHitTestVisible="False">
                         <local:NotificationBanner Message="{Binding ErrorMessage}"
                                                   Kind="Error"
                                                   MaxHeight="120"/>
@@ -632,52 +761,54 @@
         </Grid>
 
         <Grid Margin="0,0,0,30"
+              behaviors:MotionTransitionBehavior.AnimateOnVisible="True"
               Visibility="{Binding IsPasswordChangeRequired, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Border MaxWidth="520"
+                    Style="{StaticResource OpenBottomFrameStyle}"
                     Background="{StaticResource SurfaceBrush}"
-                    CornerRadius="22"
                     Padding="38"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1">
+                    BorderBrush="{StaticResource BorderBrush}">
                 <StackPanel>
                     <TextBlock Text="Đổi mật khẩu lần đầu"
-                            FontSize="26"
-                            FontWeight="SemiBold"
+                               FontSize="26"
+                               FontWeight="SemiBold"
                                Margin="0,0,0,8"/>
                     <TextBlock Text="Để bảo vệ tài khoản, bạn cần tạo mật khẩu riêng trước khi tiếp tục sử dụng."
                                Foreground="{StaticResource TextSecondaryBrush}"
-                            TextWrapping="Wrap"
+                               TextWrapping="Wrap"
                                Margin="0,0,0,22"/>
                     <TextBlock Text="Mật khẩu tạm"
-                            FontWeight="SemiBold"
-                            Margin="0,0,0,6"/>
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,6"/>
                     <PasswordBox x:Name="RequiredCurrentPasswordBox"
-                            Tag="current"
-                            behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText="Nhập mật khẩu tạm"
+                                 Tag="current"
+                                 behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText="Nhập mật khẩu tạm"
                                  PasswordChanged="PasswordBox_PasswordChanged"
-                            Margin="0,0,0,16"/>
+                                 Margin="0,0,0,16"/>
                     <TextBlock Text="Mật khẩu mới (ít nhất 12 ký tự)"
-                            FontWeight="SemiBold"
-                            Margin="0,0,0,6"/>
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,6"/>
                     <PasswordBox x:Name="RequiredNewPasswordBox"
-                            Tag="new"
-                            behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText="Nhập mật khẩu mới"
+                                 Tag="new"
+                                 behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText="Nhập mật khẩu mới"
                                  PasswordChanged="PasswordBox_PasswordChanged"
-                            Margin="0,0,0,20"/>
+                                 Margin="0,0,0,20"/>
                     <Button Content="Đổi mật khẩu và tiếp tục"
                             Command="{Binding ChangePasswordCommand}"
                             Style="{StaticResource PrimaryButtonStyle}"
                             HorizontalAlignment="Stretch"/>
                     <local:NotificationBanner Message="{Binding ErrorMessage}"
                                               Kind="Error"
+                                              UseOpenBottomFrame="True"
                                               Margin="0,14,0,0"/>
                 </StackPanel>
             </Border>
         </Grid>
 
-        <Grid Visibility="{Binding IsAuthenticatedWorkspace, Converter={StaticResource BooleanToVisibilityConverter}}">
+        <Grid behaviors:MotionTransitionBehavior.AnimateOnVisible="True"
+              Visibility="{Binding IsAuthenticatedWorkspace, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -685,69 +816,87 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             <Grid Grid.Row="0"
-                    Margin="0,0,0,14">
+                  Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Grid Grid.Column="0"
-                        Height="54">
+                      Height="54">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Border Grid.Column="0"
-                            Width="54"
-                            Height="54"
-                            CornerRadius="10"
+                            Width="50"
+                            Height="50"
+                            CornerRadius="12"
                             Background="{StaticResource SurfaceBrush}"
-                            Margin="0,0,10,0"
-                            Padding="3"
+                            Margin="0,0,12,0"
+                            Padding="4"
                             BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1">
+                            BorderThickness="1"
+                            SnapsToDevicePixels="True">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="8"
+                                              ShadowDepth="2"
+                                              Opacity="0.08"
+                                              Color="#542B1C"/>
+                        </Border.Effect>
                         <Image x:Name="HeaderBrandLogo"
-                                Stretch="Uniform"/>
+                               Stretch="Uniform"/>
                     </Border>
-                    <TextBlock Grid.Column="1"
-                            Text="DineEase"
-                            FontSize="16"
-                            FontWeight="Bold"
-                               Foreground="{StaticResource AccentBrush}"
-                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="DineEase"
+                                   FontFamily="Segoe Script"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource SurfaceBrush}"/>
+                        <TextBlock Text="Quản lý nhà hàng"
+                                   FontSize="11"
+                                   Foreground="{StaticResource SurfaceBrush}"/>
+                    </StackPanel>
                     <Grid Grid.Column="2"
-                            Margin="38,0,0,0"
-                            VerticalAlignment="Center"
+                          Margin="32,0,0,0"
+                          VerticalAlignment="Center"
                           HorizontalAlignment="Left"
-                            Panel.ZIndex="1"
-                            IsHitTestVisible="False">
+                          Panel.ZIndex="1"
+                          IsHitTestVisible="False">
                         <local:NotificationBanner Message="{Binding ErrorMessage}"
                                                   Kind="Error"
+                                                  UseOpenBottomFrame="True"
                                                   MaxWidth="520"/>
                         <local:NotificationBanner Message="{Binding StatusMessage}"
                                                   Kind="Success"
                                                   IsSuppressed="{Binding HasError}"
+                                                  UseOpenBottomFrame="True"
                                                   MaxWidth="520"/>
                     </Grid>
                 </Grid>
                 <Button Grid.Column="1"
                         x:Name="AccountMenuButton"
                         Click="AccountMenuButton_Click"
-                        Padding="12,8"
-                        Background="{StaticResource SurfaceMutedBrush}"
-                        Foreground="{StaticResource PrimaryBrush}"
-                        BorderBrush="{StaticResource BorderBrush}">
+                        Padding="14,9"
+                        Background="Transparent"
+                        Foreground="{StaticResource SurfaceBrush}"
+                        BorderBrush="Transparent"
+                        BorderThickness="0"
+                        ToolTip="Tài khoản và thao tác"
+                        SnapsToDevicePixels="True">
                     <StackPanel Orientation="Horizontal"
-                            VerticalAlignment="Center">
+                                VerticalAlignment="Center">
                         <TextBlock Text="{Binding CurrentUserDescription}"
                                    FontSize="14"
-                                FontWeight="SemiBold"
-                                VerticalAlignment="Center"/>
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource SurfaceBrush}"
+                                   VerticalAlignment="Center"/>
                         <Path Data="M0,0 L5,5 L10,0"
-                              Stroke="{StaticResource PrimaryBrush}"
-                                StrokeThickness="1.6"
+                              Stroke="{StaticResource SurfaceBrush}"
+                              StrokeThickness="1.6"
                               Margin="12,0,2,0"
-                                VerticalAlignment="Center"/>
+                              VerticalAlignment="Center"/>
                     </StackPanel>
                     <Button.ContextMenu>
                         <ContextMenu Placement="Bottom"
@@ -766,9 +915,9 @@
                                             Padding="{TemplateBinding Padding}">
                                         <Border.Effect>
                                             <DropShadowEffect BlurRadius="18"
-                                                    ShadowDepth="4"
+                                                              ShadowDepth="4"
                                                               Opacity="0.18"
-                                                    Color="#542B1C"/>
+                                                              Color="#542B1C"/>
                                         </Border.Effect>
                                         <ItemsPresenter/>
                                     </Border>
@@ -798,7 +947,7 @@
                                                 </Border>
                                                 <ControlTemplate.Triggers>
                                                     <Trigger Property="IsHighlighted"
-                                                            Value="True">
+                                                             Value="True">
                                                         <Setter TargetName="MenuItemBorder"
                                                                 Property="Background"
                                                                 Value="{StaticResource PrimaryTintBrush}"/>
@@ -806,7 +955,7 @@
                                                                 Value="{StaticResource PrimaryBrush}"/>
                                                     </Trigger>
                                                     <Trigger Property="IsEnabled"
-                                                            Value="False">
+                                                             Value="False">
                                                         <Setter Property="Opacity"
                                                                 Value="0.5"/>
                                                     </Trigger>
@@ -825,36 +974,52 @@
                                 </Style>
                             </ContextMenu.Resources>
                             <MenuItem Header="Đổi mật khẩu"
-                                    Click="AccountChangePassword_Click"/>
+                                      Click="AccountChangePassword_Click"/>
                             <Separator/>
                             <MenuItem Header="Đăng xuất"
-                                    Click="AccountSignOut_Click"/>
+                                      Click="AccountSignOut_Click"/>
                         </ContextMenu>
                     </Button.ContextMenu>
                 </Button>
             </Grid>
             <Border Grid.Row="1"
+                    Style="{StaticResource OpenBottomFrameStyle}"
                     Background="{StaticResource PrimaryTintBrush}"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="9"
-                    Padding="12,9"
-                    Margin="0,0,0,10"
-                    Visibility="{Binding IsReadOnlyStaff, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <TextBlock Text="{Binding ReadOnlyStaffWarning}"
-                           Foreground="{StaticResource PrimaryBrush}"
-                        TextWrapping="Wrap"/>
+                    BorderBrush="{StaticResource AccentBrush}"
+                    Padding="14,10"
+                    Margin="0,0,0,12"
+                    Visibility="{Binding IsReadOnlyStaff, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    SnapsToDevicePixels="True">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="⚠"
+                               FontSize="16"
+                               Foreground="{StaticResource PrimaryBrush}"
+                               Margin="0,0,10,0"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding ReadOnlyStaffWarning}"
+                               Foreground="{StaticResource PrimaryDarkBrush}"
+                               FontSize="13"
+                               FontWeight="Medium"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"/>
+                </Grid>
             </Border>
             <ProgressBar Grid.Row="2"
-                    IsIndeterminate="True"
+                         IsIndeterminate="True"
                          Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
             <TabControl x:Name="AdminWorkspaceTabs"
-                    Grid.Row="3"
+                        behaviors:MotionTransitionBehavior.AnimateTabSelection="True"
+                        Grid.Row="3"
                         SelectedIndex="{Binding ManagementWorkspaceSelectedIndex}"
                         Visibility="{Binding IsManagementScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
                         Margin="0"
-                    SelectionChanged="AdminTabs_SelectionChanged">
+                        SelectionChanged="AdminTabs_SelectionChanged">
                 <TabItem Header="Cấp tài khoản"
                          Visibility="{Binding IsAdminScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid Margin="12">
@@ -864,9 +1029,9 @@
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Row="0">
                             <TextBlock Text="Cấp tài khoản đăng nhập cho nhân viên"
-                                    FontSize="20"
+                                       FontSize="20"
                                        FontWeight="SemiBold"
-                                    Margin="0,0,0,6"/>
+                                       Margin="0,0,0,6"/>
                             <Grid Margin="0,0,0,14">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -878,28 +1043,28 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0"
-                                        Margin="0,0,0,8">
+                                            Margin="0,0,0,8">
                                     <TextBlock Text="Họ tên"/>
                                     <TextBox Text="{Binding AccountEmployeeName, UpdateSourceTrigger=PropertyChanged}"
-                                            behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Họ tên nhân viên"
-                                            Margin="0,4,0,0"/>
+                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Họ tên nhân viên"
+                                             Margin="0,4,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2"
-                                        Margin="0,0,0,8">
+                                            Margin="0,0,0,8">
                                     <TextBlock Text="Điện thoại"/>
                                     <TextBox Text="{Binding AccountEmployeePhone, UpdateSourceTrigger=PropertyChanged}"
-                                            behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Số điện thoại (không bắt buộc)"
-                                            Margin="0,4,0,0"/>
+                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Số điện thoại (không bắt buộc)"
+                                             Margin="0,4,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="4"
-                                        Margin="0,0,0,8">
+                                            Margin="0,0,0,8">
                                     <TextBlock Text="Email"/>
                                     <TextBox Text="{Binding AccountEmployeeEmail, UpdateSourceTrigger=PropertyChanged}"
-                                            behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Email (không bắt buộc)"
-                                            Margin="0,4,0,0"/>
+                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Email (không bắt buộc)"
+                                             Margin="0,4,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="6"
-                                        Margin="0,0,0,8">
+                                            Margin="0,0,0,8">
                                     <TextBlock Text="Vai trò"/>
                                     <ComboBox ItemsSource="{Binding AccountRoleOptions}"
                                               SelectedItem="{Binding AccountRoleToCreate}"
@@ -920,22 +1085,22 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="Tài khoản đã cấp"
-                                        FontSize="18"
-                                        FontWeight="SemiBold"
+                                           FontSize="18"
+                                           FontWeight="SemiBold"
                                            VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1"
-                                        Orientation="Horizontal">
+                                            Orientation="Horizontal">
                                     <TextBox Width="260"
-                                            Text="{Binding AccountSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                            behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo họ tên, tên đăng nhập, điện thoại hoặc email"
+                                             Text="{Binding AccountSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo họ tên, tên đăng nhập, điện thoại hoặc email"
                                              Margin="8,0,0,0"/>
                                     <ComboBox Width="190"
-                                            ItemsSource="{Binding AccountRoleFilters}"
+                                              ItemsSource="{Binding AccountRoleFilters}"
                                               SelectedItem="{Binding SelectedAccountRoleFilter}"
                                               ToolTip="Lọc theo vai trò"
                                               Margin="8,0,0,0"/>
                                     <ComboBox Width="210"
-                                            ItemsSource="{Binding AccountProfileFilters}"
+                                              ItemsSource="{Binding AccountProfileFilters}"
                                               SelectedItem="{Binding SelectedAccountProfileFilter}"
                                               ToolTip="Lọc theo tình trạng hồ sơ"
                                               Margin="8,0,0,0"/>
@@ -946,17 +1111,15 @@
                                 Style="{StaticResource DataGridFrameStyle}">
                             <DataGrid x:Name="AccountDataGrid"
                                       ItemsSource="{Binding FilteredAccounts}"
-                                    SelectedItem="{Binding SelectedAccount}"
+                                      SelectedItem="{Binding SelectedAccount}"
                                       AutoGenerateColumns="False"
-                                    IsReadOnly="True"
-                                    CanUserAddRows="False"
+                                      IsReadOnly="True"
+                                      CanUserAddRows="False"
                                       CanUserReorderColumns="False"
-                                    CanUserResizeColumns="False"
+                                      CanUserResizeColumns="False"
                                       RowDetailsVisibilityMode="VisibleWhenSelected"
-                                      GridLinesVisibility="Vertical"
-                                      VerticalGridLinesBrush="{StaticResource BorderBrush}"
                                       MinHeight="0"
-                                    Margin="0">
+                                      Margin="0">
                                 <DataGrid.RowStyle>
                                     <Style TargetType="{x:Type DataGridRow}"
                                            BasedOn="{StaticResource DataGridRowBaseStyle}">
@@ -970,7 +1133,7 @@
                                     <DataTemplate>
                                         <Border Background="{StaticResource SurfaceMutedBrush}"
                                                 BorderBrush="{StaticResource BorderBrush}"
-                                                BorderThickness="0,1,0,0"
+                                                BorderThickness="0"
                                                 Padding="8,6">
                                             <StackPanel Orientation="Horizontal">
                                                 <Button Content="{Binding ProfileActionLabel}"
@@ -995,13 +1158,13 @@
                                 </DataGrid.RowDetailsTemplate>
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Họ tên"
-                                            Binding="{Binding FullName}"
-                                            Width="2*"/>
+                                                        Binding="{Binding FullName}"
+                                                        Width="2*"/>
                                     <DataGridTextColumn Header="Tên đăng nhập"
-                                            Binding="{Binding Username}"
-                                            Width="1.4*"/>
+                                                        Binding="{Binding Username}"
+                                                        Width="1.4*"/>
                                     <DataGridTemplateColumn Header="Mật khẩu tạm"
-                                            Width="1.7*">
+                                                            Width="1.7*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <DockPanel LastChildFill="True">
@@ -1016,24 +1179,24 @@
                                                             ToolTip="Sao chép mật khẩu tạm"
                                                             AutomationProperties.Name="Sao chép mật khẩu tạm">
                                                         <Viewbox Width="14"
-                                                                Height="14">
+                                                                 Height="14">
                                                             <Path Fill="{StaticResource PrimaryBrush}"
                                                                   Data="M16,1H4C2.9,1 2,1.9 2,3V17H4V3H16V1M19,5H8C6.9,5 6,5.9 6,7V21C6,22.1 6.9,23 8,23H19C20.1,23 21,22.1 21,21V7C21,5.9 20.1,5 19,5M19,21H8V7H19V21Z"/>
                                                         </Viewbox>
                                                     </Button>
                                                     <TextBlock Text="{Binding PasswordDisplay}"
                                                                VerticalAlignment="Center"
-                                                            TextTrimming="CharacterEllipsis"/>
+                                                               TextTrimming="CharacterEllipsis"/>
                                                 </DockPanel>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Vai trò"
-                                            Binding="{Binding RoleDisplay}"
-                                            Width="*"/>
+                                                        Binding="{Binding RoleDisplay}"
+                                                        Width="*"/>
                                     <DataGridTextColumn Header="Hồ sơ nhân viên"
-                                            Binding="{Binding EmployeeProfileStatusLabel}"
-                                            Width="1.3*"/>
+                                                        Binding="{Binding EmployeeProfileStatusLabel}"
+                                                        Width="1.3*"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Border>
@@ -1049,17 +1212,17 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <TextBlock Text="Danh sách nhân viên"
-                                FontSize="20"
-                                FontWeight="SemiBold"
-                                Margin="0,0,0,12"/>
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,12"/>
                         <WrapPanel Grid.Row="1"
-                                Margin="0,0,0,8">
+                                   Margin="0,0,0,8">
                             <TextBox Width="300"
-                                    Text="{Binding EmployeeSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                    behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo họ tên, điện thoại, email hoặc tên đăng nhập"
+                                     Text="{Binding EmployeeSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo họ tên, điện thoại, email hoặc tên đăng nhập"
                                      Margin="0,0,8,8"/>
                             <ComboBox Width="210"
-                                    ItemsSource="{Binding EmployeeStatusFilters}"
+                                      ItemsSource="{Binding EmployeeStatusFilters}"
                                       SelectedItem="{Binding SelectedEmployeeStatusFilter}"
                                       ToolTip="Lọc theo trạng thái làm việc"
                                       Margin="0,0,8,8"/>
@@ -1068,13 +1231,11 @@
                                 Style="{StaticResource DataGridFrameStyle}">
                             <DataGrid x:Name="EmployeeDataGrid"
                                       ItemsSource="{Binding FilteredEmployees}"
-                                    SelectedItem="{Binding SelectedEmployee}"
+                                      SelectedItem="{Binding SelectedEmployee}"
                                       AutoGenerateColumns="False"
-                                    IsReadOnly="True"
-                                    CanUserAddRows="False"
-                                      RowDetailsVisibilityMode="VisibleWhenSelected"
-                                      GridLinesVisibility="Vertical"
-                                      VerticalGridLinesBrush="{StaticResource BorderBrush}">
+                                      IsReadOnly="True"
+                                      CanUserAddRows="False"
+                                      RowDetailsVisibilityMode="VisibleWhenSelected">
                                 <DataGrid.RowStyle>
                                     <Style TargetType="{x:Type DataGridRow}"
                                            BasedOn="{StaticResource DataGridRowBaseStyle}">
@@ -1088,7 +1249,7 @@
                                     <DataTemplate>
                                         <Border Background="{StaticResource SurfaceMutedBrush}"
                                                 BorderBrush="{StaticResource BorderBrush}"
-                                                BorderThickness="0,1,0,0"
+                                                BorderThickness="0"
                                                 Padding="8,6"
                                                 Visibility="{Binding DataContext.IsAdminScreen, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <StackPanel Orientation="Horizontal">
@@ -1108,15 +1269,16 @@
                                 </DataGrid.RowDetailsTemplate>
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Họ tên"
-                                            Binding="{Binding FullName}"
-                                            Width="*"/>
+                                                        Binding="{Binding FullName}"
+                                                        Width="*"/>
                                     <DataGridTextColumn Header="Điện thoại"
-                                            Binding="{Binding Phone}"
-                                            Width="1.2*"/>
+                                                        Binding="{Binding Phone}"
+                                                        Width="1.2*"/>
                                     <DataGridTextColumn Header="Email"
-                                            Binding="{Binding Email}"
-                                            Width="2*"/>
-                                    <DataGridTemplateColumn Header="Đang làm việc" Width="1*">
+                                                        Binding="{Binding Email}"
+                                                        Width="2*"/>
+                                    <DataGridTemplateColumn Header="Đang làm việc"
+                                                            Width="1*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ToggleButton IsChecked="{Binding IsEmployeeActive, Mode=OneWay}"
@@ -1202,14 +1364,12 @@
                                       CanUserAddRows="False"
                                       CanUserReorderColumns="False"
                                       CanUserResizeColumns="False"
-                                      RowDetailsVisibilityMode="VisibleWhenSelected"
-                                      GridLinesVisibility="Vertical"
-                                      VerticalGridLinesBrush="{StaticResource BorderBrush}">
+                                      RowDetailsVisibilityMode="VisibleWhenSelected">
                                 <DataGrid.RowDetailsTemplate>
                                     <DataTemplate>
                                         <Border Background="{StaticResource SurfaceMutedBrush}"
                                                 BorderBrush="{StaticResource BorderBrush}"
-                                                BorderThickness="0,1,0,0"
+                                                BorderThickness="0"
                                                 Padding="10">
                                             <StackPanel>
                                                 <TextBlock Text="{Binding Summary}"
@@ -1257,23 +1417,23 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <TextBlock Grid.Row="0"
-                                Text="Quản lý bàn ăn"
-                                FontSize="20"
+                                   Text="Quản lý bàn ăn"
+                                   FontSize="20"
                                    FontWeight="SemiBold"
-                                Margin="0,0,0,12"/>
+                                   Margin="0,0,0,12"/>
                         <WrapPanel Grid.Row="1"
-                                Margin="0,0,0,12">
+                                   Margin="0,0,0,12">
                             <TextBox Width="260"
-                                    Text="{Binding TableSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                    behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo số hiệu bàn hoặc khu vực"
+                                     Text="{Binding TableSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo số hiệu bàn hoặc khu vực"
                                      Margin="0,0,8,8"/>
                             <ComboBox Width="200"
-                                    ItemsSource="{Binding TableAreaFilters}"
+                                      ItemsSource="{Binding TableAreaFilters}"
                                       SelectedItem="{Binding SelectedTableAreaFilter}"
                                       ToolTip="Lọc theo khu vực"
                                       Margin="0,0,8,8"/>
                             <ComboBox Width="220"
-                                    ItemsSource="{Binding TableServiceStatusFilters}"
+                                      ItemsSource="{Binding TableServiceStatusFilters}"
                                       SelectedItem="{Binding SelectedTableServiceStatusFilter}"
                                       ToolTip="Lọc theo trạng thái phục vụ"
                                       Margin="0,0,8,8"/>
@@ -1283,30 +1443,30 @@
                                 MinHeight="180"
                                 Margin="0,0,0,16">
                             <DataGrid ItemsSource="{Binding FilteredTables}"
-                                    SelectedItem="{Binding SelectedTable}"
+                                      SelectedItem="{Binding SelectedTable}"
                                       AutoGenerateColumns="False"
-                                    IsReadOnly="True"
-                                    CanUserAddRows="False"
-                                      GridLinesVisibility="Vertical"
-                                      VerticalGridLinesBrush="{StaticResource BorderBrush}">
+                                      IsReadOnly="True"
+                                      CanUserAddRows="False">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Số hiệu bàn"
-                                            Binding="{Binding TableNumber}"
-                                            Width="1.2*"
-                                            MinWidth="130"/>
+                                                        Binding="{Binding TableNumber}"
+                                                        Width="1.2*"
+                                                        MinWidth="130"/>
                                     <DataGridTextColumn Header="Số chỗ ngồi"
-                                            Binding="{Binding SeatCount}"
-                                            Width="0.9*"
-                                            MinWidth="115"/>
+                                                        Binding="{Binding SeatCount}"
+                                                        Width="0.9*"
+                                                        MinWidth="115"/>
                                     <DataGridTextColumn Header="Khu vực"
-                                            Binding="{Binding Area}"
-                                            Width="1.15*"
-                                            MinWidth="120"/>
+                                                        Binding="{Binding Area}"
+                                                        Width="1.15*"
+                                                        MinWidth="120"/>
                                     <DataGridTextColumn Header="Trạng thái"
-                                            Binding="{Binding OpenOrderStatus}"
-                                            Width="1.15*"
-                                            MinWidth="120"/>
-                                    <DataGridTemplateColumn Header="Phục vụ" Width="1.35*" MinWidth="100">
+                                                        Binding="{Binding OpenOrderStatus}"
+                                                        Width="1.15*"
+                                                        MinWidth="120"/>
+                                    <DataGridTemplateColumn Header="Phục vụ"
+                                                            Width="1.35*"
+                                                            MinWidth="100">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ToggleButton IsChecked="{Binding IsActive, Mode=OneWay}"
@@ -1322,10 +1482,10 @@
                             </DataGrid>
                         </Border>
                         <StackPanel Grid.Row="3"
-                                behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
+                                    behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
                             <WrapPanel Margin="0,0,0,12">
                                 <StackPanel Width="200"
-                                        Margin="0,0,12,8">
+                                            Margin="0,0,12,8">
                                     <TextBlock Text="Khu vực"/>
                                     <ComboBox ItemsSource="{Binding TableAreas}"
                                               SelectedItem="{Binding TableAreaText}"
@@ -1333,18 +1493,18 @@
                                               Margin="0,4,0,0"/>
                                 </StackPanel>
                                 <StackPanel Width="200"
-                                        Margin="0,0,12,8">
+                                            Margin="0,0,12,8">
                                     <TextBlock Text="Số hiệu bàn"/>
                                     <TextBox Text="{Binding TableNumberText, UpdateSourceTrigger=PropertyChanged}"
                                              behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Ví dụ: Bàn 1, A1 hoặc Bàn cửa sổ"
                                              Margin="0,4,0,0"/>
                                 </StackPanel>
                                 <StackPanel Width="160"
-                                        Margin="0,0,12,8">
+                                            Margin="0,0,12,8">
                                     <TextBlock Text="Số chỗ ngồi"/>
                                     <TextBox Text="{Binding TableSeatCountText, UpdateSourceTrigger=PropertyChanged}"
-                                            behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Ví dụ: 4"
-                                            Margin="0,4,0,0"/>
+                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Ví dụ: 4"
+                                             Margin="0,4,0,0"/>
                                 </StackPanel>
                             </WrapPanel>
                             <WrapPanel>
@@ -1369,7 +1529,8 @@
 
                 <TabItem Header="Thực đơn"
                          Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TabControl Margin="12">
+                    <TabControl Margin="12"
+                                behaviors:MotionTransitionBehavior.AnimateTabSelection="True">
                         <TabItem Header="Danh mục">
                             <Grid Margin="12">
                                 <Grid.RowDefinitions>
@@ -1377,8 +1538,8 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Text="Quản lý danh mục"
-                                        FontSize="20"
-                                        FontWeight="SemiBold"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
                                            Margin="0,0,0,14"/>
                                 <Grid Grid.Row="1">
                                     <Grid.ColumnDefinitions>
@@ -1387,10 +1548,9 @@
                                         <ColumnDefinition Width="1*"/>
                                     </Grid.ColumnDefinitions>
                                     <Border Grid.Column="0"
+                                            Style="{StaticResource OpenBottomFrameStyle}"
                                             Background="{StaticResource SurfaceBrush}"
                                             BorderBrush="{StaticResource BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="14"
                                             Padding="14">
                                         <Grid>
                                             <Grid.RowDefinitions>
@@ -1398,24 +1558,25 @@
                                                 <RowDefinition Height="*"/>
                                             </Grid.RowDefinitions>
                                             <TextBlock Text="Danh sách danh mục"
-                                                    FontSize="16"
+                                                       FontSize="16"
                                                        FontWeight="SemiBold"
-                                                    Margin="0,0,0,12"/>
+                                                       Margin="0,0,0,12"/>
                                             <Border Grid.Row="1"
                                                     Style="{StaticResource DataGridFrameStyle}">
                                                 <DataGrid ItemsSource="{Binding Categories}"
                                                           SelectedItem="{Binding SelectedCategory}"
                                                           AutoGenerateColumns="False"
-                                                        IsReadOnly="True"
+                                                          IsReadOnly="True"
                                                           CanUserAddRows="False">
                                                     <DataGrid.Columns>
                                                         <DataGridTextColumn Header="Tên danh mục"
-                                                                Binding="{Binding Name}"
-                                                                Width="*"/>
+                                                                            Binding="{Binding Name}"
+                                                                            Width="*"/>
                                                         <DataGridTextColumn Header="Số món"
-                                                                Binding="{Binding ProductCount}"
-                                                                Width="0.65*"/>
-                                                        <DataGridTemplateColumn Header="Kinh doanh" Width="0.85*">
+                                                                            Binding="{Binding ProductCount}"
+                                                                            Width="0.65*"/>
+                                                        <DataGridTemplateColumn Header="Kinh doanh"
+                                                                                Width="0.85*">
                                                             <DataGridTemplateColumn.CellTemplate>
                                                                 <DataTemplate>
                                                                     <ToggleButton IsChecked="{Binding IsActive, Mode=OneWay}"
@@ -1432,17 +1593,16 @@
                                         </Grid>
                                     </Border>
                                     <Border Grid.Column="2"
+                                            Style="{StaticResource OpenBottomFrameStyle}"
                                             Background="{StaticResource SurfaceBrush}"
                                             BorderBrush="{StaticResource BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="14"
                                             Padding="16"
                                             behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
                                         <StackPanel>
                                             <TextBlock Text="Thông tin danh mục"
-                                                    FontSize="16"
+                                                       FontSize="16"
                                                        FontWeight="SemiBold"
-                                                    Margin="0,0,0,14"/>
+                                                       Margin="0,0,0,14"/>
                                             <TextBlock Text="Tên danh mục"/>
                                             <TextBox Text="{Binding CategoryName, UpdateSourceTrigger=PropertyChanged}"
                                                      behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên danh mục"
@@ -1475,8 +1635,8 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Text="Quản lý món ăn"
-                                        FontSize="20"
-                                        FontWeight="SemiBold"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
                                            Margin="0,0,0,14"/>
                                 <Grid Grid.Row="1">
                                     <Grid.ColumnDefinitions>
@@ -1485,10 +1645,9 @@
                                         <ColumnDefinition Width="0.85*"/>
                                     </Grid.ColumnDefinitions>
                                     <Border Grid.Column="0"
+                                            Style="{StaticResource OpenBottomFrameStyle}"
                                             Background="{StaticResource SurfaceBrush}"
                                             BorderBrush="{StaticResource BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="14"
                                             Padding="14">
                                         <Grid>
                                             <Grid.RowDefinitions>
@@ -1497,42 +1656,43 @@
                                                 <RowDefinition Height="*"/>
                                             </Grid.RowDefinitions>
                                             <TextBlock Text="Danh sách món"
-                                                    FontSize="16"
-                                                    FontWeight="SemiBold"
+                                                       FontSize="16"
+                                                       FontWeight="SemiBold"
                                                        Margin="0,0,0,10"/>
                                             <WrapPanel Grid.Row="1"
-                                                    Margin="0,0,0,8">
+                                                       Margin="0,0,0,8">
                                                 <TextBox Width="260"
                                                          Text="{Binding ProductSearchText, UpdateSourceTrigger=PropertyChanged}"
                                                          behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo tên món, tags hoặc danh mục"
                                                          Margin="0,0,8,8"/>
                                                 <ComboBox Width="210"
-                                                        ItemsSource="{Binding ProductCategoryFilters}"
+                                                          ItemsSource="{Binding ProductCategoryFilters}"
                                                           SelectedItem="{Binding SelectedProductCategoryFilter}"
                                                           ToolTip="Lọc theo danh mục"
-                                                        Margin="0,0,8,8"/>
+                                                          Margin="0,0,8,8"/>
                                             </WrapPanel>
                                             <Border Grid.Row="2"
                                                     Style="{StaticResource DataGridFrameStyle}">
                                                 <DataGrid ItemsSource="{Binding Products}"
                                                           SelectedItem="{Binding SelectedProduct}"
                                                           AutoGenerateColumns="False"
-                                                        IsReadOnly="True"
+                                                          IsReadOnly="True"
                                                           CanUserAddRows="False">
                                                     <DataGrid.Columns>
                                                         <DataGridTextColumn Header="Tên món"
-                                                                Binding="{Binding Name}"
-                                                                Width="*"/>
+                                                                            Binding="{Binding Name}"
+                                                                            Width="*"/>
                                                         <DataGridTextColumn Header="Danh mục"
-                                                                Binding="{Binding CategoryName}"
-                                                                Width="1*"/>
+                                                                            Binding="{Binding CategoryName}"
+                                                                            Width="1*"/>
                                                         <DataGridTextColumn Header="Tags"
-                                                                Binding="{Binding Tags}"
-                                                                Width="1.2*"/>
+                                                                            Binding="{Binding Tags}"
+                                                                            Width="1.2*"/>
                                                         <DataGridTextColumn Header="Giá bán"
                                                                             Binding="{Binding Price, StringFormat={}{0:N0}}"
                                                                             Width="0.8*"/>
-                                                        <DataGridTemplateColumn Header="Còn món" Width="0.7*">
+                                                        <DataGridTemplateColumn Header="Còn món"
+                                                                                Width="0.7*">
                                                             <DataGridTemplateColumn.CellTemplate>
                                                                 <DataTemplate>
                                                                     <ToggleButton IsChecked="{Binding IsAvailable, Mode=OneWay}"
@@ -1544,7 +1704,8 @@
                                                                 </DataTemplate>
                                                             </DataGridTemplateColumn.CellTemplate>
                                                         </DataGridTemplateColumn>
-                                                        <DataGridTemplateColumn Header="Kinh doanh" Width="0.8*">
+                                                        <DataGridTemplateColumn Header="Kinh doanh"
+                                                                                Width="0.8*">
                                                             <DataGridTemplateColumn.CellTemplate>
                                                                 <DataTemplate>
                                                                     <ToggleButton IsChecked="{Binding IsActive, Mode=OneWay}"
@@ -1561,18 +1722,17 @@
                                         </Grid>
                                     </Border>
                                     <Border Grid.Column="2"
+                                            Style="{StaticResource OpenBottomFrameStyle}"
                                             Background="{StaticResource SurfaceBrush}"
                                             BorderBrush="{StaticResource BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="14"
                                             Padding="16"
                                             behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
                                         <ScrollViewer VerticalScrollBarVisibility="Hidden">
                                             <StackPanel>
                                                 <TextBlock Text="Thông tin món"
-                                                        FontSize="16"
+                                                           FontSize="16"
                                                            FontWeight="SemiBold"
-                                                        Margin="0,0,0,14"/>
+                                                           Margin="0,0,0,14"/>
                                                 <TextBlock Text="Tên món"/>
                                                 <TextBox Text="{Binding ProductName, UpdateSourceTrigger=PropertyChanged}"
                                                          behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên món"
@@ -1583,7 +1743,7 @@
                                                          Margin="0,4,0,12"/>
                                                 <TextBlock Text="Danh mục"/>
                                                 <ComboBox ItemsSource="{Binding Categories}"
-                                                        DisplayMemberPath="Name"
+                                                          DisplayMemberPath="Name"
                                                           SelectedItem="{Binding SelectedProductCategory}"
                                                           behaviors:ComboBoxPlaceholderBehavior.PlaceholderText="Chọn danh mục"
                                                           Margin="0,4,0,12"/>
@@ -1600,11 +1760,10 @@
                                                        StaysOpen="False"
                                                        AllowsTransparency="True">
                                                     <Border Width="320"
+                                                            Style="{StaticResource OpenBottomFrameStyle}"
                                                             MaxHeight="220"
                                                             Background="{StaticResource SurfaceBrush}"
                                                             BorderBrush="{StaticResource BorderBrush}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="9"
                                                             Padding="8"
                                                             Margin="0,5,0,0">
                                                         <ScrollViewer VerticalScrollBarVisibility="Hidden">
@@ -1650,8 +1809,8 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Text="Quản lý khuyến mãi"
-                                        FontSize="20"
-                                        FontWeight="SemiBold"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
                                            Margin="0,0,0,14"/>
                                 <Grid Grid.Row="1">
                                     <Grid.ColumnDefinitions>
@@ -1660,20 +1819,16 @@
                                         <ColumnDefinition Width="0.85*"/>
                                     </Grid.ColumnDefinitions>
                                     <Border Grid.Column="0"
-                                            Background="{StaticResource SurfaceBrush}"
-                                            BorderBrush="{StaticResource BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="14"
-                                            Padding="14">
+                                            Style="{StaticResource DataGridFrameStyle}">
                                         <DataGrid ItemsSource="{Binding Promotions}"
                                                   SelectedItem="{Binding SelectedPromotion}"
                                                   AutoGenerateColumns="False"
-                                                IsReadOnly="True"
+                                                  IsReadOnly="True"
                                                   CanUserAddRows="False">
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="Tên khuyến mãi"
-                                                        Binding="{Binding Name}"
-                                                        Width="*"/>
+                                                                    Binding="{Binding Name}"
+                                                                    Width="*"/>
                                                 <DataGridTextColumn Header="Giảm (%)"
                                                                     Binding="{Binding DiscountPercentage, StringFormat={}{0:0.##}%}"
                                                                     Width="0.7*"/>
@@ -1683,7 +1838,8 @@
                                                 <DataGridTextColumn Header="Thời gian"
                                                                     Binding="{Binding PeriodDisplay}"
                                                                     Width="1.1*"/>
-                                                <DataGridTemplateColumn Header="Đang bật" Width="0.7*">
+                                                <DataGridTemplateColumn Header="Đang bật"
+                                                                        Width="0.7*">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
                                                             <ToggleButton IsChecked="{Binding IsActive, Mode=OneWay}"
@@ -1698,23 +1854,22 @@
                                         </DataGrid>
                                     </Border>
                                     <Border Grid.Column="2"
+                                            Style="{StaticResource OpenBottomFrameStyle}"
                                             Background="{StaticResource SurfaceBrush}"
                                             BorderBrush="{StaticResource BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="14"
                                             Padding="16"
                                             behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
                                         <ScrollViewer VerticalScrollBarVisibility="Hidden">
                                             <StackPanel>
                                                 <TextBlock Text="Thông tin khuyến mãi"
-                                                        FontSize="16"
+                                                           FontSize="16"
                                                            FontWeight="SemiBold"
-                                                        Margin="0,0,0,14"/>
+                                                           Margin="0,0,0,14"/>
                                                 <TextBlock Text="Tên chương trình"/>
                                                 <TextBox Text="{Binding PromotionName, UpdateSourceTrigger=PropertyChanged}"
                                                          behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên chương trình"
                                                          MaxLength="100"
-                                                        Margin="0,4,0,12"/>
+                                                         Margin="0,4,0,12"/>
                                                 <TextBlock Text="Mức giảm (%)"/>
                                                 <TextBox Text="{Binding PromotionDiscountPercentageText, UpdateSourceTrigger=PropertyChanged}"
                                                          behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Phần trăm giảm (1–100)"
@@ -1726,18 +1881,18 @@
                                                 <StackPanel Visibility="{Binding IsPromotionProductTarget, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                     <TextBlock Text="Món áp dụng"/>
                                                     <ComboBox ItemsSource="{Binding PromotionProducts}"
-                                                            DisplayMemberPath="Name"
+                                                              DisplayMemberPath="Name"
                                                               SelectedItem="{Binding SelectedPromotionProduct}"
-                                                                  behaviors:ComboBoxPlaceholderBehavior.PlaceholderText="Chọn món áp dụng"
-                                                                  Margin="0,4,0,12"/>
+                                                              behaviors:ComboBoxPlaceholderBehavior.PlaceholderText="Chọn món áp dụng"
+                                                              Margin="0,4,0,12"/>
                                                 </StackPanel>
                                                 <StackPanel Visibility="{Binding IsPromotionCategoryTarget, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                     <TextBlock Text="Danh mục áp dụng"/>
                                                     <ComboBox ItemsSource="{Binding Categories}"
-                                                            DisplayMemberPath="Name"
+                                                              DisplayMemberPath="Name"
                                                               SelectedItem="{Binding SelectedPromotionCategory}"
-                                                                  behaviors:ComboBoxPlaceholderBehavior.PlaceholderText="Chọn danh mục áp dụng"
-                                                                  Margin="0,4,0,12"/>
+                                                              behaviors:ComboBoxPlaceholderBehavior.PlaceholderText="Chọn danh mục áp dụng"
+                                                              Margin="0,4,0,12"/>
                                                 </StackPanel>
                                                 <Grid Margin="0,0,0,12">
                                                     <Grid.ColumnDefinitions>
@@ -1815,7 +1970,8 @@
                             </WrapPanel>
                         </StackPanel>
                         <Grid Grid.Row="1"
-                              Margin="0,0,0,12">
+                              behaviors:MotionTransitionBehavior.AnimateOnVisible="True"
+                              Margin="0,0,0,16">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
@@ -1823,62 +1979,101 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <Border Grid.Column="0"
+                                    Style="{StaticResource OpenBottomFrameStyle}"
                                     Background="{StaticResource SurfaceBrush}"
                                     BorderBrush="{StaticResource BorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="12"
-                                    Margin="0,0,8,0">
+                                    Padding="16,14"
+                                    Margin="0,0,10,0"
+                                    SnapsToDevicePixels="True">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="10"
+                                                      ShadowDepth="2"
+                                                      Opacity="0.06"
+                                                      Color="#542B1C"/>
+                                </Border.Effect>
                                 <StackPanel>
                                     <TextBlock Text="Đơn đã thanh toán"
-                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                               FontSize="12"
+                                               FontWeight="Medium"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,0,0,6"/>
                                     <TextBlock Text="{Binding SalesReport.PaidOrderCount}"
-                                               FontSize="20"
-                                               FontWeight="SemiBold"/>
+                                               FontSize="24"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="1"
+                                    Style="{StaticResource OpenBottomFrameStyle}"
                                     Background="{StaticResource SurfaceBrush}"
                                     BorderBrush="{StaticResource BorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="12"
-                                    Margin="0,0,8,0">
+                                    Padding="16,14"
+                                    Margin="0,0,10,0"
+                                    SnapsToDevicePixels="True">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="10"
+                                                      ShadowDepth="2"
+                                                      Opacity="0.06"
+                                                      Color="#542B1C"/>
+                                </Border.Effect>
                                 <StackPanel>
                                     <TextBlock Text="Doanh thu trước giảm"
-                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                               FontSize="12"
+                                               FontWeight="Medium"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,0,0,6"/>
                                     <TextBlock Text="{Binding SalesReport.GrossRevenue, StringFormat={}{0:N0} đ}"
-                                               FontSize="20"
-                                               FontWeight="SemiBold"/>
+                                               FontSize="22"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="2"
+                                    Style="{StaticResource OpenBottomFrameStyle}"
                                     Background="{StaticResource SurfaceBrush}"
                                     BorderBrush="{StaticResource BorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="12"
-                                    Margin="0,0,8,0">
+                                    Padding="16,14"
+                                    Margin="0,0,10,0"
+                                    SnapsToDevicePixels="True">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="10"
+                                                      ShadowDepth="2"
+                                                      Opacity="0.06"
+                                                      Color="#542B1C"/>
+                                </Border.Effect>
                                 <StackPanel>
                                     <TextBlock Text="Tổng giảm giá"
-                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                               FontSize="12"
+                                               FontWeight="Medium"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,0,0,6"/>
                                     <TextBlock Text="{Binding SalesReport.DiscountTotal, StringFormat={}{0:N0} đ}"
-                                               FontSize="20"
-                                               FontWeight="SemiBold"/>
+                                               FontSize="22"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource DangerBrush}"/>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="3"
+                                    Style="{StaticResource OpenBottomFrameStyle}"
                                     Background="{StaticResource PrimaryTintBrush}"
-                                    BorderBrush="{StaticResource BorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="12">
+                                    BorderBrush="{StaticResource PrimaryBrush}"
+                                    Padding="16,14"
+                                    SnapsToDevicePixels="True">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="12"
+                                                      ShadowDepth="3"
+                                                      Opacity="0.10"
+                                                      Color="#542B1C"/>
+                                </Border.Effect>
                                 <StackPanel>
                                     <TextBlock Text="Doanh thu thực nhận"
-                                               Foreground="{StaticResource TextSecondaryBrush}"/>
-                                    <TextBlock Text="{Binding SalesReport.NetRevenue, StringFormat={}{0:N0} đ}"
-                                               FontSize="20"
+                                               FontSize="12"
                                                FontWeight="SemiBold"
+                                               Foreground="{StaticResource PrimaryBrush}"
+                                               Margin="0,0,0,6"/>
+                                    <TextBlock Text="{Binding SalesReport.NetRevenue, StringFormat={}{0:N0} đ}"
+                                               FontSize="24"
+                                               FontWeight="Bold"
                                                Foreground="{StaticResource PrimaryDarkBrush}"/>
                                 </StackPanel>
                             </Border>
@@ -1933,8 +2128,9 @@
             </TabControl>
 
             <TabControl x:Name="StaffWorkspaceTabs"
-                    Grid.Row="3"
-                    SelectedIndex="{Binding SelectedStaffWorkspaceIndex}"
+                        behaviors:MotionTransitionBehavior.AnimateTabSelection="True"
+                        Grid.Row="3"
+                        SelectedIndex="{Binding SelectedStaffWorkspaceIndex}"
                         Visibility="{Binding IsStaffScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
                         Margin="0">
                 <TabItem Header="Chọn bàn"
@@ -1974,9 +2170,7 @@
                                       SelectedItem="{Binding SelectedOrderTable}"
                                       AutoGenerateColumns="False"
                                       IsReadOnly="True"
-                                      CanUserAddRows="False"
-                                      GridLinesVisibility="Vertical"
-                                      VerticalGridLinesBrush="{StaticResource BorderBrush}">
+                                      CanUserAddRows="False">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Số hiệu bàn"
                                                         Binding="{Binding TableNumber}"
@@ -2040,9 +2234,10 @@
                                             <Border x:Name="OrderTabBorder"
                                                     BorderBrush="{StaticResource BorderBrush}"
                                                     BorderThickness="1"
-                                                    Background="{StaticResource SurfaceMutedBrush}"
-                                                    CornerRadius="8"
-                                                    Margin="0,0,6,0">
+                                                    Background="{StaticResource SurfaceBrush}"
+                                                    CornerRadius="10"
+                                                    Margin="0,0,8,0"
+                                                    SnapsToDevicePixels="True">
                                                 <StackPanel Orientation="Horizontal">
                                                     <Button x:Name="OrderTabSelectButton"
                                                             Content="{Binding Title}"
@@ -2050,24 +2245,29 @@
                                                             CommandParameter="{Binding}"
                                                             Background="Transparent"
                                                             BorderThickness="0"
-                                                            Padding="12,8"/>
-                                                    <Button Content="×"
+                                                            Padding="14,8"
+                                                            FontSize="13"/>
+                                                    <Button Content="✕"
                                                             Command="{Binding DataContext.CloseOrderTabCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
                                                             CommandParameter="{Binding}"
-                                                            ToolTip="Đóng tab; order vẫn được giữ"
+                                                            ToolTip="Đóng tab; order vẫn được lưu"
                                                             Background="Transparent"
                                                             BorderThickness="0"
-                                                            Padding="8,4"/>
+                                                            Padding="6,4"
+                                                            Margin="0,0,6,0"
+                                                            FontSize="11"
+                                                            Foreground="{StaticResource TextSecondaryBrush}"/>
                                                 </StackPanel>
                                             </Border>
                                             <DataTemplate.Triggers>
-                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <DataTrigger Binding="{Binding IsSelected}"
+                                                             Value="True">
                                                     <Setter TargetName="OrderTabBorder"
                                                             Property="BorderBrush"
                                                             Value="{StaticResource PrimaryBrush}"/>
                                                     <Setter TargetName="OrderTabBorder"
                                                             Property="BorderThickness"
-                                                            Value="2"/>
+                                                            Value="1.5"/>
                                                     <Setter TargetName="OrderTabBorder"
                                                             Property="Background"
                                                             Value="{StaticResource PrimaryTintBrush}"/>
@@ -2093,11 +2293,10 @@
                         </Grid>
                         <Border Grid.Row="1"
                                 Grid.Column="0"
+                                Style="{StaticResource OpenBottomFrameStyle}"
                                 Margin="0,0,12,0"
                                 Background="{StaticResource SurfaceBrush}"
                                 BorderBrush="{StaticResource BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="14"
                                 Padding="14"
                                 behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
                             <Grid>
@@ -2112,6 +2311,7 @@
                                            Margin="0,0,0,10"/>
                                 <TabControl Grid.Row="1"
                                             Grid.RowSpan="2"
+                                            behaviors:MotionTransitionBehavior.AnimateTabSelection="True"
                                             ItemsSource="{Binding OrderProductGroups}"
                                             SelectedItem="{Binding SelectedOrderProductGroup}">
                                     <TabControl.ItemTemplate>
@@ -2132,20 +2332,24 @@
                                                         <DataTemplate>
                                                             <Button Command="{Binding DataContext.AddOrderProductCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                                                     CommandParameter="{Binding}"
-                                                                    Background="{StaticResource SurfaceMutedBrush}"
+                                                                    Background="{StaticResource SurfaceBrush}"
                                                                     BorderBrush="{StaticResource BorderBrush}"
-                                                                    Padding="10,8"
-                                                                    Margin="0,0,8,8"
-                                                                    MinWidth="150"
-                                                                    MaxWidth="220">
+                                                                    Padding="14,10"
+                                                                    Margin="0,0,10,10"
+                                                                    MinWidth="155"
+                                                                    MaxWidth="230"
+                                                                    SnapsToDevicePixels="True">
                                                                 <StackPanel>
                                                                     <TextBlock Text="{Binding Name}"
+                                                                               FontSize="13"
                                                                                FontWeight="SemiBold"
+                                                                               Foreground="{StaticResource TextPrimaryBrush}"
                                                                                TextWrapping="Wrap"/>
                                                                     <TextBlock Text="{Binding Price, StringFormat={}{0:N0} đ}"
-                                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                                               Foreground="{StaticResource PrimaryBrush}"
                                                                                FontSize="12"
-                                                                               Margin="0,3,0,0"/>
+                                                                               FontWeight="Bold"
+                                                                               Margin="0,4,0,0"/>
                                                                 </StackPanel>
                                                             </Button>
                                                         </DataTemplate>
@@ -2157,97 +2361,107 @@
                                 </TabControl>
                             </Grid>
                         </Border>
-                        <ScrollViewer Grid.Row="1"
-                                Grid.Column="1"
-                                HorizontalScrollBarVisibility="Disabled"
-                                VerticalScrollBarVisibility="Hidden">
-                            <StackPanel>
-                                <TextBlock Text="Chi tiết order"
-                                        FontSize="20"
-                                        FontWeight="SemiBold"
-                                        Margin="0,0,0,10"/>
-                                <StackPanel Orientation="Horizontal"
+                        <Grid Grid.Row="1"
+                              Grid.Column="1">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0"
+                                       Text="Chi tiết order"
+                                       FontSize="20"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,10"/>
+                            <StackPanel Grid.Row="1"
+                                        Orientation="Horizontal"
                                         Margin="0,0,0,10">
-                                    <TextBlock Text="Order #"
-                                            Foreground="{StaticResource TextSecondaryBrush}"/>
-                                    <TextBlock Text="{Binding CurrentOpenOrder.OrderId}"
+                                <TextBlock Text="Order #"
+                                           Foreground="{StaticResource TextSecondaryBrush}"/>
+                                <TextBlock Text="{Binding CurrentOpenOrder.OrderId}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                            <Border Grid.Row="2"
+                                    Style="{StaticResource DataGridFrameStyle}"
+                                    Margin="0,0,0,8">
+                                <DataGrid ItemsSource="{Binding CurrentOrderDetails}"
+                                          SelectedItem="{Binding SelectedOrderDetail}"
+                                          AutoGenerateColumns="False"
+                                          RowHeaderWidth="0"
+                                          HeadersVisibility="Column"
+                                          IsReadOnly="True"
+                                          CanUserAddRows="False"
+                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                          MinHeight="0">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Món"
+                                                            Binding="{Binding ProductName}"
+                                                            IsReadOnly="True"
+                                                            MinWidth="100"
+                                                            Width="1.5*"/>
+                                        <DataGridTextColumn Header="SL"
+                                                            Binding="{Binding Quantity}"
+                                                            MinWidth="58"
+                                                            Width="0.65*"/>
+                                        <DataGridTextColumn Header="Ghi chú"
+                                                            Binding="{Binding Notes}"
+                                                            IsReadOnly="True"
+                                                            MinWidth="70"
+                                                            Width="1.2*"/>
+                                        <DataGridTextColumn Header="Đơn giá"
+                                                            Binding="{Binding UnitPrice, StringFormat={}{0:N0}}"
+                                                            IsReadOnly="True"
+                                                            MinWidth="80"
+                                                            Width="1*"/>
+                                        <DataGridTextColumn Header="Thành tiền"
+                                                            Binding="{Binding LineTotal, StringFormat={}{0:N0}}"
+                                                            IsReadOnly="True"
+                                                            MinWidth="90"
+                                                            Width="1.1*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+                            <WrapPanel Grid.Row="3"
+                                       Margin="0,0,0,10">
+                                <TextBox Width="220"
+                                         Text="{Binding EditOrderItemNotes, UpdateSourceTrigger=PropertyChanged}"
+                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Ghi chú món (tùy chọn)"
+                                         MaxLength="500"
+                                         Margin="0,0,8,8"/>
+                                <Button Content="Cập nhật ghi chú"
+                                        Command="{Binding UpdateOrderItemCommand}"
+                                        Padding="12,5"
+                                        Margin="0,0,8,8"/>
+                                <Button Content="Bỏ món đã chọn"
+                                        Command="{Binding RemoveOrderItemCommand}"
+                                        Style="{StaticResource DangerButtonStyle}"
+                                        Padding="12,5"
+                                        Margin="0,0,8,8"/>
+                            </WrapPanel>
+                            <StackPanel Grid.Row="4"
+                                        HorizontalAlignment="Right"
+                                        Margin="0,0,0,10">
+                                <StackPanel Orientation="Horizontal"
+                                            HorizontalAlignment="Right">
+                                    <TextBlock Text="Khuyến mãi: "
+                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding CurrentOpenOrder.PromotionName, TargetNullValue=Không có}"
                                                Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </StackPanel>
-                                <Border Style="{StaticResource DataGridFrameStyle}"
-                                        Margin="0,0,0,8">
-                                    <DataGrid ItemsSource="{Binding CurrentOrderDetails}"
-                                            SelectedItem="{Binding SelectedOrderDetail}"
-                                            AutoGenerateColumns="False"
-                                            RowHeaderWidth="0"
-                                            HeadersVisibility="Column"
-                                            IsReadOnly="True"
-                                            CanUserAddRows="False"
-                                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                            MinHeight="160"
-                                            MaxHeight="250">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="Món"
-                                                    Binding="{Binding ProductName}"
-                                                    IsReadOnly="True"
-                                                    MinWidth="100"
-                                                    Width="1.5*"/>
-                                            <DataGridTextColumn Header="SL"
-                                                    Binding="{Binding Quantity}"
-                                                    MinWidth="58"
-                                                    Width="0.65*"/>
-                                            <DataGridTextColumn Header="Ghi chú"
-                                                    Binding="{Binding Notes}"
-                                                    IsReadOnly="True"
-                                                    MinWidth="70"
-                                                    Width="1.2*"/>
-                                            <DataGridTextColumn Header="Đơn giá"
-                                                    Binding="{Binding UnitPrice, StringFormat={}{0:N0}}"
-                                                    IsReadOnly="True"
-                                                    MinWidth="80"
-                                                    Width="1*"/>
-                                            <DataGridTextColumn Header="Thành tiền"
-                                                    Binding="{Binding LineTotal, StringFormat={}{0:N0}}"
-                                                    IsReadOnly="True"
-                                                    MinWidth="90"
-                                                    Width="1.1*"/>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
-                                </Border>
-                                <WrapPanel Margin="0,0,0,10">
-                                    <TextBox Width="220"
-                                             Text="{Binding EditOrderItemNotes, UpdateSourceTrigger=PropertyChanged}"
-                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Ghi chú món (tùy chọn)"
-                                             MaxLength="500"
-                                             Margin="0,0,8,8"/>
-                                    <Button Content="Cập nhật ghi chú"
-                                            Command="{Binding UpdateOrderItemCommand}"
-                                            Padding="12,5"
-                                            Margin="0,0,8,8"/>
-                                    <Button Content="Bỏ món đã chọn"
-                                            Command="{Binding RemoveOrderItemCommand}"
-                                            Style="{StaticResource DangerButtonStyle}"
-                                            Padding="12,5"
-                                            Margin="0,0,8,8"/>
-                                </WrapPanel>
-                                <StackPanel HorizontalAlignment="Right"
-                                        Margin="0,0,0,10">
-                                    <StackPanel Orientation="Horizontal"
-                                            HorizontalAlignment="Right">
-                                        <TextBlock Text="Khuyến mãi: "
-                                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        <TextBlock Text="{Binding CurrentOpenOrder.PromotionName, TargetNullValue=Không có}"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                                    </StackPanel>
-                                    <TextBlock Text="{Binding CurrentOpenOrder.Subtotal, StringFormat=Tạm tính: {0:N0} đ}"
-                                               HorizontalAlignment="Right"/>
-                                    <TextBlock Text="{Binding CurrentOpenOrder.DiscountAmount, StringFormat=Giảm giá: -{0:N0} đ}"
-                                               Foreground="{StaticResource PrimaryBrush}"
-                                               HorizontalAlignment="Right"/>
-                                    <TextBlock Text="{Binding CurrentOpenOrder.Total, StringFormat=Thành tiền: {0:N0} đ}"
-                                               FontSize="17"
-                                            FontWeight="SemiBold"
-                                               HorizontalAlignment="Right"/>
-                                </StackPanel>
+                                <TextBlock Text="{Binding CurrentOpenOrder.Subtotal, StringFormat=Tạm tính: {0:N0} đ}"
+                                           HorizontalAlignment="Right"/>
+                                <TextBlock Text="{Binding CurrentOpenOrder.DiscountAmount, StringFormat=Giảm giá: -{0:N0} đ}"
+                                           Foreground="{StaticResource PrimaryBrush}"
+                                           HorizontalAlignment="Right"/>
+                                <TextBlock Text="{Binding CurrentOpenOrder.Total, StringFormat=Thành tiền: {0:N0} đ}"
+                                           FontSize="17"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Right"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="5">
                                 <WrapPanel>
                                     <Button Content="Thanh toán tiền mặt"
                                             Click="CompleteCashPayment_Click"
@@ -2266,7 +2480,7 @@
                                         HorizontalAlignment="Right"
                                         Margin="0,0,0,8"/>
                             </StackPanel>
-                        </ScrollViewer>
+                        </Grid>
                     </Grid>
                 </TabItem>
                 <TabItem Header="Lịch sử">
@@ -2281,43 +2495,44 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <TextBlock Text="Danh sách thực đơn"
-                                FontSize="20"
-                                FontWeight="SemiBold"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
                                    Margin="0,0,0,12"/>
                         <WrapPanel Grid.Row="1"
-                                Margin="0,0,0,8"
-                                behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
+                                   Margin="0,0,0,8"
+                                   behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
                             <TextBox Width="260"
-                                    Text="{Binding ProductSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                    behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo tên món, tags hoặc danh mục"
-                                    Margin="0,0,8,8"/>
+                                     Text="{Binding ProductSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo tên món, tags hoặc danh mục"
+                                     Margin="0,0,8,8"/>
                             <ComboBox Width="210"
-                                    ItemsSource="{Binding ProductCategoryFilters}"
+                                      ItemsSource="{Binding ProductCategoryFilters}"
                                       SelectedItem="{Binding SelectedProductCategoryFilter}"
                                       ToolTip="Lọc theo danh mục"
-                                    Margin="0,0,8,8"/>
+                                      Margin="0,0,8,8"/>
                         </WrapPanel>
                         <Border Grid.Row="2"
                                 Style="{StaticResource DataGridFrameStyle}">
                             <DataGrid ItemsSource="{Binding Products}"
-                                    SelectedItem="{Binding SelectedProduct}"
+                                      SelectedItem="{Binding SelectedProduct}"
                                       AutoGenerateColumns="False"
-                                    IsReadOnly="True"
-                                    CanUserAddRows="False">
+                                      IsReadOnly="True"
+                                      CanUserAddRows="False">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Tên món"
-                                            Binding="{Binding Name}"
-                                            Width="*"/>
+                                                        Binding="{Binding Name}"
+                                                        Width="*"/>
                                     <DataGridTextColumn Header="Danh mục"
-                                            Binding="{Binding CategoryName}"
-                                            Width="1.1*"/>
+                                                        Binding="{Binding CategoryName}"
+                                                        Width="1.1*"/>
                                     <DataGridTextColumn Header="Tags"
-                                            Binding="{Binding Tags}"
-                                            Width="2*"/>
+                                                        Binding="{Binding Tags}"
+                                                        Width="2*"/>
                                     <DataGridTextColumn Header="Giá bán"
-                                            Binding="{Binding Price, StringFormat={}{0:N0}}"
-                                            Width="0.9*"/>
-                                    <DataGridTemplateColumn Header="Còn món" Width="0.7*">
+                                                        Binding="{Binding Price, StringFormat={}{0:N0}}"
+                                                        Width="0.9*"/>
+                                    <DataGridTemplateColumn Header="Còn món"
+                                                            Width="0.7*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ToggleButton IsChecked="{Binding IsAvailable, Mode=OneWay}"

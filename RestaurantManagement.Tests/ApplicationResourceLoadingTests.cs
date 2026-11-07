@@ -33,9 +33,20 @@ public class ApplicationResourceLoadingTests
                 {
                     Kind = RestaurantManagement.WPF.NotificationKind.Error
                 };
+                var bannerBorder = Assert.IsType<System.Windows.Controls.Border>(banner.Content);
+                Assert.Equal(new Thickness(1), bannerBorder.BorderThickness);
+                Assert.Equal(new CornerRadius(10), bannerBorder.CornerRadius);
+                Assert.False(
+                    RestaurantManagement.WPF.Behaviors.OpenBottomFrameBehavior.GetIsEnabled(bannerBorder));
                 Assert.Equal(Visibility.Collapsed, banner.Visibility);
                 banner.Message = "Kiểm tra nạp thông báo.";
                 Assert.Equal(Visibility.Visible, banner.Visibility);
+                banner.UseOpenBottomFrame = true;
+                Assert.Equal(new Thickness(1, 1, 1, 0), bannerBorder.BorderThickness);
+                Assert.Equal(new CornerRadius(14, 14, 0, 0), bannerBorder.CornerRadius);
+                Assert.True(
+                    RestaurantManagement.WPF.Behaviors.OpenBottomFrameBehavior.GetIsEnabled(bannerBorder));
+                banner.UseOpenBottomFrame = false;
                 banner.Message = string.Empty;
                 bannerVisibility = banner.Visibility;
 
@@ -54,11 +65,20 @@ public class ApplicationResourceLoadingTests
 
                 var textBox = new System.Windows.Controls.TextBox();
                 textBox.Style = (Style)app.Resources[typeof(System.Windows.Controls.TextBox)];
+                Assert.Equal(0, textBox.Padding.Top);
+                Assert.Equal(0, textBox.Padding.Bottom);
                 RestaurantManagement.WPF.Behaviors.TextBoxPlaceholderBehavior.SetPlaceholderText(
                     textBox,
                     "Tìm kiếm nhân viên");
                 textBox.ApplyTemplate();
                 textBox.UpdateLayout();
+                var contentHost = (System.Windows.Controls.ScrollViewer?)textBox.Template.FindName(
+                    "PART_ContentHost",
+                    textBox);
+                Assert.NotNull(contentHost);
+                Assert.Equal(
+                    System.Windows.Controls.ScrollBarVisibility.Disabled,
+                    contentHost.VerticalScrollBarVisibility);
                 var placeholder = (System.Windows.Controls.TextBlock?)textBox.Template.FindName(
                     "PlaceholderText",
                     textBox);
@@ -117,6 +137,30 @@ public class ApplicationResourceLoadingTests
                 Assert.Equal(
                     System.Windows.Controls.ScrollBarVisibility.Hidden,
                     System.Windows.Controls.ScrollViewer.GetVerticalScrollBarVisibility(dataGrid));
+                Assert.Equal(
+                    System.Windows.Controls.DataGridGridLinesVisibility.Vertical,
+                    dataGrid.GridLinesVisibility);
+
+                var dataGridCellStyle = (Style)app.Resources[typeof(System.Windows.Controls.DataGridCell)];
+                Assert.DoesNotContain(
+                    dataGridCellStyle.Setters.OfType<Setter>(),
+                    setter => setter.Property == System.Windows.Controls.Border.BorderThicknessProperty);
+
+                var dataGridFrame = new System.Windows.Controls.Border
+                {
+                    Style = (Style)app.Resources["DataGridFrameStyle"]
+                };
+                Assert.Equal(new CornerRadius(0), dataGridFrame.CornerRadius);
+                Assert.Equal(new Thickness(1, 1, 1, 0), dataGridFrame.BorderThickness);
+
+                var openBottomFrame = new System.Windows.Controls.Border
+                {
+                    Style = (Style)app.Resources["OpenBottomFrameStyle"]
+                };
+                Assert.Equal(new Thickness(1, 1, 1, 0), openBottomFrame.BorderThickness);
+                Assert.Equal(new CornerRadius(14, 14, 0, 0), openBottomFrame.CornerRadius);
+                Assert.True(
+                    RestaurantManagement.WPF.Behaviors.OpenBottomFrameBehavior.GetIsEnabled(openBottomFrame));
             }
             catch (Exception exception)
             {

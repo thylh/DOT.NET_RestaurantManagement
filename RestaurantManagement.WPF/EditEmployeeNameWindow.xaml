@@ -4,24 +4,56 @@
         xmlns:local="clr-namespace:RestaurantManagement.WPF"
         xmlns:behaviors="clr-namespace:RestaurantManagement.WPF.Behaviors"
         Title="Chỉnh sửa họ tên nhân viên"
-        Width="420"
+        Width="460"
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="{DynamicResource SurfaceBrush}"
+        Background="{DynamicResource CanvasBrush}"
         Foreground="{DynamicResource TextPrimaryBrush}">
-    <StackPanel Margin="24">
-        <TextBlock Text="Họ tên nhân viên" Margin="0,0,0,6" />
-        <TextBox x:Name="FullNameTextBox"
-                 MinWidth="340"
-                 behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Nhập họ tên nhân viên"/>
-        <local:NotificationBanner x:Name="ValidationBanner"
-                                  Kind="Error"
-                                  Margin="0,14,0,0"/>
-        <WrapPanel HorizontalAlignment="Right" Margin="0,20,0,0">
-            <Button Content="Hủy" IsCancel="True" Padding="14,7" Margin="0,0,8,0" />
-            <Button Content="Lưu" IsDefault="True" Click="Save_Click"
-                    Style="{StaticResource PrimaryButtonStyle}" Padding="14,7" />
-        </WrapPanel>
-    </StackPanel>
+    <Border Margin="16"
+            Style="{StaticResource OpenBottomFrameStyle}"
+            Background="{DynamicResource SurfaceBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            Padding="28">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" ShadowDepth="4" Opacity="0.10" Color="#542B1C" />
+        </Border.Effect>
+        <StackPanel>
+            <TextBlock Text="Chỉnh sửa họ tên"
+                       FontSize="20"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,4" />
+            <TextBlock Text="Cập nhật họ tên hiển thị của nhân viên trong hệ thống."
+                       FontSize="13"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       Margin="0,0,0,20" />
+
+            <TextBlock Text="Họ tên nhân viên"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,6" />
+            <TextBox x:Name="FullNameTextBox"
+                     behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Nhập họ tên nhân viên"
+                     Margin="0,0,0,4" />
+
+            <local:NotificationBanner x:Name="ValidationBanner"
+                                      Kind="Error"
+                                      UseOpenBottomFrame="True"
+                                      Margin="0,14,0,0"/>
+
+            <WrapPanel HorizontalAlignment="Right" Margin="0,20,0,0">
+                <Button Content="Hủy"
+                        IsCancel="True"
+                        MinWidth="85"
+                        Padding="14,8"
+                        Margin="0,0,10,0" />
+                <Button Content="Lưu"
+                        IsDefault="True"
+                        Click="Save_Click"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        MinWidth="95"
+                        Padding="16,8" />
+            </WrapPanel>
+        </StackPanel>
+    </Border>
 </Window>

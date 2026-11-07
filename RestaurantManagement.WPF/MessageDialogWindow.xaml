@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:behaviors="clr-namespace:RestaurantManagement.WPF.Behaviors"
         Title="{Binding Title}"
-        Width="480"
+        Width="500"
         SizeToContent="Height"
-        MinHeight="220"
+        MinHeight="200"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -13,61 +13,73 @@
         AllowsTransparency="True"
         Background="Transparent"
         Foreground="{StaticResource TextPrimaryBrush}">
-    <Border Margin="12"
+    <Border Margin="16"
+            Style="{StaticResource OpenBottomFrameStyle}"
+            behaviors:MotionTransitionBehavior.AnimateOnVisible="True"
             Background="{StaticResource SurfaceBrush}"
             BorderBrush="{StaticResource BorderBrush}"
-            BorderThickness="1"
-            CornerRadius="16">
+            SnapsToDevicePixels="True">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.18" Color="#542B1C" />
+            <DropShadowEffect BlurRadius="28" ShadowDepth="6" Opacity="0.18" Color="#542B1C" />
         </Border.Effect>
-        <Grid>
+        <Grid Margin="24">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <Grid Grid.Row="0" Margin="22,20,18,0">
+
+            <!-- Header -->
+            <Grid Grid.Row="0" Margin="0,0,0,16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border x:Name="KindBadge" Width="36" Height="36" CornerRadius="10"
-                            Background="{StaticResource PrimaryTintBrush}" Margin="0,0,12,0">
-                        <TextBlock x:Name="KindGlyph" Text="i" FontSize="20" FontWeight="Bold"
+                    <Border x:Name="KindBadge" Width="36" Height="36" CornerRadius="18"
+                            Background="{StaticResource PrimaryTintBrush}" Margin="0,0,12,0"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="KindGlyph" Text="i" FontSize="18" FontWeight="Bold"
                                    Foreground="{StaticResource PrimaryBrush}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold"
                                VerticalAlignment="Center" TextWrapping="Wrap" />
                 </StackPanel>
-                <Button Grid.Column="1" Content="×" Width="32" Height="32" MinHeight="0"
-                        Padding="0" FontSize="18" Click="Close_Click"
+                <Button Grid.Column="1" Content="✕" Width="30" Height="30" MinHeight="0"
+                        Padding="0" FontSize="13" FontWeight="Normal" Click="Close_Click"
+                        Background="Transparent" BorderThickness="0"
+                        Foreground="{StaticResource TextSecondaryBrush}"
                         IsCancel="True" ToolTip="Đóng" />
             </Grid>
+
+            <!-- Message Body -->
             <TextBlock Grid.Row="1" Text="{Binding Message}" TextWrapping="Wrap"
-                       Margin="70,14,24,24" Foreground="{StaticResource TextSecondaryBrush}"
-                       FontSize="14" />
-            <StackPanel x:Name="InputPanel" Grid.Row="2" Margin="70,0,24,18"
+                       Margin="48,0,8,20" Foreground="{StaticResource TextSecondaryBrush}"
+                       FontSize="14" LineHeight="20" />
+
+            <!-- Optional Input Panel (Lý do hủy) -->
+            <StackPanel x:Name="InputPanel" Grid.Row="2" Margin="48,0,0,20"
                         Visibility="Collapsed">
-                <TextBox x:Name="DialogInputTextBox" MaxLength="500" MinHeight="72"
+                <TextBox x:Name="DialogInputTextBox" MaxLength="500" MinHeight="76"
                          TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Hidden"
                          TextChanged="DialogInputTextBox_TextChanged"
                          behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Nhập lý do"/>
                 <TextBlock x:Name="InputValidationMessage" Foreground="{StaticResource DangerBrush}"
-                           Margin="0,4,0,0" Visibility="Collapsed"/>
+                           Margin="0,6,0,0" FontSize="12" Visibility="Collapsed"/>
             </StackPanel>
+
+            <!-- Footer Actions -->
             <WrapPanel x:Name="ConfirmationButtons" Grid.Row="3" HorizontalAlignment="Right"
-                       Margin="0,0,22,20" Visibility="Collapsed">
-                <Button Content="Không" IsCancel="True" MinWidth="90" Margin="0,0,8,0" />
-                <Button x:Name="ConfirmButton" Content="Xác nhận" IsDefault="True" MinWidth="90"
-                        Click="Confirm_Click" Style="{StaticResource PrimaryButtonStyle}" />
+                       Margin="0,4,0,0" Visibility="Collapsed">
+                <Button Content="Không" IsCancel="True" MinWidth="95" Padding="14,8" Margin="0,0,10,0" />
+                <Button x:Name="ConfirmButton" Content="Xác nhận" IsDefault="True" MinWidth="105"
+                        Padding="16,8" Click="Confirm_Click" Style="{StaticResource PrimaryButtonStyle}" />
             </WrapPanel>
             <Button x:Name="OkButton" Grid.Row="3" Content="Đóng" IsDefault="True"
-                    IsCancel="True" MinWidth="90" HorizontalAlignment="Right"
-                    Margin="0,0,22,20" Click="Close_Click"
+                    IsCancel="True" MinWidth="95" Padding="16,8" HorizontalAlignment="Right"
+                    Margin="0,4,0,0" Click="Close_Click"
                     Style="{StaticResource PrimaryButtonStyle}" />
         </Grid>
     </Border>

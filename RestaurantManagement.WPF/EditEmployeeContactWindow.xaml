@@ -4,34 +4,71 @@
         xmlns:local="clr-namespace:RestaurantManagement.WPF"
         xmlns:behaviors="clr-namespace:RestaurantManagement.WPF.Behaviors"
         Title="Chỉnh sửa thông tin nhân viên"
-        Width="460"
+        Width="500"
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="{DynamicResource SurfaceBrush}"
+        Background="{DynamicResource CanvasBrush}"
         Foreground="{DynamicResource TextPrimaryBrush}">
-    <StackPanel Margin="24">
-        <TextBlock Text="Họ tên" Margin="0,0,0,6" />
-        <TextBox x:Name="NameTextBox"
-                 MinWidth="380"
-                 Margin="0,0,0,14"
-                 behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Họ tên nhân viên"/>
-        <TextBlock Text="Số điện thoại" Margin="0,0,0,6" />
-        <TextBox x:Name="PhoneTextBox"
-                 MinWidth="380"
-                 Margin="0,0,0,14"
-                 behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Số điện thoại (không bắt buộc)"/>
-        <TextBlock Text="Email" Margin="0,0,0,6" />
-        <TextBox x:Name="EmailTextBox"
-                 MinWidth="380"
-                 behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Email (không bắt buộc)"/>
-        <local:NotificationBanner x:Name="ValidationBanner"
-                                  Kind="Error"
-                                  Margin="0,14,0,0"/>
-        <WrapPanel HorizontalAlignment="Right" Margin="0,20,0,0">
-            <Button Content="Hủy" IsCancel="True" Padding="14,7" Margin="0,0,8,0" />
-            <Button Content="Lưu" IsDefault="True" Click="Save_Click"
-                    Style="{StaticResource PrimaryButtonStyle}" Padding="14,7" />
-        </WrapPanel>
-    </StackPanel>
+    <Border Margin="16"
+            Style="{StaticResource OpenBottomFrameStyle}"
+            Background="{DynamicResource SurfaceBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            Padding="28">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" ShadowDepth="4" Opacity="0.10" Color="#542B1C" />
+        </Border.Effect>
+        <StackPanel>
+            <TextBlock Text="Thông tin nhân viên"
+                       FontSize="20"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,4" />
+            <TextBlock Text="Cập nhật thông tin liên hệ và hồ sơ nhân sự."
+                       FontSize="13"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       Margin="0,0,0,20" />
+
+            <TextBlock Text="Họ tên"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,6" />
+            <TextBox x:Name="NameTextBox"
+                     Margin="0,0,0,16"
+                     behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Họ tên nhân viên"/>
+
+            <TextBlock Text="Số điện thoại"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,6" />
+            <TextBox x:Name="PhoneTextBox"
+                     Margin="0,0,0,16"
+                     behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Số điện thoại (không bắt buộc)"/>
+
+            <TextBlock Text="Email"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,6" />
+            <TextBox x:Name="EmailTextBox"
+                     behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Email (không bắt buộc)"/>
+
+            <local:NotificationBanner x:Name="ValidationBanner"
+                                      Kind="Error"
+                                      UseOpenBottomFrame="True"
+                                      Margin="0,16,0,0"/>
+
+            <WrapPanel HorizontalAlignment="Right" Margin="0,24,0,0">
+                <Button Content="Hủy"
+                        IsCancel="True"
+                        MinWidth="85"
+                        Padding="14,8"
+                        Margin="0,0,10,0" />
+                <Button Content="Lưu"
+                        IsDefault="True"
+                        Click="Save_Click"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        MinWidth="95"
+                        Padding="16,8" />
+            </WrapPanel>
+        </StackPanel>
+    </Border>
 </Window>
