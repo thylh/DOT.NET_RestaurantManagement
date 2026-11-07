@@ -448,8 +448,8 @@
                      behaviors:MotionTransitionBehavior.FlyInFromY="-90"
                      behaviors:MotionTransitionBehavior.BreatheOnVisible="True"
                      behaviors:MotionTransitionBehavior.BreatheDelay="1200"/>
-            <Ellipse Width="78"
-                     Height="78"
+            <Ellipse Width="100"
+                     Height="100"
                      Fill="#A66449"
                      Opacity="0.46"
                      HorizontalAlignment="Right"
