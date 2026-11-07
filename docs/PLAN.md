@@ -100,11 +100,12 @@ Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩ
 - Số hiệu bàn là văn bản tự do (ví dụ `Bàn 1`, `A1`); không trùng số hiệu trong cùng một khu vực.
 - Khu vực chọn từ danh sách `Chung`, `Riêng tư`, `VIP` và `Ngoài trời`; khu vực cũ đã có trong dữ liệu vẫn được giữ để không làm mất cấu hình.
 - Admin quản lý trạng thái phục vụ: ngừng phục vụ hoặc mở lại bàn; không thể ngừng bàn đang có order mở.
-- Nhân viên chỉ xem thực đơn đang sử dụng, không thay đổi cấu hình.
+- Nhân viên có hồ sơ đang hoạt động được xem thực đơn và cập nhật trạng thái món còn/hết theo tình hình thực tế; không được sửa thông tin món, danh mục hoặc trạng thái kinh doanh.
+- Admin quản lý trạng thái kinh doanh của danh mục và món. Trạng thái còn/hết món độc lập với trạng thái kinh doanh.
 - Sơ đồ bố trí bàn trực quan trên mặt bằng nhà hàng là phần mở rộng sau; phiên bản hiện tại quản lý khu vực bằng thông tin bàn.
 - Staff xem tình trạng sử dụng là `Trống` hoặc `Có khách` (suy ra từ order mở) để phục vụ order; không quản lý trạng thái phục vụ.
 - Chỉ xóa bàn chưa từng có order; không ngừng phục vụ hoặc xóa bàn đang có order mở.
-- Món ăn có tên, giá, mô tả, ảnh tùy chọn, danh mục và trạng thái còn/hết hoặc đang kinh doanh.
+- Món ăn có tên, giá, tags tùy chọn, ảnh tùy chọn, danh mục, trạng thái còn/hết và trạng thái kinh doanh. Không quản lý tồn kho/nguyên liệu.
 - Có tìm kiếm/lọc món.
 - Dùng trạng thái ngừng kinh doanh thay vì xóa món đã được tham chiếu trong giao dịch.
 
@@ -124,11 +125,23 @@ Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩ
 - Chỉ thanh toán order đang mở, ngăn thanh toán trùng.
 - Lưu số tiền, phương thức, thời điểm và nhân viên thực hiện.
 - Sau thanh toán, cập nhật trạng thái order và giải phóng bàn nhất quán.
-- Cho phép xem chi tiết và tìm biên nhận theo mã hoặc ngày.
+- Order hiển thị tạm tính, khuyến mãi được áp dụng, số tiền giảm và thành tiền.
+- Khi thanh toán, lưu tên chương trình và số tiền giảm vào order để bảo toàn lịch sử nếu chương trình khuyến mãi được sửa sau đó.
+- Tra cứu biên nhận theo mã hoặc ngày là phần chưa hoàn thiện.
 - Chỉ tạo entity `Invoice` riêng nếu có dữ liệu hóa đơn cần quản lý độc lập; nếu không, có thể tạo biên nhận từ order và payment.
-- Giảm giá và thuế chỉ thêm khi đã xác định rõ quy tắc tính.
+- Thuế chưa thuộc phạm vi hiện tại.
 
-### 5.6 Báo cáo
+### 5.6 Khuyến mãi
+
+- Admin tạo, cập nhật và bật/tắt chương trình khuyến mãi theo món cụ thể hoặc danh mục.
+- Mỗi chương trình có tên, mức giảm phần trăm và thời gian bắt đầu/kết thúc; ngày kết thúc được tính hết ngày đã chọn.
+- Chỉ chương trình đang bật và còn hiệu lực mới được xét áp dụng.
+- Khuyến mãi được tính tự động trên order. Nếu có nhiều chương trình đủ điều kiện, chỉ áp dụng chương trình đem lại số tiền giảm lớn nhất; không cộng dồn.
+- Mức giảm chỉ tính trên các món thuộc phạm vi của chương trình; giá snapshot của món không bị thay đổi.
+- Staff không được quản lý chương trình hoặc tự chọn mức giảm.
+- Mã coupon, giảm số tiền cố định, ngưỡng hóa đơn, cộng dồn và các điều kiện nâng cao chưa thuộc phạm vi hiện tại.
+
+### 5.7 Báo cáo
 
 - Doanh thu theo ngày hoặc khoảng ngày.
 - Số order đã thanh toán.
@@ -145,15 +158,16 @@ Các entity nghiệp vụ đặt trong `RestaurantManagement.Core/Entities`:
 - `RestaurantTable`: thông tin và trạng thái bàn.
 - `Category`: danh mục món.
 - `Product`: thông tin món ăn.
-- `RestaurantOrder`: bàn, nhân viên, thời điểm và trạng thái order.
+- `RestaurantOrder`: bàn, nhân viên, thời điểm/trạng thái order, snapshot tên khuyến mãi và số tiền giảm.
 - `OrderDetail`: món, số lượng, ghi chú, tên món snapshot và đơn giá snapshot.
 - `Payment`: số tiền, phương thức, thời điểm và trạng thái thanh toán.
+- `Promotion`: tên, mức giảm, thời gian hiệu lực, trạng thái và phạm vi áp dụng theo món hoặc danh mục.
 - `Invoice` (tùy chọn): số/mã hóa đơn nếu cần lưu tách biệt.
 
 Các enum dự kiến:
 
 - `UserRole`: `Admin`, `Staff`.
-- Trạng thái có khách được suy ra từ order đang mở; trạng thái ngừng phục vụ do Staff cập nhật và không thể thay đổi khi bàn có order mở.
+- Trạng thái có khách được suy ra từ order đang mở; trạng thái phục vụ do Admin quản lý và không thể ngừng bàn khi bàn có order mở.
 - `OrderStatus`: tối thiểu `Open`, `Paid`, `Cancelled`.
 - `PaymentMethod`: tối thiểu `Cash`, `BankTransfer`.
 - `PaymentStatus`: tối thiểu `Completed`; chỉ bổ sung trạng thái khác khi có luồng nghiệp vụ tương ứng.
@@ -165,6 +179,8 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 - Dùng `decimal` cho tiền; số lượng phải lớn hơn 0.
 - Lưu tên món và đơn giá tại thời điểm gọi trong `OrderDetail` để lịch sử không đổi khi món được sửa.
 - Tính tổng tiền từ chi tiết order trong service; không tin tổng tiền do giao diện gửi lên.
+- Chọn khuyến mãi hợp lệ có số tiền giảm lớn nhất trong service; không tin mức giảm do giao diện gửi lên và không cộng dồn chương trình.
+- Chụp tên chương trình và số tiền giảm vào order trong giao dịch thanh toán; payment lưu thành tiền sau giảm giá.
 - Dùng transaction khi thanh toán để ghi payment và cập nhật order/bàn cùng nhau.
 - Khi order được thanh toán hoặc hủy hợp lệ, bàn tự trở về trạng thái trống; không lưu trạng thái bàn phục vụ nếu trạng thái đó có thể suy ra từ order mở.
 - Hủy order chỉ áp dụng trước thanh toán, cần xác nhận và ghi nhận lý do/người thực hiện/thời điểm; không xóa order khỏi lịch sử.
@@ -211,7 +227,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** Admin và Staff chỉ sử dụng được chức năng tương ứng.
 
-**Trạng thái:** Hoàn thành. Luồng thiết lập Admin lần đầu, đăng nhập/đăng xuất, đổi mật khẩu, quản lý hồ sơ nhân viên và tài khoản, cùng kiểm tra quyền tại service đã được triển khai. Tạo hồ sơ nhân viên được thực hiện từ tài khoản; danh mục Nhân viên cung cấp thao tác tạm đình chỉ/bỏ đình chỉ, sửa số điện thoại và email, hoặc xóa hồ sơ. Tạm đình chỉ chặn đăng nhập. Xóa hồ sơ giữ tài khoản và lịch sử order, bỏ liên kết hồ sơ khỏi order, đồng thời ghi nhận trạng thái “Hồ sơ đã bị xóa” để phân biệt với tài khoản chưa từng có hồ sơ. Tài khoản Staff không có hồ sơ vẫn đăng nhập được ở chế độ chỉ xem, không bị buộc đổi mật khẩu tạm và luôn thấy cảnh báo cố định; Admin không bị giới hạn bởi chế độ này và vẫn vào workspace để thao tác/tải dữ liệu. Không còn chức năng khóa/mở khóa tài khoản; xóa tài khoản đánh dấu tài khoản đã bị xóa, chặn đăng nhập và ẩn khỏi danh sách tài khoản nhưng giữ hồ sơ/order/payment; hồ sơ nhân viên liên kết được chuyển sang ngừng hoạt động. Có thể tạo lại hồ sơ từ tài khoản chưa bị xóa. Số điện thoại/email được kiểm tra định dạng ở cả giao diện và service. Giao diện thao tác bàn, thực đơn và order thuộc các giai đoạn sau.
+**Trạng thái:** Hoàn thành. Luồng thiết lập Admin lần đầu, đăng nhập/đăng xuất, đổi mật khẩu, quản lý hồ sơ nhân viên và tài khoản, cùng kiểm tra quyền tại service đã được triển khai. Tạo hồ sơ nhân viên được thực hiện từ tài khoản; danh mục Nhân viên cung cấp thao tác tạm đình chỉ/bỏ đình chỉ, sửa số điện thoại và email, hoặc xóa hồ sơ. Tạm đình chỉ chặn đăng nhập. Xóa hồ sơ giữ tài khoản và lịch sử order, bỏ liên kết hồ sơ khỏi order, đồng thời ghi nhận trạng thái “Hồ sơ đã bị xóa” để phân biệt với tài khoản chưa từng có hồ sơ. Tài khoản Staff không có hồ sơ vẫn đăng nhập được ở chế độ chỉ xem, không bị buộc đổi mật khẩu tạm và luôn thấy cảnh báo cố định; Admin không bị giới hạn bởi chế độ này và vẫn vào workspace để thao tác/tải dữ liệu. Không còn chức năng khóa/mở khóa tài khoản; xóa tài khoản đánh dấu tài khoản đã bị xóa, chặn đăng nhập và ẩn khỏi danh sách tài khoản nhưng giữ hồ sơ/order/payment; hồ sơ nhân viên liên kết được chuyển sang ngừng hoạt động. Có thể tạo lại hồ sơ từ tài khoản chưa bị xóa. Số điện thoại/email được kiểm tra định dạng ở cả giao diện và service.
 
 ### Giai đoạn D — Bàn và thực đơn
 
@@ -221,19 +237,19 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** dữ liệu bàn và thực đơn được quản lý, lưu bền vững.
 
-**Trạng thái:** Hoàn thành. Admin quản lý khu vực, số hiệu dạng văn bản, số chỗ ngồi, trạng thái phục vụ, danh mục và món ăn; Staff chỉ xem các bàn đang phục vụ cùng tình trạng `Trống`/`Có khách` để thao tác order. Đã bổ sung tìm kiếm/lọc món, kiểm tra dữ liệu, trạng thái bàn/món và bảo vệ dữ liệu đã được order tham chiếu. Chưa có sơ đồ bố trí bàn trực quan. Các nhãn và thông báo của giao diện cùng luồng tài khoản hiện dùng tiếng Việt.
+**Trạng thái:** Hoàn thành. Admin quản lý khu vực, số hiệu dạng văn bản, số chỗ ngồi, trạng thái phục vụ, danh mục và món ăn; Staff xem các bàn đang phục vụ cùng tình trạng `Trống`/`Có khách` để thao tác order. Đã có tìm kiếm/lọc thực đơn, tags chọn nhiều, công tắc trạng thái trực tiếp trong bảng và bảo vệ dữ liệu đã được order tham chiếu. Staff có hồ sơ đang hoạt động được phép cập nhật còn/hết món; chỉ Admin được đổi trạng thái kinh doanh. Không quản lý kho/nguyên liệu. Chưa có sơ đồ bố trí bàn trực quan.
 
 ### Giai đoạn E — Order
 
 - Xây dựng màn hình chọn bàn và tạo order.
-- Thêm/sửa/xóa món, số lượng và ghi chú.
+- Thêm món với số lượng và ghi chú; bổ sung sửa/xóa từng món đã thêm.
 - Tính tạm tính/tổng tiền và hiển thị trạng thái order/bàn.
 - Lưu thông tin snapshot món và giá.
 - Hủy order chưa thanh toán với xác nhận và lý do; giải phóng bàn và giữ lại order đã hủy trong lịch sử.
 
 **Kết quả:** hoàn thành được luồng gọi món cơ bản; quản lý số lượng đã gọi, bỏ món và chuyển/gộp bàn là phần bổ sung sau.
 
-**Trạng thái:** Staff có hồ sơ đang hoạt động có thể bắt đầu order, thêm món/số lượng/ghi chú và hủy order có lý do; mỗi bàn chỉ có một order mở. Admin không có màn hình hoặc quyền thao tác order. Đang hoàn thiện các thao tác chỉnh sửa chi tiết món và lịch sử order.
+**Trạng thái:** Staff có hồ sơ đang hoạt động có thể bắt đầu order, thêm/sửa/bỏ món, điều chỉnh số lượng/ghi chú và hủy order có lý do; mỗi bàn chỉ có một order mở. Nhân viên có thể làm việc với nhiều order cùng lúc bằng các tab riêng; đóng tab không hủy order. Admin không có màn hình hoặc quyền thao tác order. Order có hiển thị tạm tính/khuyến mãi/giảm giá/thành tiền. Màn tra cứu lịch sử order và biên nhận vẫn chưa hoàn thiện.
 
 ### Giai đoạn F — Thanh toán và tra cứu
 
@@ -245,18 +261,29 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** order được thanh toán và tra cứu nhất quán.
 
-**Trạng thái:** Staff có hồ sơ đang hoạt động có thể thanh toán tiền mặt/chuyển khoản mô phỏng; tổng tiền và payment được lưu cùng chuyển trạng thái order trong transaction. Bàn tự chuyển về trạng thái trống khi order thanh toán hoặc hủy. Tra cứu biên nhận chưa hoàn thiện.
+**Trạng thái:** Staff có hồ sơ đang hoạt động có thể thanh toán tiền mặt/chuyển khoản mô phỏng; payment và trạng thái order được lưu trong transaction, bàn tự trở về trạng thái trống khi order thanh toán hoặc hủy. Khuyến mãi đủ điều kiện được tính tự động; tên chương trình và số tiền giảm được lưu snapshot. Tra cứu biên nhận chưa hoàn thiện.
 
-### Giai đoạn G — Báo cáo và hoàn thiện giao diện
+### Giai đoạn G — Khuyến mãi
+
+- Quản lý chương trình khuyến mãi theo món hoặc danh mục.
+- Tự động tính chương trình hợp lệ có mức giảm cao nhất, không cộng dồn.
+- Hiển thị tạm tính, khoản giảm và thành tiền trong order.
+- Lưu snapshot khuyến mãi khi thanh toán.
+
+**Trạng thái:** Đã triển khai quản lý khuyến mãi, quy tắc áp dụng tự động, hiển thị giảm giá và lưu snapshot trên order. Migration sẽ được ứng dụng tự áp dụng khi khởi động. Không có kiểm thử tích hợp MySQL nếu môi trường kiểm thử chưa được cấu hình database.
+
+### Giai đoạn H — Báo cáo và hoàn thiện giao diện
 
 - Xây dựng dashboard doanh thu và món bán chạy.
-- Chuẩn hóa điều hướng, thông báo lỗi, xác nhận thao tác và trạng thái tải.
+- Chuẩn hóa điều hướng, thông báo lỗi, xác nhận thao tác và trạng thái tải; thông báo thông thường không chặn luồng, xác nhận dành cho thao tác xóa, hủy và hoàn tất thanh toán.
 - Ảnh nền đăng nhập/thiết lập đặt trong `RestaurantManagement.WPF/Assets/Images`; hỗ trợ JPG/JPEG và PNG.
 - Chỉ bổ sung PDF/in nếu đã hoàn thành chức năng bắt buộc.
 
 **Kết quả:** báo cáo dùng dữ liệu thật và giao diện thống nhất.
 
-### Giai đoạn H — Kiểm thử và bàn giao
+**Trạng thái:** Đã gom thông báo thành công/lỗi thành banner dùng chung và chuẩn hóa hộp thoại xác nhận; các thao tác xóa, hủy và hoàn tất thanh toán yêu cầu xác nhận. Báo cáo/dashboard chưa hoàn thiện; tiếp tục rà soát và hoàn thiện UI/UX.
+
+### Giai đoạn I — Kiểm thử và bàn giao
 
 - Kiểm thử đăng nhập, quyền, CRUD, order, thanh toán và báo cáo.
 - Kiểm tra dữ liệu sai/thiếu, order trống, thanh toán trùng và lỗi database.
@@ -269,7 +296,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 ### Kiểm thử tối thiểu
 
-- Đăng nhập đúng/sai; tài khoản bị khóa; kiểm tra quyền Admin/Staff.
+- Đăng nhập đúng/sai; tài khoản đã bị xóa, nhân viên bị đình chỉ hoặc tài khoản không có hồ sơ; kiểm tra quyền Admin/Staff.
 - Thiết lập Admin lần đầu thành công trên database chưa có tài khoản; không thể chạy lại sau khi đã có tài khoản.
 - CRUD nhân viên, bàn, danh mục và món.
 - Tạm đình chỉ nhân viên làm họ không thể đăng nhập; bỏ đình chỉ khôi phục khả năng đăng nhập.
@@ -277,7 +304,9 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 - Đăng nhập báo ngay trên form khi tài khoản không tồn tại hoặc nhân viên đang bị đình chỉ; tài khoản chưa có hồ sơ được phép vào chế độ chỉ xem.
 - Email và số điện thoại tùy chọn phải đúng định dạng khi nhập.
 - Giá/số lượng không hợp lệ bị từ chối.
-- Tạo order, cập nhật số lượng, ghi chú và tính tổng.
+- Tạo order, thêm món với số lượng/ghi chú và tính tổng.
+- Áp dụng khuyến mãi đúng phạm vi và thời gian; chọn mức giảm tốt nhất mà không cộng dồn; xác nhận payment và snapshot order khớp số tiền sau giảm.
+- Staff hợp lệ được báo còn/hết món nhưng không thể thay đổi trạng thái kinh doanh hoặc quản lý khuyến mãi.
 - Hủy order chưa thanh toán cần xác nhận, lưu lý do/người hủy/thời điểm và giải phóng bàn.
 - Không thể hủy hoặc chỉnh sửa order đã thanh toán trong phiên bản đầu.
 - Thông tin món/giá cũ không đổi khi sửa món hiện tại.
@@ -296,15 +325,23 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 - Các lỗi nghiệp vụ phổ biến được kiểm tra và hiển thị rõ ràng.
 - Có hướng dẫn chạy và dữ liệu/kịch bản demo.
 
-## 10. Bổ sung tùy chọn — ngoài phạm vi bản đầu
+## 10. Phần chưa hoàn thiện và mở rộng
 
-Chỉ triển khai các mục dưới đây sau khi toàn bộ chức năng bắt buộc đã hoàn thành và được kiểm thử. Không xem chúng là điều kiện nghiệm thu phiên bản đầu:
+Các phần chưa hoàn thiện cần được ưu tiên theo yêu cầu và kiểm thử trước khi bàn giao:
+
+- Tra cứu biên nhận và lịch sử order.
+- Chỉnh sửa/xóa món riêng lẻ trong order đang mở.
+- Dashboard doanh thu và món bán chạy.
+- Hoàn thiện kiểm thử tích hợp trên MySQL và kịch bản demo.
+
+Các ý tưởng mở rộng chưa thuộc phạm vi hiện tại:
 
 - Chuyển bàn và gộp bàn.
 - Order mang đi.
 - Quản lý ca làm, chấm công hoặc bàn giao tiền.
 - Quản lý kho, nguyên liệu và nhập hàng.
-- Quản lý khách hàng, đặt bàn và khuyến mãi.
+- Quản lý khách hàng và đặt bàn.
+- Coupon, điều kiện giảm giá nâng cao, cộng dồn khuyến mãi.
 - Xuất PDF hoặc in hóa đơn.
 - Hoàn tiền, điều chỉnh giao dịch đã thanh toán và các quy trình kiểm soát nâng cao.
 

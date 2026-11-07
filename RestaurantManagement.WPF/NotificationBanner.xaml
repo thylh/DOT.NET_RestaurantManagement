@@ -1,0 +1,33 @@
+<UserControl x:Class="RestaurantManagement.WPF.NotificationBanner"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+    <Border x:Name="BannerBorder"
+            Background="{StaticResource PrimaryTintBrush}"
+            BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="9"
+            Padding="10">
+        <StackPanel Orientation="Horizontal">
+            <Border x:Name="KindBadge"
+                    Width="24"
+                    Height="24"
+                    CornerRadius="7"
+                    Background="{StaticResource SuccessTintBrush}"
+                    Margin="0,0,9,0">
+                <TextBlock x:Name="KindGlyph"
+                           Text="✓"
+                           FontSize="14"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource SuccessBrush}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Text="{Binding Message, ElementName=Root}"
+                       ToolTip="{Binding Message, ElementName=Root}"
+                       Foreground="{StaticResource TextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
+    </Border>
+</UserControl>

@@ -328,8 +328,13 @@ public class DatabaseFoundationTests
                 Assert.Equal(13_000m, openOrderSummary.DiscountAmount);
                 Assert.Equal(52_000m, openOrderSummary.Total);
                 var orderDetailSummary = Assert.Single(openOrderSummary.Details);
+                Assert.True(orderDetailSummary.Id > 0);
                 Assert.Equal("Phở bò đặc biệt", orderDetailSummary.ProductName);
                 Assert.Equal(65_000m, orderDetailSummary.UnitPrice);
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => orderService.UpdateItemAsync(orderId, orderDetailSummary.Id, 2, null));
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => orderService.RemoveItemAsync(orderId, orderDetailSummary.Id));
                 var order = await dbContext.RestaurantOrders.SingleAsync(
                     candidate => candidate.Id == orderId);
                 await Assert.ThrowsAsync<UnauthorizedAccessException>(
@@ -337,6 +342,8 @@ public class DatabaseFoundationTests
                 session.SignIn(admin);
                 await Assert.ThrowsAsync<UnauthorizedAccessException>(
                     () => orderService.CompletePaymentAsync(order.Id, PaymentMethod.Cash));
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => orderService.UpdateItemAsync(orderId, orderDetailSummary.Id, 2, null));
 
                 var duplicateOpenOrder = new RestaurantOrder
                 {
@@ -349,6 +356,41 @@ public class DatabaseFoundationTests
                 dbContext.RestaurantOrders.Add(duplicateOpenOrder);
                 await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
                 dbContext.Entry(duplicateOpenOrder).State = EntityState.Detached;
+
+                session.SignIn(signedInStaff);
+                await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                    () => orderService.UpdateItemAsync(orderId, orderDetailSummary.Id, 0, null));
+                await Assert.ThrowsAsync<ArgumentException>(
+                    () => orderService.UpdateItemAsync(
+                        orderId,
+                        orderDetailSummary.Id,
+                        1,
+                        new string('x', 501)));
+                await orderService.UpdateItemAsync(
+                    orderId,
+                    orderDetailSummary.Id,
+                    2,
+                    "  Ít cay  ");
+                var updatedOrderSummary = Assert.IsType<OpenOrderSummary>(
+                    await orderService.GetOpenOrderAsync(table.Id));
+                var updatedDetail = Assert.Single(updatedOrderSummary.Details);
+                Assert.Equal(2, updatedDetail.Quantity);
+                Assert.Equal("Ít cay", updatedDetail.Notes);
+                Assert.Equal(130_000m, updatedOrderSummary.Subtotal);
+                Assert.Equal(104_000m, updatedOrderSummary.Total);
+
+                await orderService.UpdateItemAsync(orderId, orderDetailSummary.Id, 1, null);
+                await orderService.RemoveItemAsync(orderId, orderDetailSummary.Id);
+                Assert.Empty(Assert.IsType<OpenOrderSummary>(
+                    await orderService.GetOpenOrderAsync(table.Id)).Details);
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => orderService.UpdateItemAsync(orderId, orderDetailSummary.Id, 1, null));
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => orderService.RemoveItemAsync(orderId, orderDetailSummary.Id));
+                await orderService.AddItemAsync(orderId, product.Id, 1, null);
+                var openOrderAfterReadding = Assert.IsType<OpenOrderSummary>(
+                    await orderService.GetOpenOrderAsync(table.Id));
+                var detailIdBeforePayment = Assert.Single(openOrderAfterReadding.Details).Id;
 
                 Assert.True(Assert.Single(await catalogService.GetTablesAsync()).IsOccupied);
                 Assert.Equal(65_000m, await dbContext.OrderDetails
@@ -384,6 +426,10 @@ public class DatabaseFoundationTests
                 Assert.Equal(13_000m, order.DiscountAmountSnapshot);
                 Assert.Equal(52_000m, (await dbContext.Payments
                     .SingleAsync(payment => payment.RestaurantOrderId == order.Id)).Amount);
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => orderService.UpdateItemAsync(order.Id, detailIdBeforePayment, 2, null));
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => orderService.RemoveItemAsync(order.Id, detailIdBeforePayment));
                 await Assert.ThrowsAsync<UnauthorizedAccessException>(
                     () => catalogService.SetTableActiveAsync(table.Id, false));
                 session.SignIn(admin);

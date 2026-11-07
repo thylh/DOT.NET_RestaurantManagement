@@ -2,6 +2,7 @@
 .vs/
 *.suo
 *.user
+.github/
 
 # Build output
 **/bin/

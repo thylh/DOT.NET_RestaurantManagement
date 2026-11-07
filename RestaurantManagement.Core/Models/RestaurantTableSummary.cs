@@ -6,9 +6,14 @@ public sealed record RestaurantTableSummary(
     string Area,
     int SeatCount,
     bool IsActive,
-    bool IsOccupied)
+    bool IsOccupied,
+    int? OpenOrderId = null)
 {
-    public string OccupancyStatus => IsOccupied ? "Có khách" : "Trống";
+    public string OccupancyStatus => OpenOrderId is { } orderId
+        ? $"Order #{orderId}"
+        : IsOccupied ? "Có khách" : "Trống";
+
+    public string OpenOrderStatus => IsOccupied ? "Có order" : "Không có order";
 
     public string ServiceStatus => IsActive ? "Đang phục vụ" : "Ngừng phục vụ";
 

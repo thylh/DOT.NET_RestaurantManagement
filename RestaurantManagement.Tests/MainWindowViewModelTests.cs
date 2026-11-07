@@ -64,6 +64,9 @@ public class MainWindowViewModelTests
 
         Assert.Equal("Trống", table.OccupancyStatus);
         Assert.Equal("Có khách", (table with { IsOccupied = true }).OccupancyStatus);
+        Assert.Equal("Order #42", (table with { IsOccupied = true, OpenOrderId = 42 }).OccupancyStatus);
+        Assert.Equal("Không có order", table.OpenOrderStatus);
+        Assert.Equal("Có order", (table with { IsOccupied = true }).OpenOrderStatus);
         Assert.Equal("Đang phục vụ", table.ServiceStatus);
         Assert.Equal("Ngừng phục vụ", (table with { IsActive = false }).ServiceStatus);
         Assert.Equal("Trống", (table with { IsActive = false }).OccupancyStatus);
@@ -75,13 +78,46 @@ public class MainWindowViewModelTests
         var order = new OpenOrderSummary(
             7,
             3,
-            [new OrderDetailSummary("Món thử", 50_000m, 2, null)],
+            [new OrderDetailSummary(1, "Món thử", 50_000m, 2, null)],
             "Ưu đãi cuối tuần",
             10_000m);
 
         Assert.Equal(100_000m, order.Subtotal);
         Assert.Equal(10_000m, order.DiscountAmount);
         Assert.Equal(90_000m, order.Total);
+    }
+
+    [Fact]
+    public void OrderTabsSwitchBetweenOrdersAndCloseWithoutAffectingOtherTabs()
+    {
+        var viewModel = CreateViewModel();
+        var firstOrder = new OpenOrderSummary(
+            7,
+            3,
+            [new OrderDetailSummary(1, "Món thử", 50_000m, 1, null)]);
+        var firstTab = new OrderWorkspaceTab(3, "Bàn 1 • Order #7", firstOrder);
+        var secondTab = new OrderWorkspaceTab(null, "Chọn bàn");
+        viewModel.Tables.Add(new RestaurantTableSummary(3, "Bàn 1", "Chung", 4, true, true, 7));
+        viewModel.OrderTabs.Add(firstTab);
+        viewModel.OrderTabs.Add(secondTab);
+
+        viewModel.SelectedOrderTab = firstTab;
+        Assert.Same(firstOrder, viewModel.CurrentOpenOrder);
+        Assert.Equal(3, viewModel.SelectedOrderTable?.Id);
+
+        viewModel.SelectOrderTabCommand.Execute(secondTab);
+        Assert.Null(viewModel.CurrentOpenOrder);
+        Assert.Null(viewModel.SelectedOrderTable);
+
+        viewModel.CloseOrderTabCommand.Execute(secondTab);
+        Assert.Same(firstTab, viewModel.SelectedOrderTab);
+        Assert.Same(firstOrder, viewModel.CurrentOpenOrder);
+        Assert.Single(viewModel.OrderTabs);
+
+        viewModel.CloseOrderTabCommand.Execute(firstTab);
+        var replacementTab = Assert.Single(viewModel.OrderTabs);
+        Assert.Equal("Chọn bàn", replacementTab.Title);
+        Assert.Null(replacementTab.Order);
     }
 
     [Fact]
@@ -188,6 +224,28 @@ public class MainWindowViewModelTests
 
         viewModel.TableSearchText = "bàn 1";
         Assert.Empty(viewModel.FilteredTables);
+    }
+
+    [Fact]
+    public void StaffOrderTableFiltersMatchSearchAreaAndOpenOrderStatus()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.Tables.Add(new RestaurantTableSummary(1, "Bàn 1", "Chung", 4, true, false));
+        viewModel.Tables.Add(new RestaurantTableSummary(2, "A2", "VIP", 2, true, true, 12));
+        viewModel.Tables.Add(new RestaurantTableSummary(3, "Bàn 3", "VIP", 6, true, false));
+
+        viewModel.SelectedOrderTableAreaFilter = "VIP";
+        Assert.Equal(new[] { 2, 3 }, viewModel.FilteredOrderTables.Select(table => table.Id));
+        viewModel.SelectedOrderTableStatusFilter = "Đang có order";
+        Assert.Equal(new[] { 2 }, viewModel.FilteredOrderTables.Select(table => table.Id));
+
+        viewModel.SelectedOrderTableStatusFilter = "Trống";
+        Assert.Equal(new[] { 3 }, viewModel.FilteredOrderTables.Select(table => table.Id));
+
+        viewModel.OrderTableSearchText = "a2";
+        Assert.Empty(viewModel.FilteredOrderTables);
+        viewModel.OrderTableSearchText = "bàn 3";
+        Assert.Equal(new[] { 3 }, viewModel.FilteredOrderTables.Select(table => table.Id));
     }
 
     [Fact]

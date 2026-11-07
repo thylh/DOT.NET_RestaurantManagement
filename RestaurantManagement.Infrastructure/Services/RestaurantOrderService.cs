@@ -99,16 +99,8 @@ public sealed class RestaurantOrderService(
         CancellationToken cancellationToken = default)
     {
         await GetAuthorizedUserAsync(cancellationToken);
-        if (quantity is < 1 or > 99)
-        {
-            throw new ArgumentOutOfRangeException(nameof(quantity), "Số lượng phải từ 1 đến 99.");
-        }
-
-        var normalizedNotes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
-        if (normalizedNotes?.Length > 500)
-        {
-            throw new ArgumentException("Ghi chú không được vượt quá 500 ký tự.", nameof(notes));
-        }
+        ValidateQuantity(quantity);
+        var normalizedNotes = NormalizeNotes(notes);
 
         var order = await dbContext.RestaurantOrders
             .SingleOrDefaultAsync(
@@ -136,6 +128,55 @@ public sealed class RestaurantOrderService(
             Quantity = quantity,
             Notes = normalizedNotes
         });
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateItemAsync(
+        int orderId,
+        int orderDetailId,
+        int quantity,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        await GetAuthorizedUserAsync(cancellationToken);
+        ValidateQuantity(quantity);
+        var normalizedNotes = NormalizeNotes(notes);
+        var detail = await dbContext.OrderDetails
+            .SingleOrDefaultAsync(
+                candidate => candidate.Id == orderDetailId
+                    && candidate.RestaurantOrderId == orderId
+                    && candidate.RestaurantOrder.Status == OrderStatus.Open,
+                cancellationToken);
+        if (detail is null)
+        {
+            throw new InvalidOperationException(
+                "Món không tồn tại trong order đang mở hoặc order đã đóng.");
+        }
+
+        detail.Quantity = quantity;
+        detail.Notes = normalizedNotes;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveItemAsync(
+        int orderId,
+        int orderDetailId,
+        CancellationToken cancellationToken = default)
+    {
+        await GetAuthorizedUserAsync(cancellationToken);
+        var detail = await dbContext.OrderDetails
+            .SingleOrDefaultAsync(
+                candidate => candidate.Id == orderDetailId
+                    && candidate.RestaurantOrderId == orderId
+                    && candidate.RestaurantOrder.Status == OrderStatus.Open,
+                cancellationToken);
+        if (detail is null)
+        {
+            throw new InvalidOperationException(
+                "Món không tồn tại trong order đang mở hoặc order đã đóng.");
+        }
+
+        dbContext.OrderDetails.Remove(detail);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -259,6 +300,7 @@ public sealed class RestaurantOrderService(
             order.OrderDetails
                 .OrderBy(detail => detail.Id)
                 .Select(detail => new OrderDetailSummary(
+                    detail.Id,
                     detail.ProductNameSnapshot,
                     detail.UnitPriceSnapshot,
                     detail.Quantity,
@@ -311,6 +353,25 @@ public sealed class RestaurantOrderService(
     }
 
     private sealed record PromotionApplication(int Id, string Name, decimal DiscountAmount);
+
+    private static void ValidateQuantity(int quantity)
+    {
+        if (quantity is < 1 or > 99)
+        {
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Số lượng phải từ 1 đến 99.");
+        }
+    }
+
+    private static string? NormalizeNotes(string? notes)
+    {
+        var normalizedNotes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+        if (normalizedNotes?.Length > 500)
+        {
+            throw new ArgumentException("Ghi chú không được vượt quá 500 ký tự.", nameof(notes));
+        }
+
+        return normalizedNotes;
+    }
 
     private static bool IsDuplicateKey(DbUpdateException exception) =>
         exception.InnerException is MySqlException { Number: 1062 };

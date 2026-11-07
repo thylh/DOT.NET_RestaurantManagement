@@ -42,11 +42,21 @@ public partial class MainWindowViewModel(
 
     public ObservableCollection<RestaurantTableSummary> Tables { get; } = [];
 
+    public ObservableCollection<OrderWorkspaceTab> OrderTabs { get; } = [];
+
     public ObservableCollection<RestaurantTableSummary> FilteredTables { get; } = [];
+
+    public ObservableCollection<RestaurantTableSummary> FilteredOrderTables { get; } = [];
 
     public ObservableCollection<string> TableAreas { get; } = [.. RestaurantTableAreas.Values];
 
     public ObservableCollection<string> TableAreaFilters { get; } = ["Tất cả khu vực", .. RestaurantTableAreas.Values];
+
+    public ObservableCollection<string> OrderTableAreaFilters { get; } =
+        ["Tất cả khu vực", .. RestaurantTableAreas.Values];
+
+    public ObservableCollection<string> OrderTableStatusFilters { get; } =
+        ["Tất cả trạng thái", "Trống", "Đang có order"];
 
     public ObservableCollection<string> TableServiceStatusFilters { get; } =
         ["Tất cả trạng thái", "Đang phục vụ", "Ngừng phục vụ"];
@@ -192,10 +202,16 @@ public partial class MainWindowViewModel(
     private RestaurantTableSummary? selectedOrderTable;
 
     [ObservableProperty]
+    private OrderWorkspaceTab? selectedOrderTab;
+
+    [ObservableProperty]
     private ProductSummary? selectedOrderProduct;
 
     [ObservableProperty]
     private OpenOrderSummary? currentOpenOrder;
+
+    [ObservableProperty]
+    private OrderDetailSummary? selectedOrderDetail;
 
     [ObservableProperty]
     private CategorySummary? selectedCategory;
@@ -234,6 +250,15 @@ public partial class MainWindowViewModel(
     private string selectedTableServiceStatusFilter = "Tất cả trạng thái";
 
     [ObservableProperty]
+    private string orderTableSearchText = string.Empty;
+
+    [ObservableProperty]
+    private string selectedOrderTableAreaFilter = "Tất cả khu vực";
+
+    [ObservableProperty]
+    private string selectedOrderTableStatusFilter = "Tất cả trạng thái";
+
+    [ObservableProperty]
     private string tableAreaText = RestaurantTableAreas.Default;
 
     [ObservableProperty]
@@ -244,6 +269,12 @@ public partial class MainWindowViewModel(
 
     [ObservableProperty]
     private string orderItemNotes = string.Empty;
+
+    [ObservableProperty]
+    private string editOrderQuantityText = string.Empty;
+
+    [ObservableProperty]
+    private string editOrderItemNotes = string.Empty;
 
     [ObservableProperty]
     private string orderCancellationReason = string.Empty;
@@ -308,6 +339,12 @@ public partial class MainWindowViewModel(
     partial void OnSelectedTableAreaFilterChanged(string value) => ApplyTableFilters();
 
     partial void OnSelectedTableServiceStatusFilterChanged(string value) => ApplyTableFilters();
+
+    partial void OnOrderTableSearchTextChanged(string value) => ApplyOrderTableFilters();
+
+    partial void OnSelectedOrderTableAreaFilterChanged(string value) => ApplyOrderTableFilters();
+
+    partial void OnSelectedOrderTableStatusFilterChanged(string value) => ApplyOrderTableFilters();
 
     partial void OnAccountSearchTextChanged(string value) => ApplyAccountFilters();
 
@@ -386,6 +423,11 @@ public partial class MainWindowViewModel(
             OnPropertyChanged(nameof(IsStaffScreen));
             OnPropertyChanged(nameof(IsLoginScreen));
             OnPropertyChanged(nameof(CurrentUserDescription));
+            if (IsStaffOrderScreen && OrderTabs.Count == 0)
+            {
+                AddNewOrderTab();
+            }
+
             StatusMessage = $"Đã đăng nhập với tài khoản {user.Username}.";
             if (IsPasswordChangeRequired)
             {
@@ -419,7 +461,10 @@ public partial class MainWindowViewModel(
         Categories.Clear();
         Products.Clear();
         OrderableProducts.Clear();
+        OrderTabs.Clear();
+        SelectedOrderTab = null;
         CurrentOpenOrder = null;
+        SelectedOrderDetail = null;
         SelectedOrderTable = null;
         SelectedOrderProduct = null;
         OrderCancellationReason = string.Empty;
@@ -713,7 +758,6 @@ public partial class MainWindowViewModel(
         });
     }
 
-    [RelayCommand]
     private async Task LoadOpenOrderAsync()
     {
         if (SelectedOrderTable is not { } table)
@@ -725,10 +769,54 @@ public partial class MainWindowViewModel(
         await RunOperationAsync(async () =>
         {
             await RefreshOpenOrderAsync(table.Id);
+            await RefreshCatalogAsync();
             StatusMessage = CurrentOpenOrder is null
                 ? $"Bàn {table.Area} - {table.TableNumber} hiện chưa có order đang mở."
                 : $"Đã tải order của bàn {table.Area} - {table.TableNumber}.";
         });
+    }
+
+    [RelayCommand]
+    private void NewOrderTab() => AddNewOrderTab();
+
+    [RelayCommand]
+    private void SelectOrderTab(OrderWorkspaceTab? tab)
+    {
+        if (tab is not null && OrderTabs.Contains(tab))
+        {
+            SelectedOrderTab = tab;
+        }
+    }
+
+    [RelayCommand]
+    private void CloseOrderTab(OrderWorkspaceTab? tab)
+    {
+        if (tab is null)
+        {
+            return;
+        }
+
+        var index = OrderTabs.IndexOf(tab);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var wasSelected = SelectedOrderTab == tab;
+        OrderTabs.RemoveAt(index);
+        if (!wasSelected)
+        {
+            return;
+        }
+
+        if (OrderTabs.Count == 0)
+        {
+            AddNewOrderTab();
+        }
+        else
+        {
+            SelectedOrderTab = OrderTabs[Math.Min(index, OrderTabs.Count - 1)];
+        }
     }
 
     [RelayCommand]
@@ -743,6 +831,7 @@ public partial class MainWindowViewModel(
         await RunOperationAsync(async () =>
         {
             var service = GetRestaurantOrderService();
+            SelectOrCreateOrderTab(table.Id);
             await service.StartOrderAsync(table.Id);
             await RefreshCatalogAsync();
             await RefreshOpenOrderAsync(table.Id);
@@ -787,6 +876,66 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
+    private async Task UpdateOrderItemAsync()
+    {
+        if (CurrentOpenOrder is not { } order)
+        {
+            ErrorMessage = "Hãy tải hoặc bắt đầu order trước.";
+            return;
+        }
+
+        if (SelectedOrderDetail is not { } detail)
+        {
+            ErrorMessage = "Hãy chọn món cần cập nhật.";
+            return;
+        }
+
+        if (!int.TryParse(EditOrderQuantityText, out var quantity))
+        {
+            ErrorMessage = "Số lượng phải là số nguyên từ 1 đến 99.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await GetRestaurantOrderService().UpdateItemAsync(
+                order.OrderId,
+                detail.Id,
+                quantity,
+                EditOrderItemNotes);
+            SelectedOrderDetail = null;
+            await RefreshOpenOrderAsync(order.TableId);
+            await RefreshCatalogAsync();
+            StatusMessage = "Đã cập nhật món trong order.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task RemoveOrderItemAsync()
+    {
+        if (CurrentOpenOrder is not { } order)
+        {
+            ErrorMessage = "Hãy tải hoặc bắt đầu order trước.";
+            return;
+        }
+
+        if (SelectedOrderDetail is not { } detail)
+        {
+            ErrorMessage = "Hãy chọn món cần bỏ khỏi order.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await GetRestaurantOrderService().RemoveItemAsync(order.OrderId, detail.Id);
+            SelectedOrderDetail = null;
+            await RefreshOpenOrderAsync(order.TableId);
+            await RefreshCatalogAsync();
+            StatusMessage = "Đã bỏ món khỏi order.";
+        });
+    }
+
+    [RelayCommand]
     private async Task CancelOpenOrderAsync()
     {
         if (CurrentOpenOrder is not { } order)
@@ -800,7 +949,7 @@ public partial class MainWindowViewModel(
             await GetRestaurantOrderService().CancelOrderAsync(
                 order.OrderId,
                 OrderCancellationReason);
-            CurrentOpenOrder = null;
+            CloseOrderTab(SelectedOrderTab);
             OrderCancellationReason = string.Empty;
             await RefreshCatalogAsync();
             StatusMessage = "Đã hủy order; bàn hiện đã trống.";
@@ -826,7 +975,7 @@ public partial class MainWindowViewModel(
         await RunOperationAsync(async () =>
         {
             await GetRestaurantOrderService().CompletePaymentAsync(order.OrderId, method);
-            CurrentOpenOrder = null;
+            CloseOrderTab(SelectedOrderTab);
             OrderCancellationReason = string.Empty;
             await RefreshCatalogAsync();
             StatusMessage = "Thanh toán thành công; bàn hiện đã trống.";
@@ -1290,6 +1439,15 @@ public partial class MainWindowViewModel(
         SynchronizeAreas(
             TableAreaFilters,
             availableAreaFilters);
+        SynchronizeAreas(
+            OrderTableAreaFilters,
+            availableAreaFilters);
+        if (!OrderTableAreaFilters.Contains(
+                SelectedOrderTableAreaFilter,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            SelectedOrderTableAreaFilter = "Tất cả khu vực";
+        }
 
         Categories.Clear();
         foreach (var category in categories)
@@ -1301,6 +1459,7 @@ public partial class MainWindowViewModel(
         SelectedOrderTable = Tables.FirstOrDefault(table => table.Id == selectedOrderTableId)
             ?? Tables.FirstOrDefault();
         ApplyTableFilters();
+        ApplyOrderTableFilters();
         SelectedCategory = Categories.FirstOrDefault(category => category.Id == selectedCategoryId);
         SelectedProductCategory = Categories.FirstOrDefault(category => category.Id == selectedProductCategoryId);
         SynchronizeProductCategoryFilters(selectedProductCategoryFilter);
@@ -1413,6 +1572,28 @@ public partial class MainWindowViewModel(
         }
     }
 
+    private void ApplyOrderTableFilters()
+    {
+        var searchText = OrderTableSearchText.Trim();
+        var filteredTables = Tables.Where(table =>
+            (string.IsNullOrEmpty(searchText)
+             || table.TableNumber.Contains(searchText, StringComparison.CurrentCultureIgnoreCase))
+            && (SelectedOrderTableAreaFilter == "Tất cả khu vực"
+                || string.Equals(
+                    table.Area,
+                    SelectedOrderTableAreaFilter,
+                    StringComparison.OrdinalIgnoreCase))
+            && (SelectedOrderTableStatusFilter == "Tất cả trạng thái"
+                || (SelectedOrderTableStatusFilter == "Trống" && !table.IsOccupied)
+                || (SelectedOrderTableStatusFilter == "Đang có order" && table.IsOccupied)));
+
+        FilteredOrderTables.Clear();
+        foreach (var table in filteredTables)
+        {
+            FilteredOrderTables.Add(table);
+        }
+    }
+
     private static void SynchronizeAreas(
         ObservableCollection<string> options,
         IReadOnlyCollection<string> availableAreas)
@@ -1476,7 +1657,51 @@ public partial class MainWindowViewModel(
 
     private async Task RefreshOpenOrderAsync(int tableId)
     {
-        CurrentOpenOrder = await GetRestaurantOrderService().GetOpenOrderAsync(tableId);
+        SelectedOrderDetail = null;
+        var order = await GetRestaurantOrderService().GetOpenOrderAsync(tableId);
+        var tab = SelectOrCreateOrderTab(tableId);
+        tab.Order = order;
+        tab.Title = GetOrderTabTitle(tableId, order);
+        CurrentOpenOrder = order;
+    }
+
+    private void AddNewOrderTab()
+    {
+        var tab = new OrderWorkspaceTab(null, "Chọn bàn");
+        OrderTabs.Add(tab);
+        SelectedOrderTab = tab;
+    }
+
+    private OrderWorkspaceTab SelectOrCreateOrderTab(int tableId)
+    {
+        var existingTab = OrderTabs.FirstOrDefault(tab => tab.TableId == tableId);
+        if (existingTab is not null)
+        {
+            SelectedOrderTab = existingTab;
+            return existingTab;
+        }
+
+        var tab = SelectedOrderTab is { Order: null } availableTab
+            ? availableTab
+            : new OrderWorkspaceTab();
+        if (!OrderTabs.Contains(tab))
+        {
+            OrderTabs.Add(tab);
+        }
+
+        tab.TableId = tableId;
+        tab.Title = GetOrderTabTitle(tableId, null);
+        SelectedOrderTab = tab;
+        return tab;
+    }
+
+    private string GetOrderTabTitle(int tableId, OpenOrderSummary? order)
+    {
+        var table = Tables.FirstOrDefault(candidate => candidate.Id == tableId);
+        var tableName = table?.TableNumber ?? $"Bàn {tableId}";
+        return order is null
+            ? $"{tableName} • Chưa có order"
+            : $"{tableName} • Order #{order.OrderId}";
     }
 
     private IRestaurantOrderService GetRestaurantOrderService() =>
@@ -1545,6 +1770,49 @@ public partial class MainWindowViewModel(
         EmployeeName = value.FullName;
         EmployeePhone = value.Phone ?? string.Empty;
         EmployeeEmail = value.Email ?? string.Empty;
+    }
+
+    partial void OnSelectedOrderDetailChanged(OrderDetailSummary? value)
+    {
+        EditOrderQuantityText = value?.Quantity.ToString(CultureInfo.CurrentCulture) ?? string.Empty;
+        EditOrderItemNotes = value?.Notes ?? string.Empty;
+    }
+
+    partial void OnSelectedOrderTabChanged(OrderWorkspaceTab? value)
+    {
+        foreach (var tab in OrderTabs)
+        {
+            tab.IsSelected = tab == value;
+        }
+
+        CurrentOpenOrder = value?.Order;
+        SelectedOrderTable = value?.TableId is { } tableId
+            ? Tables.FirstOrDefault(table => table.Id == tableId)
+            : null;
+        SelectedOrderDetail = null;
+    }
+
+    partial void OnSelectedOrderTableChanged(RestaurantTableSummary? value)
+    {
+        if (value is not { IsOccupied: true } || !IsStaffOrderScreen)
+        {
+            return;
+        }
+
+        if (SelectedOrderTab?.TableId == value.Id)
+        {
+            return;
+        }
+
+        var existingTab = OrderTabs.FirstOrDefault(tab => tab.TableId == value.Id);
+        if (existingTab is not null)
+        {
+            SelectedOrderTab = existingTab;
+        }
+        else if (!IsBusy)
+        {
+            _ = LoadOpenOrderAsync();
+        }
     }
 
     partial void OnSelectedTableChanged(RestaurantTableSummary? value)

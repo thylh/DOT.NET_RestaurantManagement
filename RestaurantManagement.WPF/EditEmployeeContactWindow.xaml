@@ -1,6 +1,8 @@
 <Window x:Class="RestaurantManagement.WPF.EditEmployeeContactWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:RestaurantManagement.WPF"
+        xmlns:behaviors="clr-namespace:RestaurantManagement.WPF.Behaviors"
         Title="Chỉnh sửa thông tin nhân viên"
         Width="460"
         SizeToContent="Height"
@@ -10,9 +12,17 @@
         Foreground="{DynamicResource TextPrimaryBrush}">
     <StackPanel Margin="24">
         <TextBlock Text="Số điện thoại" Margin="0,0,0,6" />
-        <TextBox x:Name="PhoneTextBox" MinWidth="380" Margin="0,0,0,14" />
+        <TextBox x:Name="PhoneTextBox"
+                 MinWidth="380"
+                 Margin="0,0,0,14"
+                 behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Số điện thoại (không bắt buộc)"/>
         <TextBlock Text="Email" Margin="0,0,0,6" />
-        <TextBox x:Name="EmailTextBox" MinWidth="380" />
+        <TextBox x:Name="EmailTextBox"
+                 MinWidth="380"
+                 behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Email (không bắt buộc)"/>
+        <local:NotificationBanner x:Name="ValidationBanner"
+                                  Kind="Error"
+                                  Margin="0,14,0,0"/>
         <WrapPanel HorizontalAlignment="Right" Margin="0,20,0,0">
             <Button Content="Hủy" IsCancel="True" Padding="14,7" Margin="0,0,8,0" />
             <Button Content="Lưu" IsDefault="True" Click="Save_Click"

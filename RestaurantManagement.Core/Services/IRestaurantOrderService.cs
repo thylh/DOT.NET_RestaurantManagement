@@ -20,6 +20,18 @@ public interface IRestaurantOrderService
         string? notes,
         CancellationToken cancellationToken = default);
 
+    Task UpdateItemAsync(
+        int orderId,
+        int orderDetailId,
+        int quantity,
+        string? notes,
+        CancellationToken cancellationToken = default);
+
+    Task RemoveItemAsync(
+        int orderId,
+        int orderDetailId,
+        CancellationToken cancellationToken = default);
+
     Task CancelOrderAsync(
         int orderId,
         string reason,

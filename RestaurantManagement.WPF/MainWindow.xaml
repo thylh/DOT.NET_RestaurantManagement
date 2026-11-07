@@ -1,6 +1,8 @@
 <Window x:Class="RestaurantManagement.WPF.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:RestaurantManagement.WPF"
+        xmlns:behaviors="clr-namespace:RestaurantManagement.WPF.Behaviors"
         xmlns:viewModels="clr-namespace:RestaurantManagement.WPF.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -10,10 +12,12 @@
         Width="1440"
         MinHeight="620"
         MinWidth="1120"
+        behaviors:DataGridSelectionBehavior.IsEnabled="True"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <Style x:Key="StateSwitchStyle" TargetType="{x:Type ToggleButton}">
+            <EventSetter Event="Click" Handler="StateSwitch_Click"/>
             <Setter Property="Width" Value="29"/>
             <Setter Property="Height" Value="17"/>
             <Setter Property="MinWidth" Value="29"/>
@@ -295,6 +299,7 @@
                                 FontWeight="SemiBold"
                                 Margin="0,0,0,6"/>
                         <TextBox Text="{Binding SetupUsername, UpdateSourceTrigger=PropertyChanged}"
+                                behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên đăng nhập Admin"
                                 Margin="0,0,0,18"/>
                         <TextBlock Text="Mật khẩu"
                                 FontWeight="SemiBold"
@@ -312,45 +317,13 @@
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 HorizontalAlignment="Stretch"/>
                         <Grid Width="390"
-                                HorizontalAlignment="Left"
-                                Margin="0,14,0,0">
-                            <Border Background="{StaticResource DangerTintBrush}"
-                                    CornerRadius="9"
-                                    Padding="10"
-                                    Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock Text="{Binding ErrorMessage}"
-                                        ToolTip="{Binding ErrorMessage}"
-                                           Foreground="{StaticResource DangerBrush}"
-                                        TextWrapping="Wrap"
-                                           VerticalAlignment="Center"/>
-                            </Border>
-                            <Border Background="{StaticResource PrimaryTintBrush}"
-                                    CornerRadius="9"
-                                    Padding="10">
-                                <Border.Style>
-                                    <Style TargetType="{x:Type Border}">
-                                        <Setter Property="Visibility"
-                                                Value="Collapsed"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasStatusMessage}"
-                                                    Value="True">
-                                                <Setter Property="Visibility"
-                                                        Value="Visible"/>
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding HasError}"
-                                                    Value="True">
-                                                <Setter Property="Visibility"
-                                                        Value="Collapsed"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <TextBlock Text="{Binding StatusMessage}"
-                                        ToolTip="{Binding StatusMessage}"
-                                           Foreground="{StaticResource PrimaryBrush}"
-                                        TextWrapping="Wrap"
-                                           VerticalAlignment="Center"/>
-                            </Border>
+                              HorizontalAlignment="Left"
+                              Margin="0,14,0,0">
+                            <local:NotificationBanner Message="{Binding ErrorMessage}"
+                                                      Kind="Error"/>
+                            <local:NotificationBanner Message="{Binding StatusMessage}"
+                                                      Kind="Success"
+                                                      IsSuppressed="{Binding HasError}"/>
                         </Grid>
                     </StackPanel>
                 </Grid>
@@ -452,6 +425,7 @@
                                 FontWeight="SemiBold"
                                 Margin="0,0,0,6"/>
                         <TextBox Text="{Binding LoginUsername, UpdateSourceTrigger=PropertyChanged}"
+                                behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên đăng nhập"
                                 Margin="0,0,0,18"/>
                         <TextBlock Text="Mật khẩu"
                                 FontWeight="SemiBold"
@@ -470,47 +444,13 @@
                           Margin="54,0,54,18"
                             Panel.ZIndex="1"
                             IsHitTestVisible="False">
-                        <Border MaxHeight="120"
-                                Background="{StaticResource DangerTintBrush}"
-                                CornerRadius="9"
-                                Padding="10"
-                                Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="{Binding ErrorMessage}"
-                                    ToolTip="{Binding ErrorMessage}"
-                                       Foreground="{StaticResource DangerBrush}"
-                                    TextWrapping="Wrap"
-                                       TextTrimming="CharacterEllipsis"
-                                    MaxHeight="100"/>
-                        </Border>
-                        <Border MaxHeight="120"
-                                Background="{StaticResource PrimaryTintBrush}"
-                                CornerRadius="9"
-                                Padding="10">
-                            <Border.Style>
-                                <Style TargetType="{x:Type Border}">
-                                    <Setter Property="Visibility"
-                                            Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasStatusMessage}"
-                                                Value="True">
-                                            <Setter Property="Visibility"
-                                                    Value="Visible"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding HasError}"
-                                                Value="True">
-                                            <Setter Property="Visibility"
-                                                    Value="Collapsed"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <TextBlock Text="{Binding StatusMessage}"
-                                    ToolTip="{Binding StatusMessage}"
-                                       Foreground="{StaticResource PrimaryBrush}"
-                                    TextWrapping="Wrap"
-                                       TextTrimming="CharacterEllipsis"
-                                    MaxHeight="100"/>
-                        </Border>
+                        <local:NotificationBanner Message="{Binding ErrorMessage}"
+                                                  Kind="Error"
+                                                  MaxHeight="120"/>
+                        <local:NotificationBanner Message="{Binding StatusMessage}"
+                                                  Kind="Success"
+                                                  IsSuppressed="{Binding HasError}"
+                                                  MaxHeight="120"/>
                     </Grid>
                 </Grid>
             </Border>
@@ -553,11 +493,9 @@
                             Command="{Binding ChangePasswordCommand}"
                             Style="{StaticResource PrimaryButtonStyle}"
                             HorizontalAlignment="Stretch"/>
-                    <TextBlock Text="{Binding ErrorMessage}"
-                            Foreground="{StaticResource DangerBrush}"
-                               TextWrapping="Wrap"
-                            Margin="0,14,0,0"
-                               Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <local:NotificationBanner Message="{Binding ErrorMessage}"
+                                              Kind="Error"
+                                              Margin="0,14,0,0"/>
                 </StackPanel>
             </Border>
         </Grid>
@@ -606,43 +544,13 @@
                           HorizontalAlignment="Left"
                             Panel.ZIndex="1"
                             IsHitTestVisible="False">
-                        <Border MaxWidth="520"
-                                Background="{StaticResource DangerTintBrush}"
-                                CornerRadius="9"
-                                Padding="10"
-                                Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="{Binding ErrorMessage}"
-                                    ToolTip="{Binding ErrorMessage}"
-                                       Foreground="{StaticResource DangerBrush}"
-                                    TextWrapping="Wrap"/>
-                        </Border>
-                        <Border MaxWidth="520"
-                                Background="{StaticResource PrimaryTintBrush}"
-                                CornerRadius="9"
-                                Padding="10">
-                            <Border.Style>
-                                <Style TargetType="{x:Type Border}">
-                                    <Setter Property="Visibility"
-                                            Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasStatusMessage}"
-                                                Value="True">
-                                            <Setter Property="Visibility"
-                                                    Value="Visible"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding HasError}"
-                                                Value="True">
-                                            <Setter Property="Visibility"
-                                                    Value="Collapsed"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <TextBlock Text="{Binding StatusMessage}"
-                                    ToolTip="{Binding StatusMessage}"
-                                       Foreground="{StaticResource PrimaryBrush}"
-                                    TextWrapping="Wrap"/>
-                        </Border>
+                        <local:NotificationBanner Message="{Binding ErrorMessage}"
+                                                  Kind="Error"
+                                                  MaxWidth="520"/>
+                        <local:NotificationBanner Message="{Binding StatusMessage}"
+                                                  Kind="Success"
+                                                  IsSuppressed="{Binding HasError}"
+                                                  MaxWidth="520"/>
                     </Grid>
                 </Grid>
                 <Button Grid.Column="1"
@@ -790,18 +698,21 @@
                                         Margin="0,0,12,8">
                                     <TextBlock Text="Họ tên"/>
                                     <TextBox Text="{Binding AccountEmployeeName, UpdateSourceTrigger=PropertyChanged}"
+                                            behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Họ tên nhân viên"
                                             Margin="0,4,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1"
                                         Margin="0,0,12,8">
                                     <TextBlock Text="Điện thoại"/>
                                     <TextBox Text="{Binding AccountEmployeePhone, UpdateSourceTrigger=PropertyChanged}"
+                                            behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Số điện thoại (không bắt buộc)"
                                             Margin="0,4,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2"
                                         Margin="0,0,0,8">
                                     <TextBlock Text="Email"/>
                                     <TextBox Text="{Binding AccountEmployeeEmail, UpdateSourceTrigger=PropertyChanged}"
+                                            behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Email (không bắt buộc)"
                                             Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Grid>
@@ -826,7 +737,7 @@
                                         Orientation="Horizontal">
                                     <TextBox Width="260"
                                             Text="{Binding AccountSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="Tìm theo họ tên, tên đăng nhập, điện thoại hoặc email"
+                                            behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo họ tên, tên đăng nhập, điện thoại hoặc email"
                                              Margin="8,0,0,0"/>
                                     <ComboBox Width="190"
                                             ItemsSource="{Binding AccountRoleFilters}"
@@ -954,7 +865,7 @@
                                 Margin="0,0,0,8">
                             <TextBox Width="300"
                                     Text="{Binding EmployeeSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Tìm theo họ tên, điện thoại, email hoặc tên đăng nhập"
+                                    behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo họ tên, điện thoại, email hoặc tên đăng nhập"
                                      Margin="0,0,8,8"/>
                             <ComboBox Width="210"
                                     ItemsSource="{Binding EmployeeStatusFilters}"
@@ -1047,7 +958,7 @@
                                 Margin="0,0,0,12">
                             <TextBox Width="260"
                                     Text="{Binding TableSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Tìm theo số hiệu bàn hoặc khu vực"
+                                    behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo số hiệu bàn hoặc khu vực"
                                      Margin="0,0,8,8"/>
                             <ComboBox Width="200"
                                     ItemsSource="{Binding TableAreaFilters}"
@@ -1084,12 +995,15 @@
                                             Binding="{Binding Area}"
                                             Width="1.15*"
                                             MinWidth="120"/>
+                                    <DataGridTextColumn Header="Trạng thái"
+                                            Binding="{Binding OpenOrderStatus}"
+                                            Width="1.15*"
+                                            MinWidth="120"/>
                                     <DataGridTemplateColumn Header="Phục vụ" Width="1.35*" MinWidth="100">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ToggleButton IsChecked="{Binding IsActive, Mode=OneWay}"
                                                               Tag="{Binding DataContext.ToggleTableStatusCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                                              Click="StateSwitch_Click"
                                                               IsEnabled="{Binding CanToggleServiceStatus}"
                                                               Style="{StaticResource StateSwitchStyle}"
                                                               ToolTip="Bật hoặc tắt phục vụ bàn"
@@ -1101,27 +1015,28 @@
                             </DataGrid>
                         </Border>
                         <StackPanel Grid.Row="3"
-                                Tag="KeepTableSelection">
+                                behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
                             <WrapPanel Margin="0,0,0,12">
                                 <StackPanel Width="200"
                                         Margin="0,0,12,8">
                                     <TextBlock Text="Khu vực"/>
                                     <ComboBox ItemsSource="{Binding TableAreas}"
                                               SelectedItem="{Binding TableAreaText}"
-                                              Tag="KeepTableSelection"
+                                              behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True"
                                               Margin="0,4,0,0"/>
                                 </StackPanel>
                                 <StackPanel Width="200"
                                         Margin="0,0,12,8">
                                     <TextBlock Text="Số hiệu bàn"/>
                                     <TextBox Text="{Binding TableNumberText, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="Ví dụ: Bàn 1, A1 hoặc Bàn cửa sổ"
+                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Ví dụ: Bàn 1, A1 hoặc Bàn cửa sổ"
                                              Margin="0,4,0,0"/>
                                 </StackPanel>
                                 <StackPanel Width="160"
                                         Margin="0,0,12,8">
                                     <TextBlock Text="Số chỗ ngồi"/>
                                     <TextBox Text="{Binding TableSeatCountText, UpdateSourceTrigger=PropertyChanged}"
+                                            behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Ví dụ: 4"
                                             Margin="0,4,0,0"/>
                                 </StackPanel>
                             </WrapPanel>
@@ -1197,7 +1112,6 @@
                                                                 <DataTemplate>
                                                                     <ToggleButton IsChecked="{Binding IsActive, Mode=OneWay}"
                                                                                   Tag="{Binding DataContext.ToggleCategoryStatusCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                                                                  Click="StateSwitch_Click"
                                                                                   Style="{StaticResource StateSwitchStyle}"
                                                                                   ToolTip="Bật hoặc tắt kinh doanh danh mục"
                                                                                   HorizontalAlignment="Center"/>
@@ -1215,7 +1129,7 @@
                                             BorderThickness="1"
                                             CornerRadius="14"
                                             Padding="16"
-                                            Tag="KeepTableSelection">
+                                            behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
                                         <StackPanel>
                                             <TextBlock Text="Thông tin danh mục"
                                                     FontSize="16"
@@ -1223,6 +1137,7 @@
                                                     Margin="0,0,0,14"/>
                                             <TextBlock Text="Tên danh mục"/>
                                             <TextBox Text="{Binding CategoryName, UpdateSourceTrigger=PropertyChanged}"
+                                                     behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên danh mục"
                                                      Margin="0,4,0,12"/>
                                             <WrapPanel>
                                                 <Button Content="Thêm danh mục"
@@ -1257,9 +1172,9 @@
                                            Margin="0,0,0,14"/>
                                 <Grid Grid.Row="1">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="1.55*"/>
+                                        <ColumnDefinition Width="1.7*"/>
                                         <ColumnDefinition Width="12"/>
-                                        <ColumnDefinition Width="1*"/>
+                                        <ColumnDefinition Width="0.85*"/>
                                     </Grid.ColumnDefinitions>
                                     <Border Grid.Column="0"
                                             Background="{StaticResource SurfaceBrush}"
@@ -1281,7 +1196,7 @@
                                                     Margin="0,0,0,8">
                                                 <TextBox Width="260"
                                                          Text="{Binding ProductSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                                         ToolTip="Tìm theo tên món, tags hoặc danh mục"
+                                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo tên món, tags hoặc danh mục"
                                                          Margin="0,0,8,8"/>
                                                 <ComboBox Width="210"
                                                         ItemsSource="{Binding ProductCategoryFilters}"
@@ -1314,7 +1229,6 @@
                                                                 <DataTemplate>
                                                                     <ToggleButton IsChecked="{Binding IsAvailable, Mode=OneWay}"
                                                                                   Tag="{Binding DataContext.ToggleProductAvailabilityCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                                                                  Click="StateSwitch_Click"
                                                                                   IsEnabled="{Binding DataContext.CanToggleProductAvailability, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                                                                   Style="{StaticResource StateSwitchStyle}"
                                                                                   ToolTip="Bật hoặc tắt tình trạng còn món"
@@ -1327,7 +1241,6 @@
                                                                 <DataTemplate>
                                                                     <ToggleButton IsChecked="{Binding IsActive, Mode=OneWay}"
                                                                                   Tag="{Binding DataContext.ToggleProductStatusCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                                                                  Click="StateSwitch_Click"
                                                                                   Style="{StaticResource StateSwitchStyle}"
                                                                                   ToolTip="Bật hoặc tắt kinh doanh món"
                                                                                   HorizontalAlignment="Center"/>
@@ -1345,7 +1258,7 @@
                                             BorderThickness="1"
                                             CornerRadius="14"
                                             Padding="16"
-                                            Tag="KeepTableSelection">
+                                            behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
                                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                                             <StackPanel>
                                                 <TextBlock Text="Thông tin món"
@@ -1354,9 +1267,11 @@
                                                         Margin="0,0,0,14"/>
                                                 <TextBlock Text="Tên món"/>
                                                 <TextBox Text="{Binding ProductName, UpdateSourceTrigger=PropertyChanged}"
+                                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên món"
                                                          Margin="0,4,0,12"/>
                                                 <TextBlock Text="Giá bán"/>
                                                 <TextBox Text="{Binding ProductPriceText, UpdateSourceTrigger=PropertyChanged}"
+                                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Giá bán (đồng)"
                                                          Margin="0,4,0,12"/>
                                                 <TextBlock Text="Danh mục"/>
                                                 <ComboBox ItemsSource="{Binding Categories}"
@@ -1431,9 +1346,9 @@
                                            Margin="0,0,0,14"/>
                                 <Grid Grid.Row="1">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="1.4*"/>
+                                        <ColumnDefinition Width="1.55*"/>
                                         <ColumnDefinition Width="12"/>
-                                        <ColumnDefinition Width="1*"/>
+                                        <ColumnDefinition Width="0.85*"/>
                                     </Grid.ColumnDefinitions>
                                     <Border Grid.Column="0"
                                             Background="{StaticResource SurfaceBrush}"
@@ -1464,7 +1379,6 @@
                                                         <DataTemplate>
                                                             <ToggleButton IsChecked="{Binding IsActive, Mode=OneWay}"
                                                                           Tag="{Binding DataContext.TogglePromotionStatusCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                                                          Click="StateSwitch_Click"
                                                                           Style="{StaticResource StateSwitchStyle}"
                                                                           ToolTip="Bật hoặc tắt khuyến mãi"
                                                                           HorizontalAlignment="Center"/>
@@ -1480,7 +1394,7 @@
                                             BorderThickness="1"
                                             CornerRadius="14"
                                             Padding="16"
-                                            Tag="KeepTableSelection">
+                                            behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
                                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                                             <StackPanel>
                                                 <TextBlock Text="Thông tin khuyến mãi"
@@ -1489,10 +1403,12 @@
                                                         Margin="0,0,0,14"/>
                                                 <TextBlock Text="Tên chương trình"/>
                                                 <TextBox Text="{Binding PromotionName, UpdateSourceTrigger=PropertyChanged}"
+                                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên chương trình"
                                                          MaxLength="100"
                                                         Margin="0,4,0,12"/>
                                                 <TextBlock Text="Mức giảm (%)"/>
                                                 <TextBox Text="{Binding PromotionDiscountPercentageText, UpdateSourceTrigger=PropertyChanged}"
+                                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Phần trăm giảm (1–100)"
                                                          Margin="0,4,0,12"/>
                                                 <TextBlock Text="Áp dụng theo"/>
                                                 <ComboBox ItemsSource="{Binding PromotionTargetTypes}"
@@ -1560,53 +1476,117 @@
                     Grid.Row="3"
                         Visibility="{Binding IsStaffScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
                         Margin="0">
-                <TabItem Header="Bàn ăn">
-                    <Border Style="{StaticResource DataGridFrameStyle}"
-                            Margin="12">
-                        <DataGrid ItemsSource="{Binding Tables}"
-                                AutoGenerateColumns="False"
-                                IsReadOnly="True"
-                                  CanUserAddRows="False"
-                                  GridLinesVisibility="Vertical"
-                                  VerticalGridLinesBrush="{StaticResource BorderBrush}">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Số hiệu bàn"
-                                        Binding="{Binding TableNumber}"
-                                        Width="1.2*"
-                                        MinWidth="130"/>
-                                <DataGridTextColumn Header="Số chỗ ngồi"
-                                        Binding="{Binding SeatCount}"
-                                        Width="0.9*"
-                                        MinWidth="115"/>
-                                <DataGridTextColumn Header="Khu vực"
-                                        Binding="{Binding Area}"
-                                        Width="1.15*"
-                                        MinWidth="120"/>
-                                <DataGridTextColumn Header="Tình trạng sử dụng"
-                                        Binding="{Binding OccupancyStatus}"
-                                        Width="1.35*"
-                                        MinWidth="165"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Border>
-                </TabItem>
                 <TabItem Header="Order"
                          Visibility="{Binding IsStaffOrderScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid Margin="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="0.9*"/>
                             <ColumnDefinition Width="1.1*"/>
                         </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0"
+                        <Grid Grid.Row="0"
+                              Grid.ColumnSpan="2"
+                              Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ScrollViewer Grid.Column="0"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding OrderTabs}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="OrderTabBorder"
+                                                    BorderBrush="{StaticResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    Background="{StaticResource SurfaceMutedBrush}"
+                                                    CornerRadius="8"
+                                                    Margin="0,0,6,0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Button x:Name="OrderTabSelectButton"
+                                                            Content="{Binding Title}"
+                                                            Command="{Binding DataContext.SelectOrderTabCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            Padding="12,8"/>
+                                                    <Button Content="×"
+                                                            Command="{Binding DataContext.CloseOrderTabCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                            CommandParameter="{Binding}"
+                                                            ToolTip="Đóng tab; order vẫn được giữ"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            Padding="8,4"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                    <Setter TargetName="OrderTabBorder"
+                                                            Property="BorderBrush"
+                                                            Value="{StaticResource PrimaryBrush}"/>
+                                                    <Setter TargetName="OrderTabBorder"
+                                                            Property="BorderThickness"
+                                                            Value="2"/>
+                                                    <Setter TargetName="OrderTabBorder"
+                                                            Property="Background"
+                                                            Value="{StaticResource PrimaryTintBrush}"/>
+                                                    <Setter TargetName="OrderTabSelectButton"
+                                                            Property="Foreground"
+                                                            Value="{StaticResource PrimaryDarkBrush}"/>
+                                                    <Setter TargetName="OrderTabSelectButton"
+                                                            Property="FontWeight"
+                                                            Value="Bold"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                            <Button Grid.Column="1"
+                                    Content="+"
+                                    Command="{Binding NewOrderTabCommand}"
+                                    ToolTip="Mở tab order mới"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Padding="12,5"
+                                    Margin="8,0,0,0"/>
+                        </Grid>
+                        <StackPanel Grid.Row="1"
+                                    Grid.Column="0"
                                 Margin="0,0,12,0">
                             <TextBlock Text="Chọn bàn"
-                                    FontSize="20"
-                                    FontWeight="SemiBold"
-                                    Margin="0,0,0,10"/>
+                                       FontSize="20"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,10"/>
+                            <WrapPanel Margin="0,0,0,4">
+                                <TextBox Width="180"
+                                         Text="{Binding OrderTableSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo số hiệu bàn"
+                                         Margin="0,0,8,8"/>
+                                <ComboBox Width="145"
+                                          ItemsSource="{Binding OrderTableAreaFilters}"
+                                          SelectedItem="{Binding SelectedOrderTableAreaFilter}"
+                                          ToolTip="Lọc theo khu vực"
+                                          Margin="0,0,8,8"/>
+                                <ComboBox Width="165"
+                                          ItemsSource="{Binding OrderTableStatusFilters}"
+                                          SelectedItem="{Binding SelectedOrderTableStatusFilter}"
+                                          ToolTip="Lọc bàn trống hoặc đang có order"
+                                          Margin="0,0,8,8"/>
+                            </WrapPanel>
                             <Border Style="{StaticResource DataGridFrameStyle}"
                                     MinHeight="240"
                                     MaxHeight="420">
-                                <DataGrid ItemsSource="{Binding Tables}"
+                                <DataGrid ItemsSource="{Binding FilteredOrderTables}"
+                                        x:Name="OrderTablesDataGrid"
                                         SelectedItem="{Binding SelectedOrderTable}"
                                           AutoGenerateColumns="False"
                                         IsReadOnly="True"
@@ -1634,19 +1614,21 @@
                                 </DataGrid>
                             </Border>
                             <WrapPanel Margin="0,10,0,0"
-                                    Tag="KeepTableSelection">
+                                    behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
                                 <Button Content="Bắt đầu order"
                                         Command="{Binding StartOrderCommand}"
                                         Style="{StaticResource PrimaryButtonStyle}"
                                         Padding="12,7"
                                         Margin="0,0,8,8"/>
-                                <Button Content="Tải order hiện tại"
-                                        Command="{Binding LoadOpenOrderCommand}"
+                                <Button Content="Hủy order"
+                                        Click="CancelOpenOrder_Click"
+                                        Style="{StaticResource DangerButtonStyle}"
                                         Padding="12,7"
                                         Margin="0,0,8,8"/>
                             </WrapPanel>
                         </StackPanel>
-                        <ScrollViewer Grid.Column="1"
+                        <ScrollViewer Grid.Row="1"
+                                Grid.Column="1"
                                 VerticalScrollBarVisibility="Auto">
                             <StackPanel>
                                 <TextBlock Text="Chi tiết order"
@@ -1668,7 +1650,7 @@
                                             Margin="0,0,8,8"/>
                                     <TextBox Width="90"
                                             Text="{Binding OrderQuantityText, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="Số lượng (1–99)"
+                                            behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Số lượng (1–99)"
                                             Margin="0,0,8,8"/>
                                     <Button Content="Thêm món"
                                             Command="{Binding AddOrderItemCommand}"
@@ -1677,11 +1659,12 @@
                                             Margin="0,0,8,8"/>
                                 </WrapPanel>
                                 <TextBox Text="{Binding OrderItemNotes, UpdateSourceTrigger=PropertyChanged}"
-                                         ToolTip="Ghi chú món (tùy chọn)"
+                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Ghi chú món (tùy chọn)"
                                         Margin="0,0,0,10"/>
                                 <Border Style="{StaticResource DataGridFrameStyle}"
                                         Margin="0,0,0,8">
                                     <DataGrid ItemsSource="{Binding CurrentOpenOrder.Details}"
+                                            SelectedItem="{Binding SelectedOrderDetail}"
                                             AutoGenerateColumns="False"
                                               IsReadOnly="True"
                                             CanUserAddRows="False"
@@ -1694,6 +1677,9 @@
                                             <DataGridTextColumn Header="SL"
                                                     Binding="{Binding Quantity}"
                                                     Width="50"/>
+                                            <DataGridTextColumn Header="Ghi chú"
+                                                    Binding="{Binding Notes}"
+                                                    Width="*"/>
                                             <DataGridTextColumn Header="Đơn giá"
                                                     Binding="{Binding UnitPrice, StringFormat={}{0:N0}}"
                                                     Width="110"/>
@@ -1703,6 +1689,26 @@
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </Border>
+                                <WrapPanel Margin="0,0,0,10">
+                                    <TextBox Width="90"
+                                             Text="{Binding EditOrderQuantityText, UpdateSourceTrigger=PropertyChanged}"
+                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Số lượng (1–99)"
+                                             Margin="0,0,8,8"/>
+                                    <TextBox Width="220"
+                                             Text="{Binding EditOrderItemNotes, UpdateSourceTrigger=PropertyChanged}"
+                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Ghi chú món (tùy chọn)"
+                                             MaxLength="500"
+                                             Margin="0,0,8,8"/>
+                                    <Button Content="Cập nhật món đã chọn"
+                                            Command="{Binding UpdateOrderItemCommand}"
+                                            Padding="12,5"
+                                            Margin="0,0,8,8"/>
+                                    <Button Content="Bỏ món đã chọn"
+                                            Command="{Binding RemoveOrderItemCommand}"
+                                            Style="{StaticResource DangerButtonStyle}"
+                                            Padding="12,5"
+                                            Margin="0,0,8,8"/>
+                                </WrapPanel>
                                 <StackPanel HorizontalAlignment="Right"
                                         Margin="0,0,0,10">
                                     <StackPanel Orientation="Horizontal"
@@ -1726,21 +1732,17 @@
                                         FontWeight="SemiBold"
                                         Margin="0,0,0,4"/>
                                 <TextBox Text="{Binding OrderCancellationReason, UpdateSourceTrigger=PropertyChanged}"
+                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Nhập lý do hủy order"
                                          MaxLength="500"
                                         Margin="0,0,0,8"/>
                                 <WrapPanel>
                                     <Button Content="Thanh toán tiền mặt"
-                                            Command="{Binding CompleteCashPaymentCommand}"
+                                            Click="CompleteCashPayment_Click"
                                             Style="{StaticResource PrimaryButtonStyle}"
                                             Padding="12,7"
                                             Margin="0,0,8,8"/>
                                     <Button Content="Chuyển khoản"
-                                            Command="{Binding CompleteBankTransferPaymentCommand}"
-                                            Padding="12,7"
-                                            Margin="0,0,8,8"/>
-                                    <Button Content="Hủy order"
-                                            Click="CancelOpenOrder_Click"
-                                            Style="{StaticResource DangerButtonStyle}"
+                                            Click="CompleteBankTransferPayment_Click"
                                             Padding="12,7"
                                             Margin="0,0,8,8"/>
                                 </WrapPanel>
@@ -1761,10 +1763,10 @@
                                    Margin="0,0,0,12"/>
                         <WrapPanel Grid.Row="1"
                                 Margin="0,0,0,8"
-                                Tag="KeepTableSelection">
+                                behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
                             <TextBox Width="260"
                                     Text="{Binding ProductSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Tìm theo tên món, tags hoặc danh mục"
+                                    behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo tên món, tags hoặc danh mục"
                                     Margin="0,0,8,8"/>
                             <ComboBox Width="210"
                                     ItemsSource="{Binding ProductCategoryFilters}"
@@ -1797,7 +1799,6 @@
                                             <DataTemplate>
                                                 <ToggleButton IsChecked="{Binding IsAvailable, Mode=OneWay}"
                                                               Tag="{Binding DataContext.ToggleProductAvailabilityCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                                              Click="StateSwitch_Click"
                                                               IsEnabled="{Binding DataContext.CanToggleProductAvailability, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                                               Style="{StaticResource StateSwitchStyle}"
                                                               ToolTip="Bật hoặc tắt tình trạng còn món"

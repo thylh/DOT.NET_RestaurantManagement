@@ -26,10 +26,7 @@ public partial class EditEmployeeContactWindow : Window
         }
         catch (ArgumentException exception)
         {
-            MessageDialogWindow.ShowMessage(
-                this,
-                "Thông tin không hợp lệ",
-                exception.Message);
+            ValidationBanner.Message = exception.Message;
             return;
         }
 

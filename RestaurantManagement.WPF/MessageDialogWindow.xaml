@@ -51,7 +51,7 @@
             <WrapPanel x:Name="ConfirmationButtons" Grid.Row="2" HorizontalAlignment="Right"
                        Margin="0,0,22,20" Visibility="Collapsed">
                 <Button Content="Không" IsCancel="True" MinWidth="90" Margin="0,0,8,0" />
-                <Button Content="Có" IsDefault="True" MinWidth="90"
+                <Button x:Name="ConfirmButton" Content="Xác nhận" IsDefault="True" MinWidth="90"
                         Click="Confirm_Click" Style="{StaticResource PrimaryButtonStyle}" />
             </WrapPanel>
             <Button x:Name="OkButton" Grid.Row="2" Content="Đóng" IsDefault="True"

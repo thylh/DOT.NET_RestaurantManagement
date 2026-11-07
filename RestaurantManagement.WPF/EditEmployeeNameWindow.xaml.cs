@@ -18,10 +18,7 @@ public partial class EditEmployeeNameWindow : Window
     {
         if (string.IsNullOrWhiteSpace(EmployeeName))
         {
-            MessageDialogWindow.ShowMessage(
-                this,
-                "Thiếu thông tin",
-                "Họ tên không được để trống.");
+            ValidationBanner.Message = "Họ tên không được để trống.";
             return;
         }
 

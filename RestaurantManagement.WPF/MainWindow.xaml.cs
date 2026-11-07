@@ -82,6 +82,12 @@ namespace RestaurantManagement.WPF
                 }
             }
 
+            if (e.PropertyName is nameof(viewModel.SelectedOrderTab)
+                or nameof(viewModel.SelectedOrderTable))
+            {
+                CenterSelectedOrderTable(viewModel);
+            }
+
             if (e.PropertyName == nameof(viewModel.SetupPassword) && string.IsNullOrEmpty(viewModel.SetupPassword))
             {
                 SetupPasswordBox.Clear();
@@ -98,6 +104,42 @@ namespace RestaurantManagement.WPF
             {
                 RequiredNewPasswordBox.Clear();
             }
+        }
+
+        private void CenterSelectedOrderTable(MainWindowViewModel viewModel)
+        {
+            if (!viewModel.IsStaffOrderScreen || viewModel.SelectedOrderTable is not { } selectedTable)
+            {
+                return;
+            }
+
+            var tableId = selectedTable.Id;
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+            {
+                if (DataContext is not MainWindowViewModel currentViewModel
+                    || currentViewModel.SelectedOrderTable?.Id != tableId
+                    || !OrderTablesDataGrid.IsLoaded)
+                {
+                    return;
+                }
+
+                var selectedIndex = OrderTablesDataGrid.Items.IndexOf(currentViewModel.SelectedOrderTable);
+                if (selectedIndex < 0)
+                {
+                    return;
+                }
+
+                OrderTablesDataGrid.ScrollIntoView(currentViewModel.SelectedOrderTable);
+                OrderTablesDataGrid.UpdateLayout();
+                var scrollViewer = FindVisualChildren<ScrollViewer>(OrderTablesDataGrid).FirstOrDefault();
+                if (scrollViewer is null)
+                {
+                    return;
+                }
+
+                var centeredOffset = selectedIndex - scrollViewer.ViewportHeight / 2;
+                scrollViewer.ScrollToVerticalOffset(Math.Max(0, centeredOffset));
+            }));
         }
 
         private async void StateSwitch_Click(object sender, RoutedEventArgs e)
@@ -144,18 +186,6 @@ namespace RestaurantManagement.WPF
         private void Application_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             var source = e.OriginalSource as DependencyObject;
-            if (!IsInsideKeepTableSelectionRegion(source))
-            {
-                var clickedGrid = FindContainingDataGridRow(source);
-                foreach (var dataGrid in FindVisualChildren<DataGrid>(this))
-                {
-                    if (!ReferenceEquals(dataGrid, clickedGrid))
-                    {
-                        dataGrid.SelectedItem = null;
-                    }
-                }
-            }
-
             if (!IsInsideAccountRow(source))
             {
                 CollapseAccountActions();
@@ -167,21 +197,6 @@ namespace RestaurantManagement.WPF
             }
 
             ClearNotifications();
-        }
-
-        private static DataGrid? FindContainingDataGridRow(DependencyObject? source)
-        {
-            while (source is not null)
-            {
-                if (source is DataGridRow row)
-                {
-                    return ItemsControl.ItemsControlFromItemContainer(row) as DataGrid;
-                }
-
-                source = GetParent(source);
-            }
-
-            return null;
         }
 
         private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent)
@@ -417,11 +432,7 @@ namespace RestaurantManagement.WPF
 
             if (viewModel.SelectedProduct is not { } product)
             {
-                MessageDialogWindow.ShowMessage(
-                    this,
-                    "Chưa chọn món ăn",
-                    "Hãy chọn món trong danh sách trước khi xóa.",
-                    MessageDialogKind.Warning);
+                viewModel.ErrorMessage = "Hãy chọn món trong danh sách trước khi xóa.";
                 return;
             }
 
@@ -643,28 +654,6 @@ namespace RestaurantManagement.WPF
             return false;
         }
 
-        private static bool IsInsideKeepTableSelectionRegion(DependencyObject? source)
-        {
-            while (source is not null)
-            {
-                if (source is FrameworkElement { Tag: "KeepTableSelection" })
-                {
-                    return true;
-                }
-
-                if (source is ComboBoxItem comboBoxItem
-                    && ItemsControl.ItemsControlFromItemContainer(comboBoxItem)
-                        is ComboBox { Tag: "KeepTableSelection" })
-                {
-                    return true;
-                }
-
-                source = GetParent(source);
-            }
-
-            return false;
-        }
-
         private void CopyTemporaryPassword_Click(object sender, RoutedEventArgs e)
         {
             if (sender is not FrameworkElement { DataContext: AccountSummary { TemporaryPassword: { } password } })
@@ -809,6 +798,40 @@ namespace RestaurantManagement.WPF
             }
 
             var command = getCommand(viewModel);
+            if (command.CanExecute(null))
+            {
+                await command.ExecuteAsync(null);
+            }
+        }
+
+        private async void CompleteCashPayment_Click(object sender, RoutedEventArgs e) =>
+            await CompletePaymentAsync(isCash: true);
+
+        private async void CompleteBankTransferPayment_Click(object sender, RoutedEventArgs e) =>
+            await CompletePaymentAsync(isCash: false);
+
+        private async Task CompletePaymentAsync(bool isCash)
+        {
+            if (DataContext is not MainWindowViewModel viewModel
+                || viewModel.CurrentOpenOrder is not { } order)
+            {
+                return;
+            }
+
+            var paymentMethod = isCash ? "tiền mặt" : "chuyển khoản";
+            if (!MessageDialogWindow.ShowConfirmation(
+                    this,
+                    "Xác nhận thanh toán",
+                    $"Xác nhận thanh toán {order.Total:N0} đ bằng {paymentMethod}? "
+                    + "Sau khi xác nhận, order sẽ được hoàn tất và bàn trở lại trạng thái trống.",
+                    "Xác nhận thanh toán"))
+            {
+                return;
+            }
+
+            var command = isCash
+                ? viewModel.CompleteCashPaymentCommand
+                : viewModel.CompleteBankTransferPaymentCommand;
             if (command.CanExecute(null))
             {
                 await command.ExecuteAsync(null);

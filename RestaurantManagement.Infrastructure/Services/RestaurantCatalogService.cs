@@ -29,7 +29,11 @@ public sealed class RestaurantCatalogService(
                 table.Area,
                 table.SeatCount,
                 table.IsActive,
-                table.Orders.Any(order => order.Status == OrderStatus.Open)))
+                table.Orders.Any(order => order.Status == OrderStatus.Open),
+                table.Orders
+                    .Where(order => order.Status == OrderStatus.Open)
+                    .Select(order => (int?)order.Id)
+                    .FirstOrDefault()))
             .ToListAsync(cancellationToken);
     }
 
