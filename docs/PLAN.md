@@ -302,6 +302,15 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Trạng thái:** Chức năng báo cáo đã triển khai theo khoảng ngày, gồm số order đã thanh toán, doanh thu trước giảm, tổng giảm giá, doanh thu thực nhận, phân tách theo phương thức thanh toán và top 10 món bán chạy. Thông báo thành công/lỗi dùng banner chung; các thao tác xóa, hủy và hoàn tất thanh toán yêu cầu xác nhận. Tiếp tục rà soát và hoàn thiện UI/UX.
 
+**Kế hoạch rà soát UI/UX còn lại:**
+
+- Chỉ áp dụng quy tắc khung hở đáy cho giao diện sau đăng nhập; màn hình đăng nhập, thiết lập Admin lần đầu và thông báo lỗi khởi động trước đăng nhập giữ kiểu viền thông thường.
+- Rà các thành phần dùng chung có thể xuất hiện ở cả trước và sau đăng nhập (đặc biệt banner và hộp thoại) để kiểu viền được chọn theo ngữ cảnh, không bị áp dụng nhầm toàn cục.
+- Với khung thuộc phạm vi sau đăng nhập, thống nhất độ dày/brush và cạnh trên-trái-phải; cạnh đáy để mở. Cạnh dọc chỉ kéo dài trong vùng bố cục chứa khung và phải dừng trước nội dung/vật cản.
+- Rà đường chia cột của DataGrid, nhất là đường ở cột cuối cạnh khung, để không vẽ chồng; giữ đường kẻ dọc phân cột và không thêm đường kẻ ngang.
+- Giữ nguyên nghiệp vụ, binding, command, dữ liệu và hành vi điều khiển; thay đổi chỉ thuộc trình bày/layout.
+- Xác minh trực quan tại các tab/màn hình sau đăng nhập, gồm bảng có dữ liệu/trống, nội dung mở rộng và các mức scale DPI thường dùng; kiểm tra không có viền đôi, nét đậm/mảnh bất thường, đường kẻ chạy xuyên nội dung hoặc bị cắt sai.
+
 ### Giai đoạn I — Kiểm thử và bàn giao
 
 - Kiểm thử đăng nhập, quyền, CRUD, order, thanh toán và báo cáo.
@@ -335,6 +344,8 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 - Không thanh toán order trống hoặc thanh toán order hai lần.
 - Lỗi trong quy trình thanh toán không để lại dữ liệu cập nhật dở dang.
 - Báo cáo khớp với dữ liệu thanh toán mẫu.
+- Xác nhận màn hình đăng nhập/thiết lập và lỗi khởi động trước đăng nhập không dùng khung hở đáy; các khung thuộc giao diện sau đăng nhập dùng đúng kiểu đã thống nhất.
+- Xác nhận viền ngoài và đường chia cột không bị vẽ trùng; cạnh kéo dài dừng trước nội dung/vật cản và không vượt vùng bố cục của khung.
 
 ### Điều kiện hoàn thành
 
@@ -346,6 +357,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 - Dữ liệu được lưu và truy xuất lại sau khi khởi động lại ứng dụng.
 - Có thể tra cứu biên nhận và xem báo cáo chính.
 - Các lỗi nghiệp vụ phổ biến được kiểm tra và hiển thị rõ ràng.
+- Các bảng và khung trong phạm vi UI đã rà soát có viền nhất quán, không chồng nét và không che khuất nội dung.
 - Có hướng dẫn chạy và dữ liệu/kịch bản demo.
 
 ## 10. Phần chưa hoàn thiện và mở rộng
