@@ -24,8 +24,8 @@ namespace RestaurantManagement.WPF
         {
             InitializeComponent();
             var workArea = SystemParameters.WorkArea;
-            Width = Math.Max(MinWidth, workArea.Width * 0.8);
-            Height = Math.Max(MinHeight, workArea.Height * 0.97);
+            Width = Math.Min(workArea.Width, Math.Max(MinWidth, workArea.Width * 0.8 * 1.1));
+            Height = Math.Min(workArea.Height, Math.Max(MinHeight, workArea.Height * 0.97 * 1.1));
             LoadCoverImage(logger);
             DataContext = viewModel;
             _statusMessageTimer = new DispatcherTimer

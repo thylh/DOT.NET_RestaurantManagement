@@ -58,7 +58,7 @@ View và code-behind không truy vấn database trực tiếp. ViewModel gọi s
 - Đăng nhập và đổi mật khẩu.
 - Quản lý tài khoản và hồ sơ nhân viên.
 - Quản lý bàn, danh mục món và món ăn.
-- Xem hóa đơn, lịch sử giao dịch và báo cáo.
+- Xem toàn bộ lịch sử order, chi tiết/biên nhận và báo cáo.
 
 ### Staff
 
@@ -66,7 +66,7 @@ View và code-behind không truy vấn database trực tiếp. ViewModel gọi s
 - Nếu tài khoản chưa từng có hồ sơ hoặc hồ sơ đã bị xóa, vẫn được đăng nhập nhưng chỉ xem nghiệp vụ; giao diện luôn hiển thị cảnh báo và không bắt buộc đổi mật khẩu tạm.
 - Xem bàn, danh mục và món đang kinh doanh.
 - Tạo/cập nhật order.
-- Thực hiện thanh toán và tra cứu biên nhận theo quyền được cấp.
+- Thực hiện thanh toán; tra cứu lịch sử chỉ gồm order đã thanh toán và xem chi tiết/biên nhận của các order đó.
 
 Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩn hoặc hiện nút trên giao diện. Không tạo thêm vai trò ngoài Admin/Staff trong phiên bản đầu.
 
@@ -250,7 +250,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** hoàn thành được luồng gọi món cơ bản; quản lý số lượng đã gọi, bỏ món và chuyển/gộp bàn là phần bổ sung sau.
 
-**Trạng thái:** Staff có hồ sơ đang hoạt động có thể bắt đầu order, thêm/sửa/bỏ món, điều chỉnh số lượng/ghi chú và hủy order có lý do; mỗi bàn chỉ có một order mở. Nhân viên có thể làm việc với nhiều order cùng lúc bằng các tab riêng; đóng tab không hủy order. Admin không có màn hình hoặc quyền thao tác order. Order có hiển thị tạm tính/khuyến mãi/giảm giá/thành tiền. Màn tra cứu lịch sử order và biên nhận vẫn chưa hoàn thiện.
+**Trạng thái:** Staff có hồ sơ đang hoạt động có thể bắt đầu order, thêm/sửa/bỏ món, điều chỉnh số lượng/ghi chú và hủy order có lý do; mỗi bàn chỉ có một order mở. Nhân viên có thể làm việc với nhiều order cùng lúc bằng các tab riêng; đóng tab không hủy order. Admin không có màn hình hoặc quyền thao tác order. Order có hiển thị tạm tính/khuyến mãi/giảm giá/thành tiền. Lịch sử order và biên nhận được triển khai ở Giai đoạn F.
 
 ### Giai đoạn F — Thanh toán và tra cứu
 
@@ -262,7 +262,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** order được thanh toán và tra cứu nhất quán.
 
-**Trạng thái:** Staff có hồ sơ đang hoạt động có thể thanh toán tiền mặt/chuyển khoản mô phỏng; payment và trạng thái order được lưu trong transaction, bàn tự trở về trạng thái trống khi order thanh toán hoặc hủy. Khuyến mãi đủ điều kiện được tính tự động; tên chương trình và số tiền giảm được lưu snapshot. Lịch sử order có thể tra cứu theo mã hoặc khoảng ngày; chi tiết order và biên nhận được dựng từ snapshot order/payment. Admin và Staff có thể tra cứu, chỉ Admin được xem báo cáo doanh thu.
+**Trạng thái:** Staff có hồ sơ đang hoạt động có thể thanh toán tiền mặt/chuyển khoản mô phỏng; payment và trạng thái order được lưu trong transaction, bàn tự trở về trạng thái trống khi order thanh toán hoặc hủy. Khuyến mãi đủ điều kiện được tính tự động; tên chương trình và số tiền giảm được lưu snapshot. Lịch sử có thể tra cứu theo mã hoặc khoảng ngày; chi tiết/biên nhận được dựng từ snapshot order/payment. Admin xem toàn bộ lịch sử; Staff chỉ xem order đã thanh toán. Báo cáo doanh thu chỉ dành cho Admin.
 
 ### Giai đoạn G — Khuyến mãi
 
@@ -271,7 +271,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 - Hiển thị tạm tính, khoản giảm và thành tiền trong order.
 - Lưu snapshot khuyến mãi khi thanh toán.
 
-**Trạng thái:** Đã triển khai quản lý khuyến mãi, quy tắc áp dụng tự động, hiển thị giảm giá và lưu snapshot trên order. Migration sẽ được ứng dụng tự áp dụng khi khởi động. Không có kiểm thử tích hợp MySQL nếu môi trường kiểm thử chưa được cấu hình database.
+**Trạng thái:** Hoàn thành. Đã triển khai quản lý khuyến mãi, quy tắc áp dụng tự động, hiển thị giảm giá và lưu snapshot trên order. Migration được ứng dụng tự áp dụng khi khởi động.
 
 ### Giai đoạn H — Báo cáo và hoàn thiện giao diện
 
@@ -282,7 +282,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** báo cáo dùng dữ liệu thật và giao diện thống nhất.
 
-**Trạng thái:** Đã có báo cáo theo khoảng ngày gồm số order đã thanh toán, doanh thu trước giảm, tổng giảm giá, doanh thu thực nhận, phân tách theo phương thức thanh toán và top 10 món bán chạy. Thông báo thành công/lỗi dùng banner chung; các thao tác xóa, hủy và hoàn tất thanh toán yêu cầu xác nhận. Tiếp tục rà soát và hoàn thiện UI/UX.
+**Trạng thái:** Chức năng báo cáo đã triển khai theo khoảng ngày, gồm số order đã thanh toán, doanh thu trước giảm, tổng giảm giá, doanh thu thực nhận, phân tách theo phương thức thanh toán và top 10 món bán chạy. Thông báo thành công/lỗi dùng banner chung; các thao tác xóa, hủy và hoàn tất thanh toán yêu cầu xác nhận. Tiếp tục rà soát và hoàn thiện UI/UX.
 
 ### Giai đoạn I — Kiểm thử và bàn giao
 
