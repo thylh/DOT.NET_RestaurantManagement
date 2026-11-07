@@ -9,6 +9,21 @@ public interface IRestaurantOrderService
         int tableId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<OrderHistorySummary>> GetOrderHistoryAsync(
+        int? orderId = null,
+        DateTimeOffset? fromInclusive = null,
+        DateTimeOffset? toExclusive = null,
+        CancellationToken cancellationToken = default);
+
+    Task<OrderReceiptSummary?> GetOrderReceiptAsync(
+        int orderId,
+        CancellationToken cancellationToken = default);
+
+    Task<SalesReportSummary> GetSalesReportAsync(
+        DateTimeOffset fromInclusive,
+        DateTimeOffset toExclusive,
+        CancellationToken cancellationToken = default);
+
     Task<int> StartOrderAsync(
         int tableId,
         CancellationToken cancellationToken = default);

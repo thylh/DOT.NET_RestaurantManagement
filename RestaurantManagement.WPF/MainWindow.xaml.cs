@@ -404,14 +404,17 @@ namespace RestaurantManagement.WPF
                 return;
             }
 
-            if (!MessageDialogWindow.ShowConfirmation(
+            var reason = MessageDialogWindow.ShowInput(
                     this,
                     "Xác nhận hủy order",
-                    "Hủy order đang mở? Order vẫn được giữ trong lịch sử và bàn sẽ trở lại trạng thái trống."))
+                    "Order vẫn được giữ trong lịch sử và bàn sẽ trở lại trạng thái trống. Hãy nhập lý do hủy.",
+                    "Nhập lý do hủy order");
+            if (reason is null)
             {
                 return;
             }
 
+            viewModel.OrderCancellationReason = reason;
             if (viewModel.CancelOpenOrderCommand.CanExecute(null))
             {
                 await viewModel.CancelOpenOrderCommand.ExecuteAsync(null);

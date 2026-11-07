@@ -116,8 +116,57 @@ public class MainWindowViewModelTests
 
         viewModel.CloseOrderTabCommand.Execute(firstTab);
         var replacementTab = Assert.Single(viewModel.OrderTabs);
-        Assert.Equal("Chọn bàn", replacementTab.Title);
+        Assert.Equal("Order mới", replacementTab.Title);
         Assert.Null(replacementTab.Order);
+    }
+
+    [Fact]
+    public async Task StaffOrderMenuGroupsAvailableProductsByCategoryAndSupportsSearch()
+    {
+        var session = new CurrentUserSessionStub();
+        var catalogService = new RestaurantCatalogServiceStub
+        {
+            CategoriesToReturn =
+            [
+                new CategorySummary(1, "Món chính", true, 2),
+                new CategorySummary(2, "Đồ uống", true, 1)
+            ],
+            ProductsToReturn =
+            [
+                new ProductSummary(1, "Phở gà", null, null, 55_000m, true, true, 1, "Món chính"),
+                new ProductSummary(2, "Bún bò", null, null, 60_000m, true, true, 1, "Món chính"),
+                new ProductSummary(3, "Cà phê", null, null, 25_000m, true, true, 2, "Đồ uống"),
+                new ProductSummary(4, "Món ngừng bán", null, null, 10_000m, true, false, 1, "Món chính"),
+                new ProductSummary(5, "Món hết hàng", null, null, 10_000m, false, true, 1, "Món chính")
+            ]
+        };
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub
+            {
+                SignInResult = new AuthenticatedUser(1, "staff", UserRole.Staff, 10, "Nhân viên"),
+                OnSuccessfulSignIn = session.SignIn
+            },
+            session,
+            new EmployeeManagementServiceStub(),
+            catalogService,
+            NullLogger<MainWindowViewModel>.Instance);
+
+        await viewModel.SignInCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsStaffOrderScreen);
+        Assert.Equal(0, viewModel.SelectedStaffWorkspaceIndex);
+        Assert.Equal(
+            new[] { "Món chính", "Đồ uống" },
+            viewModel.OrderProductGroups.Select(group => group.CategoryName));
+        Assert.Equal(new[] { "Phở gà", "Bún bò" }, viewModel.OrderProductGroups[0].Products.Select(product => product.Name));
+        Assert.Equal("Cà phê", viewModel.OrderProductGroups[1].Products.Single().Name);
+
+        var selectedGroup = viewModel.OrderProductGroups
+            .Single(group => group.CategoryName == "Đồ uống");
+        viewModel.SelectedOrderProductGroup = selectedGroup;
+        Assert.Equal("Đồ uống", selectedGroup.CategoryName);
+        Assert.Equal("Cà phê", selectedGroup.Products.Single().Name);
     }
 
     [Fact]
@@ -771,6 +820,10 @@ public class MainWindowViewModelTests
     {
         public IReadOnlyList<RestaurantTableSummary> TablesToReturn { get; set; } = [];
 
+        public IReadOnlyList<CategorySummary> CategoriesToReturn { get; set; } = [];
+
+        public IReadOnlyList<ProductSummary> ProductsToReturn { get; set; } = [];
+
         public int TableListReadCount { get; private set; }
 
         public int CategoryListReadCount { get; private set; }
@@ -788,7 +841,7 @@ public class MainWindowViewModelTests
             CancellationToken cancellationToken = default)
         {
             CategoryListReadCount++;
-            return Task.FromResult<IReadOnlyList<CategorySummary>>([]);
+            return Task.FromResult(CategoriesToReturn);
         }
 
         public Task<IReadOnlyList<ProductSummary>> GetProductsAsync(
@@ -797,7 +850,7 @@ public class MainWindowViewModelTests
             CancellationToken cancellationToken = default)
         {
             ProductListReadCount++;
-            return Task.FromResult<IReadOnlyList<ProductSummary>>([]);
+            return Task.FromResult(ProductsToReturn);
         }
 
         public Task<IReadOnlyList<PromotionSummary>> GetPromotionsAsync(

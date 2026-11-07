@@ -47,67 +47,8 @@
         </Style>
 
         <Style TargetType="{x:Type ScrollViewer}">
-            <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
-            <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
-            <Setter Property="behaviors:AutoHideScrollBarBehavior.IsEnabled" Value="True" />
-        </Style>
-
-        <Style TargetType="{x:Type ScrollBar}">
-            <Setter Property="Width" Value="7" />
-            <Setter Property="Height" Value="7" />
-            <Setter Property="Margin" Value="1.4" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type ScrollBar}">
-                        <Grid Background="{TemplateBinding Background}">
-                            <Track x:Name="PART_Track"
-                                   Minimum="{TemplateBinding Minimum}"
-                                   Maximum="{TemplateBinding Maximum}"
-                                   Value="{TemplateBinding Value}"
-                                   ViewportSize="{TemplateBinding ViewportSize}"
-                                   Orientation="{TemplateBinding Orientation}">
-                                <Track.Thumb>
-                                    <Thumb x:Name="ScrollThumb" MinHeight="20">
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="{x:Type Thumb}">
-                                                <Border x:Name="ThumbBorder"
-                                                        Background="{StaticResource ScrollBarThumbBrush}"
-                                                        CornerRadius="3.5"
-                                                        Margin="0.7"/>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="ThumbBorder"
-                                                                Property="Background"
-                                                                Value="{StaticResource PrimaryBrush}"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsDragging" Value="True">
-                                                        <Setter TargetName="ThumbBorder"
-                                                                Property="Background"
-                                                                Value="{StaticResource PrimaryDarkBrush}"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                </Track.Thumb>
-                            </Track>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="Orientation" Value="Horizontal">
-                                <Setter Property="Width" Value="Auto"/>
-                                <Setter Property="Height" Value="7"/>
-                                <Setter TargetName="ScrollThumb" Property="MinHeight" Value="0"/>
-                                <Setter TargetName="ScrollThumb" Property="MinWidth" Value="20"/>
-                            </Trigger>
-                            <Trigger Property="Orientation" Value="Vertical">
-                                <Setter Property="Width" Value="7"/>
-                                <Setter Property="Height" Value="Auto"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="HorizontalScrollBarVisibility" Value="Hidden" />
+            <Setter Property="VerticalScrollBarVisibility" Value="Hidden" />
         </Style>
 
         <Style TargetType="{x:Type Button}">
@@ -213,26 +154,15 @@
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
                                 <TextBlock x:Name="PlaceholderText"
                                            Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(behaviors:TextBoxPlaceholderBehavior.PlaceholderText)}"
+                                           Visibility="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(behaviors:TextBoxPlaceholderBehavior.IsPlaceholderVisible), Converter={StaticResource BooleanToVisibilityConverter}}"
                                            Margin="{TemplateBinding Padding}"
                                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                            Foreground="{StaticResource TextSecondaryBrush}"
                                            Opacity="0.7"
-                                           IsHitTestVisible="False"
-                                           Visibility="Collapsed"/>
+                                           IsHitTestVisible="False"/>
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <MultiDataTrigger>
-                                <MultiDataTrigger.Conditions>
-                                    <Condition Binding="{Binding Text, RelativeSource={RelativeSource TemplatedParent}}"
-                                               Value=""/>
-                                    <Condition Binding="{Binding IsKeyboardFocused, RelativeSource={RelativeSource TemplatedParent}}"
-                                               Value="False"/>
-                                </MultiDataTrigger.Conditions>
-                                <Setter TargetName="PlaceholderText"
-                                        Property="Visibility"
-                                        Value="Visible"/>
-                            </MultiDataTrigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="TextBoxBorder" Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
                                 <Setter TargetName="TextBoxBorder" Property="Background" Value="#FFFDF9" />
@@ -270,7 +200,17 @@
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="9">
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                            <Grid>
+                                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                                <TextBlock x:Name="PasswordPlaceholderText"
+                                           Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText)}"
+                                           Visibility="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(behaviors:PasswordBoxPlaceholderBehavior.IsPlaceholderVisible), Converter={StaticResource BooleanToVisibilityConverter}}"
+                                           Margin="{TemplateBinding Padding}"
+                                           VerticalAlignment="Center"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Opacity="0.7"
+                                           IsHitTestVisible="False"/>
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsKeyboardFocused" Value="True">
@@ -326,6 +266,15 @@
                                                   ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
                                                   IsHitTestVisible="False"
                                                   SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                                <TextBlock x:Name="ComboBoxPlaceholderText"
+                                           Grid.Column="0"
+                                           Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(behaviors:ComboBoxPlaceholderBehavior.PlaceholderText)}"
+                                           Margin="{TemplateBinding Padding}"
+                                           VerticalAlignment="Center"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Opacity="0.7"
+                                           IsHitTestVisible="False"
+                                           Visibility="Collapsed"/>
                                 <ToggleButton x:Name="DropDownToggle"
                                               Grid.ColumnSpan="2"
                                               Focusable="False"
@@ -371,8 +320,8 @@
                                         BorderThickness="1"
                                         CornerRadius="9">
                                     <ScrollViewer CanContentScroll="True"
-                                                  HorizontalScrollBarVisibility="Auto"
-                                                  VerticalScrollBarVisibility="Auto">
+                                                  HorizontalScrollBarVisibility="Hidden"
+                                                  VerticalScrollBarVisibility="Hidden">
                                         <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"
                                                         SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
                                     </ScrollViewer>
@@ -380,6 +329,11 @@
                             </Popup>
                         </Grid>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="SelectedIndex" Value="-1">
+                                <Setter TargetName="ComboBoxPlaceholderText"
+                                        Property="Visibility"
+                                        Value="Visible"/>
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="ComboBoxBorder" Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
                             </Trigger>
@@ -610,8 +564,10 @@
             <Setter Property="ColumnHeaderHeight" Value="44" />
             <Setter Property="CanUserResizeRows" Value="False" />
             <Setter Property="CanUserResizeColumns" Value="False" />
-            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto" />
-            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="CanUserReorderColumns" Value="False" />
+            <Setter Property="ColumnWidth" Value="*" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Hidden" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Hidden" />
             <Setter Property="SelectionUnit" Value="FullRow" />
             <Setter Property="SelectionMode" Value="Single" />
             <Setter Property="FontSize" Value="13" />

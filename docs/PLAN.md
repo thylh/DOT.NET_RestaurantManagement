@@ -112,7 +112,8 @@ Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩ
 ### 5.4 Order
 
 - Chỉ Staff có hồ sơ đang hoạt động được tạo và xử lý order; Admin chỉ quản lý cấu hình, không thao tác order.
-- Bắt đầu order từ bàn trống; chỉ có tối đa một order đang mở trên mỗi bàn.
+- Khu vực Staff tách riêng thao tác chọn bàn và xử lý order; bắt đầu order từ bàn trống ở mục `Chọn bàn`, còn mục `Order` hiển thị thực đơn theo danh mục để chọn món.
+- Chỉ có tối đa một order đang mở trên mỗi bàn.
 - Thêm món, số lượng và ghi chú; hiển thị tổng tiền từ snapshot giá tại thời điểm gọi.
 - Ghi nhận nhân viên tạo hoặc phụ trách order.
 - Chỉ được hủy order chưa thanh toán; yêu cầu xác nhận và lưu người hủy, thời điểm hủy cùng lý do.
@@ -127,7 +128,7 @@ Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩ
 - Sau thanh toán, cập nhật trạng thái order và giải phóng bàn nhất quán.
 - Order hiển thị tạm tính, khuyến mãi được áp dụng, số tiền giảm và thành tiền.
 - Khi thanh toán, lưu tên chương trình và số tiền giảm vào order để bảo toàn lịch sử nếu chương trình khuyến mãi được sửa sau đó.
-- Tra cứu biên nhận theo mã hoặc ngày là phần chưa hoàn thiện.
+- Tra cứu lịch sử order theo mã hoặc ngày; xem chi tiết và biên nhận từ order cùng payment đã lưu.
 - Chỉ tạo entity `Invoice` riêng nếu có dữ liệu hóa đơn cần quản lý độc lập; nếu không, có thể tạo biên nhận từ order và payment.
 - Thuế chưa thuộc phạm vi hiện tại.
 
@@ -261,7 +262,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** order được thanh toán và tra cứu nhất quán.
 
-**Trạng thái:** Staff có hồ sơ đang hoạt động có thể thanh toán tiền mặt/chuyển khoản mô phỏng; payment và trạng thái order được lưu trong transaction, bàn tự trở về trạng thái trống khi order thanh toán hoặc hủy. Khuyến mãi đủ điều kiện được tính tự động; tên chương trình và số tiền giảm được lưu snapshot. Tra cứu biên nhận chưa hoàn thiện.
+**Trạng thái:** Staff có hồ sơ đang hoạt động có thể thanh toán tiền mặt/chuyển khoản mô phỏng; payment và trạng thái order được lưu trong transaction, bàn tự trở về trạng thái trống khi order thanh toán hoặc hủy. Khuyến mãi đủ điều kiện được tính tự động; tên chương trình và số tiền giảm được lưu snapshot. Lịch sử order có thể tra cứu theo mã hoặc khoảng ngày; chi tiết order và biên nhận được dựng từ snapshot order/payment. Admin và Staff có thể tra cứu, chỉ Admin được xem báo cáo doanh thu.
 
 ### Giai đoạn G — Khuyến mãi
 
@@ -281,7 +282,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** báo cáo dùng dữ liệu thật và giao diện thống nhất.
 
-**Trạng thái:** Đã gom thông báo thành công/lỗi thành banner dùng chung và chuẩn hóa hộp thoại xác nhận; các thao tác xóa, hủy và hoàn tất thanh toán yêu cầu xác nhận. Báo cáo/dashboard chưa hoàn thiện; tiếp tục rà soát và hoàn thiện UI/UX.
+**Trạng thái:** Đã có báo cáo theo khoảng ngày gồm số order đã thanh toán, doanh thu trước giảm, tổng giảm giá, doanh thu thực nhận, phân tách theo phương thức thanh toán và top 10 món bán chạy. Thông báo thành công/lỗi dùng banner chung; các thao tác xóa, hủy và hoàn tất thanh toán yêu cầu xác nhận. Tiếp tục rà soát và hoàn thiện UI/UX.
 
 ### Giai đoạn I — Kiểm thử và bàn giao
 
@@ -291,6 +292,8 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 - Chuẩn bị dữ liệu demo và kịch bản trình diễn.
 
 **Kết quả:** ứng dụng chạy ổn định trên một máy và có tài liệu bàn giao.
+
+**Trạng thái:** Chức năng nghiệp vụ chính đã triển khai. Kiểm thử tích hợp MySQL và kịch bản demo vẫn cần hoàn thiện trước khi bàn giao.
 
 ## 9. Kiểm thử và tiêu chí nghiệm thu
 
@@ -327,11 +330,8 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 ## 10. Phần chưa hoàn thiện và mở rộng
 
-Các phần chưa hoàn thiện cần được ưu tiên theo yêu cầu và kiểm thử trước khi bàn giao:
+Các phần chức năng bắt buộc theo phạm vi hiện tại đã được triển khai. Các đầu việc kiểm thử và bàn giao còn lại:
 
-- Tra cứu biên nhận và lịch sử order.
-- Chỉnh sửa/xóa món riêng lẻ trong order đang mở.
-- Dashboard doanh thu và món bán chạy.
 - Hoàn thiện kiểm thử tích hợp trên MySQL và kịch bản demo.
 
 Các ý tưởng mở rộng chưa thuộc phạm vi hiện tại:

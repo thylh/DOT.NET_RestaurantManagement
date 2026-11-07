@@ -426,6 +426,34 @@ public class DatabaseFoundationTests
                 Assert.Equal(13_000m, order.DiscountAmountSnapshot);
                 Assert.Equal(52_000m, (await dbContext.Payments
                     .SingleAsync(payment => payment.RestaurantOrderId == order.Id)).Amount);
+                var orderHistory = await orderService.GetOrderHistoryAsync(order.Id);
+                var historyEntry = Assert.Single(orderHistory);
+                Assert.Equal(OrderStatus.Paid, historyEntry.Status);
+                Assert.Equal(65_000m, historyEntry.Subtotal);
+                Assert.Equal(13_000m, historyEntry.DiscountAmount);
+                Assert.Equal(52_000m, historyEntry.Total);
+                var receipt = Assert.IsType<OrderReceiptSummary>(
+                    await orderService.GetOrderReceiptAsync(order.Id));
+                Assert.Equal("Bàn 1", receipt.TableNumber);
+                Assert.Equal("Ưu đãi món đặc biệt", receipt.PromotionName);
+                Assert.Equal(PaymentMethod.Cash, receipt.PaymentMethod);
+                Assert.Equal("Phở bò đặc biệt", Assert.Single(receipt.Details).ProductName);
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => orderService.GetSalesReportAsync(
+                        DateTimeOffset.UtcNow.AddDays(-1),
+                        DateTimeOffset.UtcNow.AddDays(1)));
+                session.SignIn(admin);
+                var salesReport = await orderService.GetSalesReportAsync(
+                    DateTimeOffset.UtcNow.AddDays(-1),
+                    DateTimeOffset.UtcNow.AddDays(1));
+                Assert.Equal(1, salesReport.PaidOrderCount);
+                Assert.Equal(65_000m, salesReport.GrossRevenue);
+                Assert.Equal(13_000m, salesReport.DiscountTotal);
+                Assert.Equal(52_000m, salesReport.NetRevenue);
+                Assert.Equal(52_000m, Assert.Single(salesReport.PaymentMethods).TotalAmount);
+                Assert.Equal("Phở bò đặc biệt",
+                    Assert.Single(salesReport.TopSellingProducts).ProductName);
+                session.SignIn(signedInStaff);
                 await Assert.ThrowsAsync<InvalidOperationException>(
                     () => orderService.UpdateItemAsync(order.Id, detailIdBeforePayment, 2, null));
                 await Assert.ThrowsAsync<InvalidOperationException>(
@@ -448,7 +476,20 @@ public class DatabaseFoundationTests
                 Assert.Equal(OrderStatus.Cancelled, cancelledOrder.Status);
                 Assert.Equal("Khách đổi ý", cancelledOrder.CancellationReason);
                 Assert.False(Assert.Single(await catalogService.GetTablesAsync()).IsOccupied);
+                var staffOrderHistory = await orderService.GetOrderHistoryAsync();
+                Assert.Single(staffOrderHistory, history => history.Status == OrderStatus.Paid);
+                Assert.DoesNotContain(
+                    staffOrderHistory,
+                    history => history.Status is OrderStatus.Open or OrderStatus.Cancelled);
+                Assert.Null(await orderService.GetOrderReceiptAsync(cancelledOrderId));
                 session.SignIn(admin);
+                var adminOrderHistory = await orderService.GetOrderHistoryAsync();
+                Assert.Contains(adminOrderHistory, history => history.Status == OrderStatus.Paid);
+                Assert.Contains(adminOrderHistory, history => history.Status == OrderStatus.Cancelled);
+                Assert.Equal(
+                    OrderStatus.Cancelled,
+                    Assert.IsType<OrderReceiptSummary>(
+                        await orderService.GetOrderReceiptAsync(cancelledOrderId)).Status);
 
                 await employeeService.SetEmployeeActiveAsync(staff.EmployeeId, false);
                 var suspendedSignIn = await Assert.ThrowsAsync<InvalidOperationException>(

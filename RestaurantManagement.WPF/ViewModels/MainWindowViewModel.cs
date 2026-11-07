@@ -22,6 +22,7 @@ public partial class MainWindowViewModel(
 {
     private ObservableCollection<ProductTagOption>? _productTagOptions;
     private IReadOnlyList<ProductSummary> _catalogProducts = [];
+    private int _orderReceiptRequestVersion;
 
     public ObservableCollection<EmployeeAccountSummary> Employees { get; } = [];
 
@@ -69,7 +70,13 @@ public partial class MainWindowViewModel(
 
     public ObservableCollection<ProductSummary> OrderableProducts { get; } = [];
 
+    public ObservableCollection<OrderProductCategoryGroup> OrderProductGroups { get; } = [];
+
+    public ObservableCollection<OrderDetailSummary> CurrentOrderDetails { get; } = [];
+
     public ObservableCollection<PromotionSummary> Promotions { get; } = [];
+
+    public ObservableCollection<OrderHistorySummary> OrderHistory { get; } = [];
 
     public ObservableCollection<string> ProductCategoryFilters { get; } = ["Tất cả danh mục"];
 
@@ -205,7 +212,10 @@ public partial class MainWindowViewModel(
     private OrderWorkspaceTab? selectedOrderTab;
 
     [ObservableProperty]
-    private ProductSummary? selectedOrderProduct;
+    private int selectedStaffWorkspaceIndex;
+
+    [ObservableProperty]
+    private OrderProductCategoryGroup? selectedOrderProductGroup;
 
     [ObservableProperty]
     private OpenOrderSummary? currentOpenOrder;
@@ -221,6 +231,15 @@ public partial class MainWindowViewModel(
 
     [ObservableProperty]
     private PromotionSummary? selectedPromotion;
+
+    [ObservableProperty]
+    private OrderHistorySummary? selectedOrderHistory;
+
+    [ObservableProperty]
+    private OrderReceiptSummary? currentOrderReceipt;
+
+    [ObservableProperty]
+    private SalesReportSummary? salesReport;
 
     [ObservableProperty]
     private ProductSummary? selectedPromotionProduct;
@@ -265,15 +284,6 @@ public partial class MainWindowViewModel(
     private string tableSeatCountText = string.Empty;
 
     [ObservableProperty]
-    private string orderQuantityText = "1";
-
-    [ObservableProperty]
-    private string orderItemNotes = string.Empty;
-
-    [ObservableProperty]
-    private string editOrderQuantityText = string.Empty;
-
-    [ObservableProperty]
     private string editOrderItemNotes = string.Empty;
 
     [ObservableProperty]
@@ -315,6 +325,21 @@ public partial class MainWindowViewModel(
 
     [ObservableProperty]
     private DateTime? promotionEndsAt = DateTime.Today.AddDays(1);
+
+    [ObservableProperty]
+    private string orderHistoryIdText = string.Empty;
+
+    [ObservableProperty]
+    private DateTime? orderHistoryFromDate = DateTime.Today.AddDays(-30);
+
+    [ObservableProperty]
+    private DateTime? orderHistoryToDate = DateTime.Today;
+
+    [ObservableProperty]
+    private DateTime? salesReportFromDate = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+
+    [ObservableProperty]
+    private DateTime? salesReportToDate = DateTime.Today;
 
     partial void OnProductSearchTextChanged(string value) => ApplyProductFilters();
 
@@ -358,6 +383,16 @@ public partial class MainWindowViewModel(
 
     partial void OnProductTagsChanged(string value) =>
         OnPropertyChanged(nameof(ProductTagsDisplay));
+
+    partial void OnSelectedOrderHistoryChanged(OrderHistorySummary? value)
+    {
+        var requestVersion = ++_orderReceiptRequestVersion;
+        CurrentOrderReceipt = null;
+        if (value is not null)
+        {
+            _ = LoadOrderReceiptAsync(value.OrderId, requestVersion);
+        }
+    }
 
     public async Task InitializeAsync()
     {
@@ -461,14 +496,19 @@ public partial class MainWindowViewModel(
         Categories.Clear();
         Products.Clear();
         OrderableProducts.Clear();
+        OrderHistory.Clear();
         OrderTabs.Clear();
+        OrderProductGroups.Clear();
+        CurrentOrderDetails.Clear();
+        SelectedStaffWorkspaceIndex = 0;
+        SelectedOrderHistory = null;
+        CurrentOrderReceipt = null;
+        SalesReport = null;
         SelectedOrderTab = null;
         CurrentOpenOrder = null;
         SelectedOrderDetail = null;
         SelectedOrderTable = null;
-        SelectedOrderProduct = null;
         OrderCancellationReason = string.Empty;
-        OrderItemNotes = string.Empty;
         SelectedEmployee = null;
         SelectedAccount = null;
         SelectedTable = null;
@@ -780,6 +820,52 @@ public partial class MainWindowViewModel(
     private void NewOrderTab() => AddNewOrderTab();
 
     [RelayCommand]
+    private async Task AddOrderProductAsync(ProductSummary? product)
+    {
+        if (CurrentOpenOrder is not { } order)
+        {
+            ErrorMessage = "Hãy tải hoặc bắt đầu order trước.";
+            return;
+        }
+
+        if (product is null || !OrderableProducts.Any(candidate => candidate.Id == product.Id))
+        {
+            ErrorMessage = "Món này hiện không thể thêm vào order.";
+            return;
+        }
+
+        var existingDetail = order.Details.FirstOrDefault(detail => detail.ProductId == product.Id);
+        if (existingDetail is { Quantity: >= 99 })
+        {
+            ErrorMessage = "Mỗi món chỉ có thể gọi tối đa 99 phần.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            var service = GetRestaurantOrderService();
+            if (existingDetail is null)
+            {
+                await service.AddItemAsync(order.OrderId, product.Id, 1, null);
+            }
+            else
+            {
+                await service.UpdateItemAsync(
+                    order.OrderId,
+                    existingDetail.Id,
+                    existingDetail.Quantity + 1,
+                    existingDetail.Notes);
+            }
+
+            await RefreshOpenOrderAsync(order.TableId);
+            await RefreshCatalogAsync();
+            StatusMessage = existingDetail is null
+                ? $"Đã thêm {product.Name} vào order."
+                : $"Đã tăng số lượng {product.Name} lên {existingDetail.Quantity + 1}.";
+        });
+    }
+
+    [RelayCommand]
     private void SelectOrderTab(OrderWorkspaceTab? tab)
     {
         if (tab is not null && OrderTabs.Contains(tab))
@@ -840,42 +926,6 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
-    private async Task AddOrderItemAsync()
-    {
-        if (CurrentOpenOrder is not { } order)
-        {
-            ErrorMessage = "Hãy tải hoặc bắt đầu order trước.";
-            return;
-        }
-
-        if (SelectedOrderProduct is not { } product)
-        {
-            ErrorMessage = "Hãy chọn món cần thêm.";
-            return;
-        }
-
-        if (!int.TryParse(OrderQuantityText, out var quantity))
-        {
-            ErrorMessage = "Số lượng phải là số nguyên từ 1 đến 99.";
-            return;
-        }
-
-        await RunOperationAsync(async () =>
-        {
-            await GetRestaurantOrderService().AddItemAsync(
-                order.OrderId,
-                product.Id,
-                quantity,
-                OrderItemNotes);
-            OrderQuantityText = "1";
-            OrderItemNotes = string.Empty;
-            await RefreshOpenOrderAsync(order.TableId);
-            await RefreshCatalogAsync();
-            StatusMessage = "Đã thêm món vào order.";
-        });
-    }
-
-    [RelayCommand]
     private async Task UpdateOrderItemAsync()
     {
         if (CurrentOpenOrder is not { } order)
@@ -890,18 +940,12 @@ public partial class MainWindowViewModel(
             return;
         }
 
-        if (!int.TryParse(EditOrderQuantityText, out var quantity))
-        {
-            ErrorMessage = "Số lượng phải là số nguyên từ 1 đến 99.";
-            return;
-        }
-
         await RunOperationAsync(async () =>
         {
             await GetRestaurantOrderService().UpdateItemAsync(
                 order.OrderId,
                 detail.Id,
-                quantity,
+                detail.Quantity,
                 EditOrderItemNotes);
             SelectedOrderDetail = null;
             await RefreshOpenOrderAsync(order.TableId);
@@ -979,6 +1023,106 @@ public partial class MainWindowViewModel(
             OrderCancellationReason = string.Empty;
             await RefreshCatalogAsync();
             StatusMessage = "Thanh toán thành công; bàn hiện đã trống.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task SearchOrderHistoryAsync()
+    {
+        int? orderId = null;
+        if (!string.IsNullOrWhiteSpace(OrderHistoryIdText))
+        {
+            if (!int.TryParse(OrderHistoryIdText, out var parsedOrderId) || parsedOrderId <= 0)
+            {
+                ErrorMessage = "Mã order phải là số nguyên dương.";
+                return;
+            }
+
+            orderId = parsedOrderId;
+        }
+
+        if (orderId is null
+            && OrderHistoryFromDate is { } fromDate
+            && OrderHistoryToDate is { } toDate
+            && fromDate.Date > toDate.Date)
+        {
+            ErrorMessage = "Ngày bắt đầu không được sau ngày kết thúc.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            var history = await GetRestaurantOrderService().GetOrderHistoryAsync(
+                orderId,
+                orderId is null ? ToUtcBoundary(OrderHistoryFromDate) : null,
+                orderId is null ? ToUtcExclusiveBoundary(OrderHistoryToDate) : null);
+            OrderHistory.Clear();
+            foreach (var order in history)
+            {
+                OrderHistory.Add(order);
+            }
+
+            SelectedOrderHistory = null;
+            CurrentOrderReceipt = null;
+            StatusMessage = $"Đã tìm thấy {history.Count} order.";
+        });
+    }
+
+    private async Task LoadOrderReceiptAsync(int orderId, int requestVersion)
+    {
+        try
+        {
+            var receipt = await GetRestaurantOrderService().GetOrderReceiptAsync(orderId)
+                ?? throw new InvalidOperationException("Không tìm thấy order đã chọn.");
+            if (requestVersion == _orderReceiptRequestVersion
+                && SelectedOrderHistory?.OrderId == orderId)
+            {
+                CurrentOrderReceipt = receipt;
+            }
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or InvalidOperationException
+                or UnauthorizedAccessException
+                or DbUpdateException
+                or MySqlException)
+        {
+            if (exception is DbUpdateException or MySqlException)
+            {
+                logger.LogError(exception, "Không thể tải biên nhận order {OrderId}.", orderId);
+            }
+
+            if (requestVersion == _orderReceiptRequestVersion)
+            {
+                ErrorMessage = exception is DbUpdateException or MySqlException
+                    ? "Không thể tải chi tiết order do lỗi cơ sở dữ liệu."
+                    : exception.Message;
+            }
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshSalesReportAsync()
+    {
+        if (SalesReportFromDate is not { } fromDate
+            || SalesReportToDate is not { } toDate)
+        {
+            ErrorMessage = "Hãy chọn ngày bắt đầu và ngày kết thúc.";
+            return;
+        }
+
+        if (fromDate.Date > toDate.Date)
+        {
+            ErrorMessage = "Ngày bắt đầu không được sau ngày kết thúc.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            SalesReport = await GetRestaurantOrderService().GetSalesReportAsync(
+                ToUtcBoundary(fromDate)!.Value,
+                ToUtcExclusiveBoundary(toDate)!.Value);
+            StatusMessage = "Đã cập nhật báo cáo doanh thu.";
         });
     }
 
@@ -1628,9 +1772,39 @@ public partial class MainWindowViewModel(
             OrderableProducts.Add(product);
         }
 
-        SelectedOrderProduct = OrderableProducts.FirstOrDefault(
-            product => product.Id == SelectedOrderProduct?.Id)
-            ?? OrderableProducts.FirstOrDefault();
+        ApplyOrderProductGroups();
+    }
+
+    private void ApplyOrderProductGroups()
+    {
+        var selectedCategoryName = SelectedOrderProductGroup?.CategoryName;
+        var groups = OrderableProducts
+            .GroupBy(product => product.CategoryName, StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(group =>
+            {
+                var categoryIndex = Categories
+                    .Select((category, index) => (category, index))
+                    .FirstOrDefault(item => string.Equals(
+                        item.category.Name,
+                        group.Key,
+                        StringComparison.CurrentCultureIgnoreCase));
+                return categoryIndex.category is null ? int.MaxValue : categoryIndex.index;
+            })
+            .Select(group => new OrderProductCategoryGroup(group.Key, group.ToArray()))
+            .ToArray();
+
+        OrderProductGroups.Clear();
+        foreach (var group in groups)
+        {
+            OrderProductGroups.Add(group);
+        }
+
+        SelectedOrderProductGroup = OrderProductGroups.FirstOrDefault(group =>
+            string.Equals(
+                group.CategoryName,
+                selectedCategoryName,
+                StringComparison.CurrentCultureIgnoreCase))
+            ?? OrderProductGroups.FirstOrDefault();
     }
 
     private void ApplyProductFilters(int? selectedProductId = null)
@@ -1663,11 +1837,24 @@ public partial class MainWindowViewModel(
         tab.Order = order;
         tab.Title = GetOrderTabTitle(tableId, order);
         CurrentOpenOrder = order;
+        UpdateCurrentOrderDetails(order);
+    }
+
+    private void UpdateCurrentOrderDetails(OpenOrderSummary? order)
+    {
+        CurrentOrderDetails.Clear();
+        if (order is not null)
+        {
+            foreach (var detail in order.Details)
+            {
+                CurrentOrderDetails.Add(detail);
+            }
+        }
     }
 
     private void AddNewOrderTab()
     {
-        var tab = new OrderWorkspaceTab(null, "Chọn bàn");
+        var tab = new OrderWorkspaceTab(null, "Order mới");
         OrderTabs.Add(tab);
         SelectedOrderTab = tab;
     }
@@ -1707,6 +1894,16 @@ public partial class MainWindowViewModel(
     private IRestaurantOrderService GetRestaurantOrderService() =>
         restaurantOrderService
         ?? throw new InvalidOperationException("Chức năng order chưa được khởi tạo.");
+
+    private static DateTimeOffset? ToUtcBoundary(DateTime? date) =>
+        date is { } value
+            ? new DateTimeOffset(DateTime.SpecifyKind(value.Date, DateTimeKind.Local)).ToUniversalTime()
+            : null;
+
+    private static DateTimeOffset? ToUtcExclusiveBoundary(DateTime? date) =>
+        date is { } value
+            ? ToUtcBoundary(value.Date.AddDays(1))
+            : null;
 
     private bool TryParsePrice(out decimal price)
     {
@@ -1774,7 +1971,6 @@ public partial class MainWindowViewModel(
 
     partial void OnSelectedOrderDetailChanged(OrderDetailSummary? value)
     {
-        EditOrderQuantityText = value?.Quantity.ToString(CultureInfo.CurrentCulture) ?? string.Empty;
         EditOrderItemNotes = value?.Notes ?? string.Empty;
     }
 
@@ -1786,10 +1982,15 @@ public partial class MainWindowViewModel(
         }
 
         CurrentOpenOrder = value?.Order;
+        UpdateCurrentOrderDetails(value?.Order);
         SelectedOrderTable = value?.TableId is { } tableId
             ? Tables.FirstOrDefault(table => table.Id == tableId)
             : null;
         SelectedOrderDetail = null;
+        if (value?.TableId is not null && IsStaffOrderScreen)
+        {
+            SelectedStaffWorkspaceIndex = 1;
+        }
     }
 
     partial void OnSelectedOrderTableChanged(RestaurantTableSummary? value)
@@ -1801,6 +2002,7 @@ public partial class MainWindowViewModel(
 
         if (SelectedOrderTab?.TableId == value.Id)
         {
+            SelectedStaffWorkspaceIndex = 1;
             return;
         }
 
@@ -1808,6 +2010,7 @@ public partial class MainWindowViewModel(
         if (existingTab is not null)
         {
             SelectedOrderTab = existingTab;
+            SelectedStaffWorkspaceIndex = 1;
         }
         else if (!IsBusy)
         {

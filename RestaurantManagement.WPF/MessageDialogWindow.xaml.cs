@@ -1,24 +1,33 @@
 using System.Windows;
+using RestaurantManagement.WPF.Behaviors;
 
 namespace RestaurantManagement.WPF;
 
 public partial class MessageDialogWindow : Window
 {
     private readonly bool _isConfirmation;
+    private readonly bool _isInput;
 
     public MessageDialogWindow(
         string title,
         string message,
         bool isConfirmation,
         MessageDialogKind kind,
-        string confirmationText = "Xác nhận")
+        string confirmationText = "Xác nhận",
+        bool isInput = false)
     {
         InitializeComponent();
         _isConfirmation = isConfirmation;
+        _isInput = isInput;
         DataContext = new MessageDialogContent(title, message);
-        ConfirmationButtons.Visibility = isConfirmation ? Visibility.Visible : Visibility.Collapsed;
-        OkButton.Visibility = isConfirmation ? Visibility.Collapsed : Visibility.Visible;
+        ConfirmationButtons.Visibility = isConfirmation || isInput ? Visibility.Visible : Visibility.Collapsed;
+        InputPanel.Visibility = isInput ? Visibility.Visible : Visibility.Collapsed;
+        OkButton.Visibility = isConfirmation || isInput ? Visibility.Collapsed : Visibility.Visible;
         ConfirmButton.Content = confirmationText;
+        if (isInput)
+        {
+            Loaded += (_, _) => DialogInputTextBox.Focus();
+        }
 
         var (backgroundKey, foregroundKey, glyph) = kind switch
         {
@@ -67,7 +76,50 @@ public partial class MessageDialogWindow : Window
         dialog.ShowDialog();
     }
 
-    private void Confirm_Click(object sender, RoutedEventArgs e) => DialogResult = true;
+    public static string? ShowInput(
+        Window? owner,
+        string title,
+        string message,
+        string placeholder)
+    {
+        var dialog = new MessageDialogWindow(
+            title,
+            message,
+            false,
+            MessageDialogKind.Warning,
+            "Hủy order",
+            true);
+        TextBoxPlaceholderBehavior.SetPlaceholderText(dialog.DialogInputTextBox, placeholder);
+        if (owner is not null)
+        {
+            dialog.Owner = owner;
+        }
+
+        return dialog.ShowDialog() == true
+            ? dialog.DialogInputTextBox.Text.Trim()
+            : null;
+    }
+
+    private void Confirm_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isInput && string.IsNullOrWhiteSpace(DialogInputTextBox.Text))
+        {
+            InputValidationMessage.Text = "Vui lòng nhập lý do hủy order.";
+            InputValidationMessage.Visibility = Visibility.Visible;
+            DialogInputTextBox.Focus();
+            return;
+        }
+
+        DialogResult = true;
+    }
+
+    private void DialogInputTextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (!string.IsNullOrWhiteSpace(DialogInputTextBox.Text))
+        {
+            InputValidationMessage.Visibility = Visibility.Collapsed;
+        }
+    }
 
     private void Close_Click(object sender, RoutedEventArgs e)
     {

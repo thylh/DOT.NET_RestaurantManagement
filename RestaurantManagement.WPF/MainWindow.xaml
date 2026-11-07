@@ -58,6 +58,179 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <DataTemplate x:Key="OrderHistoryViewTemplate">
+            <Grid Margin="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <StackPanel Margin="0,0,0,12">
+                    <TextBlock Text="Lịch sử order và biên nhận"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,10"/>
+                    <WrapPanel>
+                        <TextBox Width="130"
+                                 Text="{Binding OrderHistoryIdText, UpdateSourceTrigger=PropertyChanged}"
+                                 behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Mã order"
+                                 Margin="0,0,8,8"/>
+                        <DatePicker SelectedDate="{Binding OrderHistoryFromDate}"
+                                    ToolTip="Từ ngày tạo order"
+                                    Margin="0,0,8,8"/>
+                        <DatePicker SelectedDate="{Binding OrderHistoryToDate}"
+                                    ToolTip="Đến hết ngày tạo order"
+                                    Margin="0,0,8,8"/>
+                        <Button Content="Tra cứu"
+                                Command="{Binding SearchOrderHistoryCommand}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Padding="12,7"
+                                Margin="0,0,8,8"/>
+                    </WrapPanel>
+                </StackPanel>
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.25*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="0.95*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0"
+                            Style="{StaticResource DataGridFrameStyle}">
+                        <DataGrid ItemsSource="{Binding OrderHistory}"
+                                  SelectedItem="{Binding SelectedOrderHistory}"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  MinHeight="0"
+                                  SelectionUnit="FullRow"
+                                  SelectionMode="Single">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Mã"
+                                                    Binding="{Binding OrderId}"
+                                                    Width="0.55*"/>
+                                <DataGridTextColumn Header="Thời gian"
+                                                    Binding="{Binding CreatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm}}"
+                                                    Width="1.45*"/>
+                                <DataGridTextColumn Header="Bàn"
+                                                    Binding="{Binding TableNumber}"
+                                                    Width="0.8*"/>
+                                <DataGridTextColumn Header="Trạng thái"
+                                                    Binding="{Binding StatusDisplay}"
+                                                    Width="*"/>
+                                <DataGridTextColumn Header="Thành tiền"
+                                                    Binding="{Binding Total, StringFormat={}{0:N0}}"
+                                                    Width="1*"/>
+                                <DataGridTextColumn Header="Thanh toán"
+                                                    Binding="{Binding PaymentMethodDisplay}"
+                                                    Width="1.1*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                    <Border Grid.Column="2"
+                            Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="14"
+                            Padding="14">
+                        <StackPanel>
+                                <TextBlock Text="{Binding CurrentOrderReceipt.OrderId, StringFormat=Chi tiết order #{0}}"
+                                           FontSize="17"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,10"/>
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Trạng thái: " FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding CurrentOrderReceipt.StatusDisplay}"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding CurrentOrderReceipt.CancellationReason, StringFormat=Lý do hủy: {0}}"
+                                               TextWrapping="Wrap"
+                                               Margin="12,0,0,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="{x:Type TextBlock}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding CurrentOrderReceipt.IsCancelled}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Bàn: " FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding CurrentOrderReceipt.TableNumber}"/>
+                                    <TextBlock Grid.Column="2"
+                                               Text="Khu vực: "
+                                               FontWeight="SemiBold"
+                                               Margin="12,0,0,0"/>
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding CurrentOrderReceipt.Area}"/>
+                                </Grid>
+                                <TextBlock Text="{Binding CurrentOrderReceipt.EmployeeName, StringFormat=Nhân viên: {0}}"
+                                           Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding CurrentOrderReceipt.CreatedAt, StringFormat=Ngày tạo: {0:dd/MM/yyyy HH:mm}}"
+                                           Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding CurrentOrderReceipt.PaidAt, StringFormat=Ngày thanh toán: {0:dd/MM/yyyy HH:mm}, TargetNullValue=Chưa thanh toán}"
+                                           Margin="0,0,0,8"/>
+                                <TextBlock Text="{Binding CurrentOrderReceipt.PaymentMethodDisplay, StringFormat=Phương thức: {0}}"
+                                           Margin="0,0,0,8"/>
+                                <Border Style="{StaticResource DataGridFrameStyle}"
+                                        Margin="0,0,0,8">
+                                    <DataGrid ItemsSource="{Binding CurrentOrderReceipt.Details}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HorizontalAlignment="Stretch"
+                                              MaxHeight="220">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Món"
+                                                                Binding="{Binding ProductName}"
+                                                                Width="2*"
+                                                                MinWidth="100"/>
+                                            <DataGridTextColumn Header="SL"
+                                                                Binding="{Binding Quantity}"
+                                                                Width="0.65*"
+                                                                MinWidth="45"/>
+                                            <DataGridTextColumn Header="Đơn giá"
+                                                                Binding="{Binding UnitPrice, StringFormat={}{0:N0}}"
+                                                                Width="1.2*"
+                                                                MinWidth="80"/>
+                                            <DataGridTextColumn Header="Thành tiền"
+                                                                Binding="{Binding LineTotal, StringFormat={}{0:N0}}"
+                                                                Width="1.4*"
+                                                                MinWidth="90"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Border>
+                                <TextBlock Text="{Binding CurrentOrderReceipt.PromotionDisplay}"
+                                           HorizontalAlignment="Right"
+                                           Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding CurrentOrderReceipt.Subtotal, StringFormat=Tạm tính: {0:N0} đ}"
+                                           HorizontalAlignment="Right"/>
+                                <TextBlock Text="{Binding CurrentOrderReceipt.DiscountAmount, StringFormat=Giảm giá: -{0:N0} đ}"
+                                           Foreground="{StaticResource PrimaryBrush}"
+                                           HorizontalAlignment="Right"/>
+                                <TextBlock Text="{Binding CurrentOrderReceipt.Total, StringFormat=Thành tiền: {0:N0} đ}"
+                                           FontSize="16"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Right"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+        </DataTemplate>
         <Style x:Key="ProductTagsDropDownButtonStyle"
                 TargetType="{x:Type ToggleButton}">
             <Setter Property="Height"
@@ -306,6 +479,7 @@
                                 Margin="0,0,0,6"/>
                         <PasswordBox x:Name="SetupPasswordBox"
                                 Tag="setup"
+                                behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText="Nhập mật khẩu Admin"
                                 PasswordChanged="PasswordBox_PasswordChanged"
                                 Margin="0,0,0,10"/>
                         <TextBlock Text="Dùng ít nhất 12 ký tự để bảo vệ tài khoản."
@@ -432,6 +606,7 @@
                                 Margin="0,0,0,6"/>
                         <PasswordBox x:Name="LoginPasswordBox"
                                 Tag="login"
+                                behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText="Nhập mật khẩu"
                                 PasswordChanged="PasswordBox_PasswordChanged"
                                 Margin="0,0,0,22"/>
                         <Button Content="Đăng nhập"
@@ -480,6 +655,7 @@
                             Margin="0,0,0,6"/>
                     <PasswordBox x:Name="RequiredCurrentPasswordBox"
                             Tag="current"
+                            behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText="Nhập mật khẩu tạm"
                                  PasswordChanged="PasswordBox_PasswordChanged"
                             Margin="0,0,0,16"/>
                     <TextBlock Text="Mật khẩu mới (ít nhất 12 ký tự)"
@@ -487,6 +663,7 @@
                             Margin="0,0,0,6"/>
                     <PasswordBox x:Name="RequiredNewPasswordBox"
                             Tag="new"
+                            behaviors:PasswordBoxPlaceholderBehavior.PlaceholderText="Nhập mật khẩu mới"
                                  PasswordChanged="PasswordBox_PasswordChanged"
                             Margin="0,0,0,20"/>
                     <Button Content="Đổi mật khẩu và tiếp tục"
@@ -920,11 +1097,11 @@
                                             Width="*"/>
                                     <DataGridTextColumn Header="Điện thoại"
                                             Binding="{Binding Phone}"
-                                            Width="180"/>
+                                            Width="1.2*"/>
                                     <DataGridTextColumn Header="Email"
                                             Binding="{Binding Email}"
                                             Width="2*"/>
-                                    <DataGridTemplateColumn Header="Đang làm việc" Width="150">
+                                    <DataGridTemplateColumn Header="Đang làm việc" Width="1*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ToggleButton IsChecked="{Binding IsEmployeeActive, Mode=OneWay}"
@@ -1106,8 +1283,8 @@
                                                                 Width="*"/>
                                                         <DataGridTextColumn Header="Số món"
                                                                 Binding="{Binding ProductCount}"
-                                                                Width="75"/>
-                                                        <DataGridTemplateColumn Header="Kinh doanh" Width="100">
+                                                                Width="0.65*"/>
+                                                        <DataGridTemplateColumn Header="Kinh doanh" Width="0.85*">
                                                             <DataGridTemplateColumn.CellTemplate>
                                                                 <DataTemplate>
                                                                     <ToggleButton IsChecked="{Binding IsActive, Mode=OneWay}"
@@ -1217,14 +1394,14 @@
                                                                 Width="*"/>
                                                         <DataGridTextColumn Header="Danh mục"
                                                                 Binding="{Binding CategoryName}"
-                                                                Width="140"/>
+                                                                Width="1*"/>
                                                         <DataGridTextColumn Header="Tags"
                                                                 Binding="{Binding Tags}"
                                                                 Width="1.2*"/>
                                                         <DataGridTextColumn Header="Giá bán"
                                                                             Binding="{Binding Price, StringFormat={}{0:N0}}"
-                                                                            Width="110"/>
-                                                        <DataGridTemplateColumn Header="Còn món" Width="85">
+                                                                            Width="0.8*"/>
+                                                        <DataGridTemplateColumn Header="Còn món" Width="0.7*">
                                                             <DataGridTemplateColumn.CellTemplate>
                                                                 <DataTemplate>
                                                                     <ToggleButton IsChecked="{Binding IsAvailable, Mode=OneWay}"
@@ -1236,7 +1413,7 @@
                                                                 </DataTemplate>
                                                             </DataGridTemplateColumn.CellTemplate>
                                                         </DataGridTemplateColumn>
-                                                        <DataGridTemplateColumn Header="Kinh doanh" Width="100">
+                                                        <DataGridTemplateColumn Header="Kinh doanh" Width="0.8*">
                                                             <DataGridTemplateColumn.CellTemplate>
                                                                 <DataTemplate>
                                                                     <ToggleButton IsChecked="{Binding IsActive, Mode=OneWay}"
@@ -1259,7 +1436,7 @@
                                             CornerRadius="14"
                                             Padding="16"
                                             behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
-                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ScrollViewer VerticalScrollBarVisibility="Hidden">
                                             <StackPanel>
                                                 <TextBlock Text="Thông tin món"
                                                         FontSize="16"
@@ -1277,6 +1454,7 @@
                                                 <ComboBox ItemsSource="{Binding Categories}"
                                                         DisplayMemberPath="Name"
                                                           SelectedItem="{Binding SelectedProductCategory}"
+                                                          behaviors:ComboBoxPlaceholderBehavior.PlaceholderText="Chọn danh mục"
                                                           Margin="0,4,0,12"/>
                                                 <TextBlock Text="Tags"/>
                                                 <ToggleButton x:Name="ProductTagsDropDownButton"
@@ -1298,7 +1476,7 @@
                                                             CornerRadius="9"
                                                             Padding="8"
                                                             Margin="0,5,0,0">
-                                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                                        <ScrollViewer VerticalScrollBarVisibility="Hidden">
                                                             <ItemsControl ItemsSource="{Binding ProductTagOptions}">
                                                                 <ItemsControl.ItemTemplate>
                                                                     <DataTemplate>
@@ -1367,14 +1545,14 @@
                                                         Width="*"/>
                                                 <DataGridTextColumn Header="Giảm (%)"
                                                                     Binding="{Binding DiscountPercentage, StringFormat={}{0:0.##}%}"
-                                                                    Width="85"/>
+                                                                    Width="0.7*"/>
                                                 <DataGridTextColumn Header="Áp dụng cho"
                                                                     Binding="{Binding TargetName}"
                                                                     Width="1.2*"/>
                                                 <DataGridTextColumn Header="Thời gian"
                                                                     Binding="{Binding PeriodDisplay}"
                                                                     Width="1.1*"/>
-                                                <DataGridTemplateColumn Header="Đang bật" Width="85">
+                                                <DataGridTemplateColumn Header="Đang bật" Width="0.7*">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
                                                             <ToggleButton IsChecked="{Binding IsActive, Mode=OneWay}"
@@ -1395,7 +1573,7 @@
                                             CornerRadius="14"
                                             Padding="16"
                                             behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
-                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ScrollViewer VerticalScrollBarVisibility="Hidden">
                                             <StackPanel>
                                                 <TextBlock Text="Thông tin khuyến mãi"
                                                         FontSize="16"
@@ -1419,14 +1597,16 @@
                                                     <ComboBox ItemsSource="{Binding PromotionProducts}"
                                                             DisplayMemberPath="Name"
                                                               SelectedItem="{Binding SelectedPromotionProduct}"
-                                                              Margin="0,4,0,12"/>
+                                                                  behaviors:ComboBoxPlaceholderBehavior.PlaceholderText="Chọn món áp dụng"
+                                                                  Margin="0,4,0,12"/>
                                                 </StackPanel>
                                                 <StackPanel Visibility="{Binding IsPromotionCategoryTarget, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                     <TextBlock Text="Danh mục áp dụng"/>
                                                     <ComboBox ItemsSource="{Binding Categories}"
                                                             DisplayMemberPath="Name"
                                                               SelectedItem="{Binding SelectedPromotionCategory}"
-                                                              Margin="0,4,0,12"/>
+                                                                  behaviors:ComboBoxPlaceholderBehavior.PlaceholderText="Chọn danh mục áp dụng"
+                                                                  Margin="0,4,0,12"/>
                                                 </StackPanel>
                                                 <Grid Margin="0,0,0,12">
                                                     <Grid.ColumnDefinitions>
@@ -1469,13 +1649,232 @@
                         </TabItem>
                     </TabControl>
                 </TabItem>
-
+                <TabItem Header="Lịch sử">
+                    <ContentControl Content="{Binding}"
+                                    ContentTemplate="{StaticResource OrderHistoryViewTemplate}"/>
+                </TabItem>
+                <TabItem Header="Báo cáo">
+                    <Grid Margin="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="Báo cáo doanh thu"
+                                       FontSize="20"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,10"/>
+                            <WrapPanel>
+                                <StackPanel Margin="0,0,8,8">
+                                    <TextBlock Text="Từ ngày"/>
+                                    <DatePicker SelectedDate="{Binding SalesReportFromDate}"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,8">
+                                    <TextBlock Text="Đến hết ngày"/>
+                                    <DatePicker SelectedDate="{Binding SalesReportToDate}"/>
+                                </StackPanel>
+                                <Button Content="Xem báo cáo"
+                                        Command="{Binding RefreshSalesReportCommand}"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Padding="12,7"
+                                        Margin="0,19,0,8"/>
+                            </WrapPanel>
+                        </StackPanel>
+                        <Grid Grid.Row="1"
+                              Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0"
+                                    Background="{StaticResource SurfaceBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="12"
+                                    Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="Đơn đã thanh toán"
+                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding SalesReport.PaidOrderCount}"
+                                               FontSize="20"
+                                               FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1"
+                                    Background="{StaticResource SurfaceBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="12"
+                                    Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="Doanh thu trước giảm"
+                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding SalesReport.GrossRevenue, StringFormat={}{0:N0} đ}"
+                                               FontSize="20"
+                                               FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2"
+                                    Background="{StaticResource SurfaceBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="12"
+                                    Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="Tổng giảm giá"
+                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding SalesReport.DiscountTotal, StringFormat={}{0:N0} đ}"
+                                               FontSize="20"
+                                               FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="3"
+                                    Background="{StaticResource PrimaryTintBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="12">
+                                <StackPanel>
+                                    <TextBlock Text="Doanh thu thực nhận"
+                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding SalesReport.NetRevenue, StringFormat={}{0:N0} đ}"
+                                               FontSize="20"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource PrimaryDarkBrush}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="0.9*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="1.1*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0"
+                                    Style="{StaticResource DataGridFrameStyle}">
+                                <DataGrid ItemsSource="{Binding SalesReport.PaymentMethods}"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          CanUserAddRows="False">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Phương thức"
+                                                            Binding="{Binding MethodDisplay}"
+                                                            Width="*"/>
+                                        <DataGridTextColumn Header="Số giao dịch"
+                                                            Binding="{Binding PaymentCount}"
+                                                            Width="0.9*"/>
+                                        <DataGridTextColumn Header="Doanh thu"
+                                                            Binding="{Binding TotalAmount, StringFormat={}{0:N0} đ}"
+                                                            Width="1.2*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+                            <Border Grid.Column="2"
+                                    Style="{StaticResource DataGridFrameStyle}">
+                                <DataGrid ItemsSource="{Binding SalesReport.TopSellingProducts}"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          CanUserAddRows="False">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Món bán chạy"
+                                                            Binding="{Binding ProductName}"
+                                                            Width="*"/>
+                                        <DataGridTextColumn Header="Số lượng"
+                                                            Binding="{Binding QuantitySold}"
+                                                            Width="0.75*"/>
+                                        <DataGridTextColumn Header="Doanh thu gộp"
+                                                            Binding="{Binding GrossRevenue, StringFormat={}{0:N0} đ}"
+                                                            Width="1.2*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </TabItem>
             </TabControl>
 
             <TabControl x:Name="StaffWorkspaceTabs"
                     Grid.Row="3"
+                    SelectedIndex="{Binding SelectedStaffWorkspaceIndex}"
                         Visibility="{Binding IsStaffScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
                         Margin="0">
+                <TabItem Header="Chọn bàn"
+                         Visibility="{Binding IsStaffOrderScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid Margin="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0">
+                            <TextBlock Text="Chọn bàn"
+                                       FontSize="20"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,10"/>
+                            <WrapPanel Margin="0,0,0,8">
+                                <TextBox Width="220"
+                                         Text="{Binding OrderTableSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo số hiệu bàn"
+                                         Margin="0,0,8,8"/>
+                                <ComboBox Width="170"
+                                          ItemsSource="{Binding OrderTableAreaFilters}"
+                                          SelectedItem="{Binding SelectedOrderTableAreaFilter}"
+                                          behaviors:ComboBoxPlaceholderBehavior.PlaceholderText="Tất cả khu vực"
+                                          Margin="0,0,8,8"/>
+                                <ComboBox Width="190"
+                                          ItemsSource="{Binding OrderTableStatusFilters}"
+                                          SelectedItem="{Binding SelectedOrderTableStatusFilter}"
+                                          behaviors:ComboBoxPlaceholderBehavior.PlaceholderText="Tất cả trạng thái"
+                                          Margin="0,0,8,8"/>
+                            </WrapPanel>
+                        </StackPanel>
+                        <Border Grid.Row="1"
+                                Style="{StaticResource DataGridFrameStyle}">
+                            <DataGrid ItemsSource="{Binding FilteredOrderTables}"
+                                      x:Name="OrderTablesDataGrid"
+                                      SelectedItem="{Binding SelectedOrderTable}"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      CanUserAddRows="False"
+                                      GridLinesVisibility="Vertical"
+                                      VerticalGridLinesBrush="{StaticResource BorderBrush}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Số hiệu bàn"
+                                                        Binding="{Binding TableNumber}"
+                                                        Width="1.2*"
+                                                        MinWidth="110"/>
+                                    <DataGridTextColumn Header="Chỗ ngồi"
+                                                        Binding="{Binding SeatCount}"
+                                                        Width="0.65*"
+                                                        MinWidth="75"/>
+                                    <DataGridTextColumn Header="Khu vực"
+                                                        Binding="{Binding Area}"
+                                                        Width="1.1*"
+                                                        MinWidth="105"/>
+                                    <DataGridTextColumn Header="Trạng thái"
+                                                        Binding="{Binding OccupancyStatus}"
+                                                        Width="1.15*"
+                                                        MinWidth="105"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                        <WrapPanel Grid.Row="2"
+                                   Margin="0,10,0,0"
+                                   behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
+                            <Button Content="Bắt đầu order"
+                                    Command="{Binding StartOrderCommand}"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Padding="12,7"
+                                    Margin="0,0,8,8"/>
+                        </WrapPanel>
+                    </Grid>
+                </TabItem>
                 <TabItem Header="Order"
                          Visibility="{Binding IsStaffOrderScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid Margin="12">
@@ -1484,8 +1883,8 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="0.9*"/>
-                            <ColumnDefinition Width="1.1*"/>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="1*"/>
                         </Grid.ColumnDefinitions>
                         <Grid Grid.Row="0"
                               Grid.ColumnSpan="2"
@@ -1495,8 +1894,8 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <ScrollViewer Grid.Column="0"
-                                          HorizontalScrollBarVisibility="Auto"
-                                          VerticalScrollBarVisibility="Auto">
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden">
                                 <ItemsControl ItemsSource="{Binding OrderTabs}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -1559,77 +1958,76 @@
                                     Padding="12,5"
                                     Margin="8,0,0,0"/>
                         </Grid>
-                        <StackPanel Grid.Row="1"
-                                    Grid.Column="0"
-                                Margin="0,0,12,0">
-                            <TextBlock Text="Chọn bàn"
-                                       FontSize="20"
-                                       FontWeight="SemiBold"
-                                       Margin="0,0,0,10"/>
-                            <WrapPanel Margin="0,0,0,4">
-                                <TextBox Width="180"
-                                         Text="{Binding OrderTableSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm theo số hiệu bàn"
-                                         Margin="0,0,8,8"/>
-                                <ComboBox Width="145"
-                                          ItemsSource="{Binding OrderTableAreaFilters}"
-                                          SelectedItem="{Binding SelectedOrderTableAreaFilter}"
-                                          ToolTip="Lọc theo khu vực"
-                                          Margin="0,0,8,8"/>
-                                <ComboBox Width="165"
-                                          ItemsSource="{Binding OrderTableStatusFilters}"
-                                          SelectedItem="{Binding SelectedOrderTableStatusFilter}"
-                                          ToolTip="Lọc bàn trống hoặc đang có order"
-                                          Margin="0,0,8,8"/>
-                            </WrapPanel>
-                            <Border Style="{StaticResource DataGridFrameStyle}"
-                                    MinHeight="240"
-                                    MaxHeight="420">
-                                <DataGrid ItemsSource="{Binding FilteredOrderTables}"
-                                        x:Name="OrderTablesDataGrid"
-                                        SelectedItem="{Binding SelectedOrderTable}"
-                                          AutoGenerateColumns="False"
-                                        IsReadOnly="True"
-                                        CanUserAddRows="False"
-                                          GridLinesVisibility="Vertical"
-                                          VerticalGridLinesBrush="{StaticResource BorderBrush}">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Số hiệu bàn"
-                                                Binding="{Binding TableNumber}"
-                                                Width="1.2*"
-                                                MinWidth="110"/>
-                                        <DataGridTextColumn Header="Chỗ ngồi"
-                                                Binding="{Binding SeatCount}"
-                                                Width="0.65*"
-                                                MinWidth="75"/>
-                                        <DataGridTextColumn Header="Khu vực"
-                                                Binding="{Binding Area}"
-                                                Width="1.1*"
-                                                MinWidth="105"/>
-                                        <DataGridTextColumn Header="Trạng thái"
-                                                Binding="{Binding OccupancyStatus}"
-                                                Width="1.15*"
-                                                MinWidth="105"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </Border>
-                            <WrapPanel Margin="0,10,0,0"
-                                    behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
-                                <Button Content="Bắt đầu order"
-                                        Command="{Binding StartOrderCommand}"
-                                        Style="{StaticResource PrimaryButtonStyle}"
-                                        Padding="12,7"
-                                        Margin="0,0,8,8"/>
-                                <Button Content="Hủy order"
-                                        Click="CancelOpenOrder_Click"
-                                        Style="{StaticResource DangerButtonStyle}"
-                                        Padding="12,7"
-                                        Margin="0,0,8,8"/>
-                            </WrapPanel>
-                        </StackPanel>
+                        <Border Grid.Row="1"
+                                Grid.Column="0"
+                                Margin="0,0,12,0"
+                                Background="{StaticResource SurfaceBrush}"
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="14"
+                                Padding="14"
+                                behaviors:DataGridSelectionBehavior.PreserveSelectionOnClick="True">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Chọn danh mục món"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,10"/>
+                                <TabControl Grid.Row="1"
+                                            Grid.RowSpan="2"
+                                            ItemsSource="{Binding OrderProductGroups}"
+                                            SelectedItem="{Binding SelectedOrderProductGroup}">
+                                    <TabControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding CategoryName}"/>
+                                        </DataTemplate>
+                                    </TabControl.ItemTemplate>
+                                    <TabControl.ContentTemplate>
+                                        <DataTemplate>
+                                            <ScrollViewer VerticalScrollBarVisibility="Hidden">
+                                                <ItemsControl ItemsSource="{Binding Products}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <WrapPanel/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Button Command="{Binding DataContext.AddOrderProductCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="{StaticResource SurfaceMutedBrush}"
+                                                                    BorderBrush="{StaticResource BorderBrush}"
+                                                                    Padding="10,8"
+                                                                    Margin="0,0,8,8"
+                                                                    MinWidth="150"
+                                                                    MaxWidth="220">
+                                                                <StackPanel>
+                                                                    <TextBlock Text="{Binding Name}"
+                                                                               FontWeight="SemiBold"
+                                                                               TextWrapping="Wrap"/>
+                                                                    <TextBlock Text="{Binding Price, StringFormat={}{0:N0} đ}"
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                                               FontSize="12"
+                                                                               Margin="0,3,0,0"/>
+                                                                </StackPanel>
+                                                            </Button>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                        </DataTemplate>
+                                    </TabControl.ContentTemplate>
+                                </TabControl>
+                            </Grid>
+                        </Border>
                         <ScrollViewer Grid.Row="1"
                                 Grid.Column="1"
-                                VerticalScrollBarVisibility="Auto">
+                                HorizontalScrollBarVisibility="Disabled"
+                                VerticalScrollBarVisibility="Hidden">
                             <StackPanel>
                                 <TextBlock Text="Chi tiết order"
                                         FontSize="20"
@@ -1642,64 +2040,53 @@
                                     <TextBlock Text="{Binding CurrentOpenOrder.OrderId}"
                                                Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </StackPanel>
-                                <WrapPanel Margin="0,0,0,8">
-                                    <ComboBox Width="260"
-                                            ItemsSource="{Binding OrderableProducts}"
-                                            DisplayMemberPath="Name"
-                                              SelectedItem="{Binding SelectedOrderProduct}"
-                                            Margin="0,0,8,8"/>
-                                    <TextBox Width="90"
-                                            Text="{Binding OrderQuantityText, UpdateSourceTrigger=PropertyChanged}"
-                                            behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Số lượng (1–99)"
-                                            Margin="0,0,8,8"/>
-                                    <Button Content="Thêm món"
-                                            Command="{Binding AddOrderItemCommand}"
-                                            Style="{StaticResource PrimaryButtonStyle}"
-                                            Padding="12,5"
-                                            Margin="0,0,8,8"/>
-                                </WrapPanel>
-                                <TextBox Text="{Binding OrderItemNotes, UpdateSourceTrigger=PropertyChanged}"
-                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Ghi chú món (tùy chọn)"
-                                        Margin="0,0,0,10"/>
                                 <Border Style="{StaticResource DataGridFrameStyle}"
                                         Margin="0,0,0,8">
-                                    <DataGrid ItemsSource="{Binding CurrentOpenOrder.Details}"
+                                    <DataGrid ItemsSource="{Binding CurrentOrderDetails}"
                                             SelectedItem="{Binding SelectedOrderDetail}"
                                             AutoGenerateColumns="False"
-                                              IsReadOnly="True"
+                                            RowHeaderWidth="0"
+                                            HeadersVisibility="Column"
+                                            IsReadOnly="True"
                                             CanUserAddRows="False"
+                                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                             MinHeight="160"
                                             MaxHeight="250">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Món"
                                                     Binding="{Binding ProductName}"
-                                                    Width="*"/>
+                                                    IsReadOnly="True"
+                                                    MinWidth="100"
+                                                    Width="1.5*"/>
                                             <DataGridTextColumn Header="SL"
                                                     Binding="{Binding Quantity}"
-                                                    Width="50"/>
+                                                    MinWidth="58"
+                                                    Width="0.65*"/>
                                             <DataGridTextColumn Header="Ghi chú"
                                                     Binding="{Binding Notes}"
-                                                    Width="*"/>
+                                                    IsReadOnly="True"
+                                                    MinWidth="70"
+                                                    Width="1.2*"/>
                                             <DataGridTextColumn Header="Đơn giá"
                                                     Binding="{Binding UnitPrice, StringFormat={}{0:N0}}"
-                                                    Width="110"/>
+                                                    IsReadOnly="True"
+                                                    MinWidth="80"
+                                                    Width="1*"/>
                                             <DataGridTextColumn Header="Thành tiền"
                                                     Binding="{Binding LineTotal, StringFormat={}{0:N0}}"
-                                                    Width="120"/>
+                                                    IsReadOnly="True"
+                                                    MinWidth="90"
+                                                    Width="1.1*"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </Border>
                                 <WrapPanel Margin="0,0,0,10">
-                                    <TextBox Width="90"
-                                             Text="{Binding EditOrderQuantityText, UpdateSourceTrigger=PropertyChanged}"
-                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Số lượng (1–99)"
-                                             Margin="0,0,8,8"/>
                                     <TextBox Width="220"
                                              Text="{Binding EditOrderItemNotes, UpdateSourceTrigger=PropertyChanged}"
                                              behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Ghi chú món (tùy chọn)"
                                              MaxLength="500"
                                              Margin="0,0,8,8"/>
-                                    <Button Content="Cập nhật món đã chọn"
+                                    <Button Content="Cập nhật ghi chú"
                                             Command="{Binding UpdateOrderItemCommand}"
                                             Padding="12,5"
                                             Margin="0,0,8,8"/>
@@ -1728,13 +2115,6 @@
                                             FontWeight="SemiBold"
                                                HorizontalAlignment="Right"/>
                                 </StackPanel>
-                                <TextBlock Text="Lý do hủy order"
-                                        FontWeight="SemiBold"
-                                        Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding OrderCancellationReason, UpdateSourceTrigger=PropertyChanged}"
-                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Nhập lý do hủy order"
-                                         MaxLength="500"
-                                        Margin="0,0,0,8"/>
                                 <WrapPanel>
                                     <Button Content="Thanh toán tiền mặt"
                                             Click="CompleteCashPayment_Click"
@@ -1746,9 +2126,19 @@
                                             Padding="12,7"
                                             Margin="0,0,8,8"/>
                                 </WrapPanel>
+                                <Button Content="Hủy order"
+                                        Click="CancelOpenOrder_Click"
+                                        Style="{StaticResource DangerButtonStyle}"
+                                        Padding="12,7"
+                                        HorizontalAlignment="Right"
+                                        Margin="0,0,0,8"/>
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>
+                </TabItem>
+                <TabItem Header="Lịch sử">
+                    <ContentControl Content="{Binding}"
+                                    ContentTemplate="{StaticResource OrderHistoryViewTemplate}"/>
                 </TabItem>
                 <TabItem Header="Thực đơn">
                     <Grid Margin="12">
@@ -1787,14 +2177,14 @@
                                             Width="*"/>
                                     <DataGridTextColumn Header="Danh mục"
                                             Binding="{Binding CategoryName}"
-                                            Width="180"/>
+                                            Width="1.1*"/>
                                     <DataGridTextColumn Header="Tags"
                                             Binding="{Binding Tags}"
                                             Width="2*"/>
                                     <DataGridTextColumn Header="Giá bán"
                                             Binding="{Binding Price, StringFormat={}{0:N0}}"
-                                            Width="140"/>
-                                    <DataGridTemplateColumn Header="Còn món" Width="100">
+                                            Width="0.9*"/>
+                                    <DataGridTemplateColumn Header="Còn món" Width="0.7*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ToggleButton IsChecked="{Binding IsAvailable, Mode=OneWay}"

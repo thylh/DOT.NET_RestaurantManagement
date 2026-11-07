@@ -35,6 +35,156 @@ public sealed class RestaurantOrderService(
         return ToSummary(order, promotion);
     }
 
+    public async Task<IReadOnlyList<OrderHistorySummary>> GetOrderHistoryAsync(
+        int? orderId = null,
+        DateTimeOffset? fromInclusive = null,
+        DateTimeOffset? toExclusive = null,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await GetAuthorizedReaderAsync(cancellationToken);
+        ValidateDateRange(fromInclusive, toExclusive);
+        if (orderId is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(orderId), "Mã order phải lớn hơn 0.");
+        }
+
+        var query = dbContext.RestaurantOrders
+            .AsNoTracking()
+            .Include(order => order.RestaurantTable)
+            .Include(order => order.OrderDetails)
+            .Include(order => order.Payment)
+            .AsQueryable();
+        if (user.Role == UserRole.Staff)
+        {
+            query = query.Where(order => order.Status == OrderStatus.Paid);
+        }
+
+        if (orderId is { } id)
+        {
+            query = query.Where(order => order.Id == id);
+        }
+
+        if (fromInclusive is { } start)
+        {
+            query = query.Where(order => order.CreatedAt >= start);
+        }
+
+        if (toExclusive is { } end)
+        {
+            query = query.Where(order => order.CreatedAt < end);
+        }
+
+        var orders = await query
+            .OrderByDescending(order => order.CreatedAt)
+            .ToListAsync(cancellationToken);
+        return orders.Select(ToHistorySummary).ToArray();
+    }
+
+    public async Task<OrderReceiptSummary?> GetOrderReceiptAsync(
+        int orderId,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await GetAuthorizedReaderAsync(cancellationToken);
+        if (orderId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(orderId), "Mã order phải lớn hơn 0.");
+        }
+
+        var receiptQuery = dbContext.RestaurantOrders
+            .AsNoTracking()
+            .Include(candidate => candidate.RestaurantTable)
+            .Include(candidate => candidate.OrderDetails)
+            .Include(candidate => candidate.Payment)
+            .AsQueryable();
+        if (user.Role == UserRole.Staff)
+        {
+            receiptQuery = receiptQuery.Where(candidate => candidate.Status == OrderStatus.Paid);
+        }
+
+        var order = await receiptQuery.SingleOrDefaultAsync(
+            candidate => candidate.Id == orderId,
+            cancellationToken);
+        if (order is null)
+        {
+            return null;
+        }
+
+        var history = ToHistorySummary(order);
+        return new OrderReceiptSummary(
+            history.OrderId,
+            history.TableNumber,
+            history.Area,
+            history.EmployeeName,
+            history.CreatedAt,
+            history.Status,
+            order.AppliedPromotionNameSnapshot,
+            history.Subtotal,
+            history.DiscountAmount,
+            history.Total,
+            history.PaymentMethod,
+            history.PaidAt,
+            history.CancellationReason,
+            order.OrderDetails
+                .OrderBy(detail => detail.Id)
+                .Select(detail => new OrderDetailSummary(
+                    detail.Id,
+                    detail.ProductNameSnapshot,
+                    detail.UnitPriceSnapshot,
+                    detail.Quantity,
+                    detail.Notes,
+                    detail.ProductId))
+                .ToArray());
+    }
+
+    public async Task<SalesReportSummary> GetSalesReportAsync(
+        DateTimeOffset fromInclusive,
+        DateTimeOffset toExclusive,
+        CancellationToken cancellationToken = default)
+    {
+        await GetAuthorizedAdminAsync(cancellationToken);
+        ValidateDateRange(fromInclusive, toExclusive);
+
+        var payments = await dbContext.Payments
+            .AsNoTracking()
+            .Where(payment => payment.Status == PaymentStatus.Completed
+                && payment.RestaurantOrder.Status == OrderStatus.Paid
+                && payment.PaidAt >= fromInclusive
+                && payment.PaidAt < toExclusive)
+            .Include(payment => payment.RestaurantOrder)
+                .ThenInclude(order => order.OrderDetails)
+            .ToListAsync(cancellationToken);
+
+        var paymentMethods = payments
+            .GroupBy(payment => payment.Method)
+            .OrderBy(group => group.Key)
+            .Select(group => new PaymentMethodRevenueSummary(
+                group.Key,
+                group.Count(),
+                group.Sum(payment => payment.Amount)))
+            .ToArray();
+        var topSellingProducts = payments
+            .SelectMany(payment => payment.RestaurantOrder.OrderDetails)
+            .GroupBy(detail => detail.ProductNameSnapshot)
+            .Select(group => new TopSellingProductSummary(
+                group.Key,
+                group.Sum(detail => detail.Quantity),
+                group.Sum(detail => detail.UnitPriceSnapshot * detail.Quantity)))
+            .OrderByDescending(product => product.QuantitySold)
+            .ThenByDescending(product => product.GrossRevenue)
+            .ThenBy(product => product.ProductName)
+            .Take(10)
+            .ToArray();
+
+        return new SalesReportSummary(
+            payments.Count,
+            payments.Sum(payment => payment.RestaurantOrder.OrderDetails
+                .Sum(detail => detail.UnitPriceSnapshot * detail.Quantity)),
+            payments.Sum(payment => payment.RestaurantOrder.DiscountAmountSnapshot),
+            payments.Sum(payment => payment.Amount),
+            paymentMethods,
+            topSellingProducts);
+    }
+
     public async Task<int> StartOrderAsync(
         int tableId,
         CancellationToken cancellationToken = default)
@@ -291,6 +441,79 @@ public sealed class RestaurantOrderService(
         return user;
     }
 
+    private async Task<AuthenticatedUser> GetAuthorizedReaderAsync(CancellationToken cancellationToken)
+    {
+        var user = await GetCurrentAccountAsync(cancellationToken);
+        if (user.Role == UserRole.Staff
+            && user.EmployeeId is { } employeeId
+            && !await dbContext.Employees.AnyAsync(
+                employee => employee.Id == employeeId && employee.IsActive,
+                cancellationToken))
+        {
+            throw new UnauthorizedAccessException("Hồ sơ nhân viên không còn hoạt động.");
+        }
+
+        return user;
+    }
+
+    private async Task<AuthenticatedUser> GetAuthorizedAdminAsync(CancellationToken cancellationToken)
+    {
+        var user = await GetCurrentAccountAsync(cancellationToken);
+        if (user.Role != UserRole.Admin)
+        {
+            throw new UnauthorizedAccessException("Chỉ Admin được xem báo cáo doanh thu.");
+        }
+
+        return user;
+    }
+
+    private async Task<AuthenticatedUser> GetCurrentAccountAsync(CancellationToken cancellationToken)
+    {
+        var user = currentUserSession.User
+            ?? throw new UnauthorizedAccessException("Hãy đăng nhập để xem dữ liệu.");
+        var account = await dbContext.UserAccounts
+            .Where(candidate => candidate.Id == user.Id && !candidate.IsDeleted)
+            .Select(candidate => new { candidate.Role, candidate.EmployeeId })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (account is null
+            || account.Role != user.Role
+            || account.EmployeeId != user.EmployeeId)
+        {
+            throw new UnauthorizedAccessException("Tài khoản không còn quyền truy cập.");
+        }
+
+        return user;
+    }
+
+    private static void ValidateDateRange(DateTimeOffset? fromInclusive, DateTimeOffset? toExclusive)
+    {
+        if (fromInclusive is { } start
+            && toExclusive is { } end
+            && start >= end)
+        {
+            throw new ArgumentException("Ngày bắt đầu phải trước ngày kết thúc.");
+        }
+    }
+
+    private static OrderHistorySummary ToHistorySummary(RestaurantOrder order)
+    {
+        var subtotal = order.OrderDetails.Sum(detail => detail.UnitPriceSnapshot * detail.Quantity);
+        var payment = order.Payment;
+        return new OrderHistorySummary(
+            order.Id,
+            order.RestaurantTable.TableNumber,
+            order.RestaurantTable.Area,
+            order.CreatedByEmployeeNameSnapshot,
+            order.CreatedAt,
+            order.Status,
+            subtotal,
+            order.DiscountAmountSnapshot,
+            payment?.Amount ?? Math.Max(0, subtotal - order.DiscountAmountSnapshot),
+            payment?.Method,
+            payment?.PaidAt,
+            order.CancellationReason);
+    }
+
     private static OpenOrderSummary ToSummary(
         RestaurantOrder order,
         PromotionApplication? promotion) =>
@@ -304,7 +527,8 @@ public sealed class RestaurantOrderService(
                     detail.ProductNameSnapshot,
                     detail.UnitPriceSnapshot,
                     detail.Quantity,
-                    detail.Notes))
+                    detail.Notes,
+                    detail.ProductId))
                 .ToList(),
             promotion?.Name,
             promotion?.DiscountAmount ?? 0);

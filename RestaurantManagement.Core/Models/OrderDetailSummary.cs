@@ -5,7 +5,8 @@ public sealed record OrderDetailSummary(
     string ProductName,
     decimal UnitPrice,
     int Quantity,
-    string? Notes)
+    string? Notes,
+    int ProductId = 0)
 {
     public decimal LineTotal => UnitPrice * Quantity;
 }
