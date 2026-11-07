@@ -8,11 +8,11 @@ Xây dựng ứng dụng desktop phục vụ bài tập lớn, mô phỏng các 
 
 - Ứng dụng chạy cục bộ trên một máy Windows.
 - Dữ liệu được lưu trên MySQL Server 8.4 LTS chạy cục bộ; có thể quản lý bằng MySQL Workbench.
-- Chỉ có hai vai trò trong ứng dụng: `Admin` và `Staff`.
+- Có ba vai trò trong ứng dụng: `Admin`, `Manager` (Quản lý) và `Staff`.
 - Không triển khai truy cập qua mạng LAN hoặc nhiều máy dùng chung database.
 - Không sử dụng ASP.NET Core, Web API, JWT hay kiến trúc client-server.
 
-MySQL Server là database lưu dữ liệu; tài khoản `Admin` và `Staff` là tài khoản đăng nhập ứng dụng. Hai loại này không phải một.
+MySQL Server là database lưu dữ liệu; các vai trò `Admin`, `Manager` và `Staff` là tài khoản đăng nhập ứng dụng. Hai loại này không phải một.
 
 ## 2. Công nghệ
 
@@ -56,9 +56,18 @@ View và code-behind không truy vấn database trực tiếp. ViewModel gọi s
 ### Admin
 
 - Đăng nhập và đổi mật khẩu.
-- Quản lý tài khoản và hồ sơ nhân viên.
-- Quản lý bàn, danh mục món và món ăn.
-- Xem toàn bộ lịch sử order, chi tiết/biên nhận và báo cáo.
+- Quản lý toàn bộ hồ sơ nhân viên, bao gồm cả hồ sơ của Quản lý: tạo, xem, sửa, đình chỉ/bỏ đình chỉ và xóa hồ sơ.
+- Cấp và quản lý tài khoản đăng nhập cho Quản lý và Staff; quản lý quyền tài khoản và tạo hồ sơ cho các tài khoản đã cấp.
+- Xem và lọc Audit Log; không sửa hoặc xóa nhật ký.
+
+### Manager (Quản lý)
+
+- Đăng nhập và đổi mật khẩu; tài khoản phải có hồ sơ nhân viên đang hoạt động.
+- Xem danh sách nhân viên Staff và hồ sơ chưa gắn tài khoản; không xem hồ sơ của các tài khoản Quản lý.
+- Chỉ được đình chỉ nhân viên Staff; không được bỏ đình chỉ, sửa thông tin hoặc xóa hồ sơ. Admin chịu trách nhiệm các thao tác quản trị hồ sơ còn lại.
+- Quản lý bàn, danh mục món, món ăn và khuyến mãi.
+- Xem toàn bộ lịch sử order, chi tiết/biên nhận, kể cả order đang mở, cùng báo cáo.
+- Không quản lý tài khoản đăng nhập/phân quyền và không xử lý order hoặc thanh toán thay Staff.
 
 ### Staff
 
@@ -68,7 +77,7 @@ View và code-behind không truy vấn database trực tiếp. ViewModel gọi s
 - Tạo/cập nhật order.
 - Thực hiện thanh toán; tra cứu lịch sử chỉ gồm order đã thanh toán và xem chi tiết/biên nhận của các order đó.
 
-Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩn hoặc hiện nút trên giao diện. Không tạo thêm vai trò ngoài Admin/Staff trong phiên bản đầu.
+Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩn hoặc hiện nút trên giao diện.
 
 ## 5. Phạm vi chức năng
 
@@ -85,9 +94,18 @@ Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩ
 - Khi database chưa có tài khoản nào, hiển thị quy trình thiết lập lần đầu để tạo tài khoản Admin; không tạo sẵn mật khẩu mặc định trong mã nguồn.
 - Sau khi khởi tạo Admin, không cho quy trình thiết lập lần đầu chạy lại nếu đã tồn tại tài khoản.
 
+### 5.1.1 Audit Log
+
+- Lưu nhật ký tập trung trong một bảng `AuditLogs`, phân loại theo tài khoản, nhân viên, danh mục và order.
+- Ghi tự động các thao tác tạo/sửa/xóa, đổi vai trò/mật khẩu, đình chỉ/bỏ đình chỉ, thanh toán và hủy order; lưu thời điểm, người thao tác/vai trò, đối tượng, tóm tắt và thay đổi trước/sau.
+- Admin có thể tìm kiếm theo người thao tác/đối tượng/nội dung, lọc theo nhóm và khoảng ngày; hiển thị tối đa 500 kết quả gần nhất cho mỗi truy vấn.
+- Chỉ Admin được đọc nhật ký. Không có thao tác sửa/xóa nhật ký trong ứng dụng.
+- Không lưu mật khẩu, hash mật khẩu, mật khẩu tạm, token hoặc secret vào nội dung thay đổi.
+
 ### 5.2 Quản lý nhân viên
 
-- Tạo, xem, sửa và ngừng hoạt động hồ sơ nhân viên.
+- Admin quản lý toàn bộ hồ sơ nhân viên, bao gồm hồ sơ của tài khoản Quản lý.
+- Quản lý chỉ xem nhân viên Staff và hồ sơ chưa gắn tài khoản; chỉ có quyền đình chỉ, không được sửa thông tin, xóa hồ sơ hoặc bỏ đình chỉ.
 - Lưu thông tin cần thiết cho bài tập lớn, ví dụ họ tên, liên hệ và trạng thái làm việc.
 - Phân biệt hồ sơ nhân viên (`Employee`) với tài khoản đăng nhập (`UserAccount`); đình chỉ hồ sơ chặn đăng nhập, còn xóa hồ sơ cho phép đăng nhập chỉ xem để có thể tái sử dụng tài khoản khi nhân viên quay lại.
 - Hồ sơ mới và hồ sơ đã bị xóa có trạng thái hiển thị riêng trong danh sách tài khoản; tạo lại hồ sơ sẽ xóa trạng thái đã bị xóa.
@@ -96,12 +114,12 @@ Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩ
 
 ### 5.3 Quản lý bàn và thực đơn
 
-- Admin quản lý bố trí bàn (khu vực, số hiệu dạng văn bản và số chỗ ngồi), danh mục và món ăn.
+- Quản lý quản lý bố trí bàn (khu vực, số hiệu dạng văn bản và số chỗ ngồi), danh mục và món ăn.
 - Số hiệu bàn là văn bản tự do (ví dụ `Bàn 1`, `A1`); không trùng số hiệu trong cùng một khu vực.
 - Khu vực chọn từ danh sách `Chung`, `Riêng tư`, `VIP` và `Ngoài trời`; khu vực cũ đã có trong dữ liệu vẫn được giữ để không làm mất cấu hình.
-- Admin quản lý trạng thái phục vụ: ngừng phục vụ hoặc mở lại bàn; không thể ngừng bàn đang có order mở.
+- Quản lý quản lý trạng thái phục vụ: ngừng phục vụ hoặc mở lại bàn; không thể ngừng bàn đang có order mở.
 - Nhân viên có hồ sơ đang hoạt động được xem thực đơn và cập nhật trạng thái món còn/hết theo tình hình thực tế; không được sửa thông tin món, danh mục hoặc trạng thái kinh doanh.
-- Admin quản lý trạng thái kinh doanh của danh mục và món. Trạng thái còn/hết món độc lập với trạng thái kinh doanh.
+- Quản lý quản lý trạng thái kinh doanh của danh mục và món. Trạng thái còn/hết món độc lập với trạng thái kinh doanh.
 - Sơ đồ bố trí bàn trực quan trên mặt bằng nhà hàng là phần mở rộng sau; phiên bản hiện tại quản lý khu vực bằng thông tin bàn.
 - Staff xem tình trạng sử dụng là `Trống` hoặc `Có khách` (suy ra từ order mở) để phục vụ order; không quản lý trạng thái phục vụ.
 - Chỉ xóa bàn chưa từng có order; không ngừng phục vụ hoặc xóa bàn đang có order mở.
@@ -111,7 +129,7 @@ Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩ
 
 ### 5.4 Order
 
-- Chỉ Staff có hồ sơ đang hoạt động được tạo và xử lý order; Admin chỉ quản lý cấu hình, không thao tác order.
+- Chỉ Staff có hồ sơ đang hoạt động được tạo và xử lý order; Admin và Quản lý không thao tác order.
 - Khu vực Staff tách riêng thao tác chọn bàn và xử lý order; bắt đầu order từ bàn trống ở mục `Chọn bàn`, còn mục `Order` hiển thị thực đơn theo danh mục để chọn món.
 - Chỉ có tối đa một order đang mở trên mỗi bàn.
 - Thêm món, số lượng và ghi chú; hiển thị tổng tiền từ snapshot giá tại thời điểm gọi.
@@ -134,7 +152,7 @@ Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩ
 
 ### 5.6 Khuyến mãi
 
-- Admin tạo, cập nhật và bật/tắt chương trình khuyến mãi theo món cụ thể hoặc danh mục.
+- Quản lý tạo, cập nhật và bật/tắt chương trình khuyến mãi theo món cụ thể hoặc danh mục.
 - Mỗi chương trình có tên, mức giảm phần trăm và thời gian bắt đầu/kết thúc; ngày kết thúc được tính hết ngày đã chọn.
 - Chỉ chương trình đang bật và còn hiệu lực mới được xét áp dụng.
 - Khuyến mãi được tính tự động trên order. Nếu có nhiều chương trình đủ điều kiện, chỉ áp dụng chương trình đem lại số tiền giảm lớn nhất; không cộng dồn.
@@ -167,8 +185,8 @@ Các entity nghiệp vụ đặt trong `RestaurantManagement.Core/Entities`:
 
 Các enum dự kiến:
 
-- `UserRole`: `Admin`, `Staff`.
-- Trạng thái có khách được suy ra từ order đang mở; trạng thái phục vụ do Admin quản lý và không thể ngừng bàn khi bàn có order mở.
+- `UserRole`: `Admin`, `Manager`, `Staff`.
+- Trạng thái có khách được suy ra từ order đang mở; trạng thái phục vụ do Quản lý quản lý và không thể ngừng bàn khi bàn có order mở.
 - `OrderStatus`: tối thiểu `Open`, `Paid`, `Cancelled`.
 - `PaymentMethod`: tối thiểu `Cash`, `BankTransfer`.
 - `PaymentStatus`: tối thiểu `Completed`; chỉ bổ sung trạng thái khác khi có luồng nghiệp vụ tương ứng.
@@ -226,9 +244,9 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 - Xây dựng luồng thiết lập Admin lần đầu khi database chưa có tài khoản.
 - Áp dụng kiểm tra quyền trong service và điều hướng giao diện.
 
-**Kết quả:** Admin và Staff chỉ sử dụng được chức năng tương ứng.
+**Kết quả:** Admin, Manager và Staff chỉ sử dụng được chức năng tương ứng.
 
-**Trạng thái:** Hoàn thành. Luồng thiết lập Admin lần đầu, đăng nhập/đăng xuất, đổi mật khẩu, quản lý hồ sơ nhân viên và tài khoản, cùng kiểm tra quyền tại service đã được triển khai. Tạo hồ sơ nhân viên được thực hiện từ tài khoản; danh mục Nhân viên cung cấp thao tác tạm đình chỉ/bỏ đình chỉ, sửa số điện thoại và email, hoặc xóa hồ sơ. Tạm đình chỉ chặn đăng nhập. Xóa hồ sơ giữ tài khoản và lịch sử order, bỏ liên kết hồ sơ khỏi order, đồng thời ghi nhận trạng thái “Hồ sơ đã bị xóa” để phân biệt với tài khoản chưa từng có hồ sơ. Tài khoản Staff không có hồ sơ vẫn đăng nhập được ở chế độ chỉ xem, không bị buộc đổi mật khẩu tạm và luôn thấy cảnh báo cố định; Admin không bị giới hạn bởi chế độ này và vẫn vào workspace để thao tác/tải dữ liệu. Không còn chức năng khóa/mở khóa tài khoản; xóa tài khoản đánh dấu tài khoản đã bị xóa, chặn đăng nhập và ẩn khỏi danh sách tài khoản nhưng giữ hồ sơ/order/payment; hồ sơ nhân viên liên kết được chuyển sang ngừng hoạt động. Có thể tạo lại hồ sơ từ tài khoản chưa bị xóa. Số điện thoại/email được kiểm tra định dạng ở cả giao diện và service.
+**Trạng thái:** Hoàn thành. Luồng thiết lập Admin lần đầu, đăng nhập/đăng xuất, đổi mật khẩu và phân quyền đã được triển khai. Admin cấp/quản lý tài khoản, tạo hồ sơ cho tài khoản đã cấp và quản lý toàn bộ hồ sơ nhân viên, kể cả hồ sơ Quản lý. Manager chỉ xem nhân viên Staff/hồ sơ chưa gắn tài khoản và chỉ được đình chỉ; không thể sửa hoặc xóa hồ sơ, cũng không thể bỏ đình chỉ. Staff xử lý nghiệp vụ phục vụ. Tạm đình chỉ hồ sơ chặn đăng nhập. Xóa hồ sơ giữ tài khoản và lịch sử order, bỏ liên kết hồ sơ khỏi order, đồng thời ghi nhận trạng thái “Hồ sơ đã bị xóa” để phân biệt với tài khoản chưa từng có hồ sơ. Tài khoản Staff không có hồ sơ vẫn đăng nhập được ở chế độ chỉ xem, không bị buộc đổi mật khẩu tạm và luôn thấy cảnh báo cố định; tài khoản Manager phải có hồ sơ hoạt động. Không còn chức năng khóa/mở khóa tài khoản; xóa tài khoản đánh dấu tài khoản đã bị xóa, chặn đăng nhập và ẩn khỏi danh sách tài khoản nhưng giữ hồ sơ/order/payment; hồ sơ nhân viên liên kết được chuyển sang ngừng hoạt động. Có thể tạo lại hồ sơ từ tài khoản chưa bị xóa. Số điện thoại/email được kiểm tra định dạng ở cả giao diện và service. Audit Log đã có bảng riêng dùng chung cho các nhóm Account, Employee, Catalog và Order, chỉ Admin được tra cứu.
 
 ### Giai đoạn D — Bàn và thực đơn
 
@@ -238,7 +256,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** dữ liệu bàn và thực đơn được quản lý, lưu bền vững.
 
-**Trạng thái:** Hoàn thành. Admin quản lý khu vực, số hiệu dạng văn bản, số chỗ ngồi, trạng thái phục vụ, danh mục và món ăn; Staff xem các bàn đang phục vụ cùng tình trạng `Trống`/`Có khách` để thao tác order. Đã có tìm kiếm/lọc thực đơn, tags chọn nhiều, công tắc trạng thái trực tiếp trong bảng và bảo vệ dữ liệu đã được order tham chiếu. Staff có hồ sơ đang hoạt động được phép cập nhật còn/hết món; chỉ Admin được đổi trạng thái kinh doanh. Không quản lý kho/nguyên liệu. Chưa có sơ đồ bố trí bàn trực quan.
+**Trạng thái:** Hoàn thành. Manager quản lý khu vực, số hiệu dạng văn bản, số chỗ ngồi, trạng thái phục vụ, danh mục và món ăn; Staff xem các bàn đang phục vụ cùng tình trạng `Trống`/`Có khách` để thao tác order. Đã có tìm kiếm/lọc thực đơn, tags chọn nhiều, công tắc trạng thái trực tiếp trong bảng và bảo vệ dữ liệu đã được order tham chiếu. Staff có hồ sơ đang hoạt động được phép cập nhật còn/hết món; Manager quản lý trạng thái kinh doanh. Không quản lý kho/nguyên liệu. Chưa có sơ đồ bố trí bàn trực quan.
 
 ### Giai đoạn E — Order
 
@@ -262,7 +280,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** order được thanh toán và tra cứu nhất quán.
 
-**Trạng thái:** Staff có hồ sơ đang hoạt động có thể thanh toán tiền mặt/chuyển khoản mô phỏng; payment và trạng thái order được lưu trong transaction, bàn tự trở về trạng thái trống khi order thanh toán hoặc hủy. Khuyến mãi đủ điều kiện được tính tự động; tên chương trình và số tiền giảm được lưu snapshot. Lịch sử có thể tra cứu theo mã hoặc khoảng ngày; chi tiết/biên nhận được dựng từ snapshot order/payment. Admin xem toàn bộ lịch sử; Staff chỉ xem order đã thanh toán. Báo cáo doanh thu chỉ dành cho Admin.
+**Trạng thái:** Staff có hồ sơ đang hoạt động có thể thanh toán tiền mặt/chuyển khoản mô phỏng; payment và trạng thái order được lưu trong transaction, bàn tự trở về trạng thái trống khi order thanh toán hoặc hủy. Khuyến mãi đủ điều kiện được tính tự động; tên chương trình và số tiền giảm được lưu snapshot. Lịch sử có thể tra cứu theo mã hoặc khoảng ngày; chi tiết/biên nhận được dựng từ snapshot order/payment. Manager xem toàn bộ lịch sử và báo cáo; Staff chỉ xem order đã thanh toán. Admin không xem lịch sử hoặc báo cáo; Audit Log riêng được dành cho Admin.
 
 ### Giai đoạn G — Khuyến mãi
 
@@ -293,13 +311,14 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** ứng dụng chạy ổn định trên một máy và có tài liệu bàn giao.
 
-**Trạng thái:** Chức năng nghiệp vụ chính đã triển khai. Kiểm thử tích hợp MySQL và kịch bản demo vẫn cần hoàn thiện trước khi bàn giao.
+**Trạng thái:** Đã chạy toàn bộ bộ test với MySQL thật: 41/41 đạt, không có test bị bỏ qua. Ca tích hợp xác nhận các luồng tài khoản, phân quyền, nhân viên, danh mục/món, order, thanh toán, báo cáo, Audit Log và dọn dữ liệu database test. Đã sửa các assertion lỗi thời và thứ tự xóa dữ liệu test theo khóa ngoại. Còn chuẩn bị dữ liệu demo, kịch bản trình diễn và tiếp tục rà soát UI/UX trước khi bàn giao.
 
 ## 9. Kiểm thử và tiêu chí nghiệm thu
 
 ### Kiểm thử tối thiểu
 
-- Đăng nhập đúng/sai; tài khoản đã bị xóa, nhân viên bị đình chỉ hoặc tài khoản không có hồ sơ; kiểm tra quyền Admin/Staff.
+- Đã xác nhận: `dotnet test .\RestaurantManagement.Tests\RestaurantManagement.Tests.csproj` với `RESTAURANT_TEST_CONNECTION_STRING` trỏ chính xác tới `RestaurantManagement_Test`: 41 đạt, 0 lỗi, 0 bỏ qua.
+- Đăng nhập đúng/sai; tài khoản đã bị xóa, nhân viên bị đình chỉ hoặc tài khoản không có hồ sơ; kiểm tra quyền Admin/Manager/Staff.
 - Thiết lập Admin lần đầu thành công trên database chưa có tài khoản; không thể chạy lại sau khi đã có tài khoản.
 - CRUD nhân viên, bàn, danh mục và món.
 - Tạm đình chỉ nhân viên làm họ không thể đăng nhập; bỏ đình chỉ khôi phục khả năng đăng nhập.
@@ -321,7 +340,8 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 - Solution build thành công.
 - Có thể khởi chạy ứng dụng trên một máy Windows với MySQL Server 8.4 LTS.
-- Admin quản lý được tài khoản/nhân viên, bàn và thực đơn.
+- Admin quản lý được tài khoản và toàn bộ hồ sơ nhân viên; Manager chỉ đình chỉ nhân viên, đồng thời quản lý bàn, thực đơn và khuyến mãi.
+- Manager xem được toàn bộ lịch sử order và báo cáo; Admin không có quyền truy cập các màn nghiệp vụ này.
 - Staff xử lý được order và thanh toán theo quyền.
 - Dữ liệu được lưu và truy xuất lại sau khi khởi động lại ứng dụng.
 - Có thể tra cứu biên nhận và xem báo cáo chính.
@@ -330,9 +350,10 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 ## 10. Phần chưa hoàn thiện và mở rộng
 
-Các phần chức năng bắt buộc theo phạm vi hiện tại đã được triển khai. Các đầu việc kiểm thử và bàn giao còn lại:
+Các phần chức năng bắt buộc theo phạm vi hiện tại đã được triển khai; bộ test tích hợp MySQL đã đạt. Các đầu việc bàn giao còn lại:
 
-- Hoàn thiện kiểm thử tích hợp trên MySQL và kịch bản demo.
+- Chuẩn bị dữ liệu demo và hoàn thiện kịch bản trình diễn.
+- Tiếp tục rà soát UI/UX trước khi bàn giao.
 
 Các ý tưởng mở rộng chưa thuộc phạm vi hiện tại:
 

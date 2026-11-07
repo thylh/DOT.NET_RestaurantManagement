@@ -18,7 +18,8 @@ public partial class MainWindowViewModel(
     IEmployeeManagementService employeeManagementService,
     IRestaurantCatalogService restaurantCatalogService,
     ILogger<MainWindowViewModel> logger,
-    IRestaurantOrderService? restaurantOrderService = null) : ObservableObject
+    IRestaurantOrderService? restaurantOrderService = null,
+    IAuditLogService? auditLogService = null) : ObservableObject
 {
     private ObservableCollection<ProductTagOption>? _productTagOptions;
     private IReadOnlyList<ProductSummary> _catalogProducts = [];
@@ -33,7 +34,9 @@ public partial class MainWindowViewModel(
     public ObservableCollection<AccountSummary> FilteredAccounts { get; } = [];
 
     public ObservableCollection<string> AccountRoleFilters { get; } =
-        ["Tất cả vai trò", "Quản trị viên", "Nhân viên"];
+        ["Tất cả vai trò", "Quản lý", "Nhân viên"];
+
+    public ObservableCollection<string> AccountRoleOptions { get; } = ["Nhân viên", "Quản lý"];
 
     public ObservableCollection<string> AccountProfileFilters { get; } =
         ["Tất cả hồ sơ", "Đã tạo hồ sơ", "Chưa tạo hồ sơ", "Hồ sơ đã bị xóa"];
@@ -78,6 +81,15 @@ public partial class MainWindowViewModel(
 
     public ObservableCollection<OrderHistorySummary> OrderHistory { get; } = [];
 
+    public ObservableCollection<AuditLogSummary> AuditLogs { get; } = [];
+
+    public ObservableCollection<string> AuditLogCategoryFilters { get; } =
+        ["Tất cả nhóm", "Tài khoản", "Nhân viên", "Bàn / thực đơn", "Order"];
+
+    public ObservableCollection<string> AuditLogActionFilters { get; } =
+        ["Tất cả hành động", "Tạo mới", "Cập nhật", "Xóa", "Đổi vai trò", "Đổi mật khẩu",
+            "Đình chỉ", "Bỏ đình chỉ", "Thanh toán", "Hủy"];
+
     public ObservableCollection<string> ProductCategoryFilters { get; } = ["Tất cả danh mục"];
 
     public ObservableCollection<string> PromotionTargetTypes { get; } = ["Món ăn", "Danh mục"];
@@ -94,7 +106,7 @@ public partial class MainWindowViewModel(
 
     public bool IsStaffOrderScreen => IsStaffScreen && !IsReadOnlyStaff;
 
-    public bool CanToggleProductAvailability => IsAdminScreen || IsStaffOrderScreen;
+    public bool CanToggleProductAvailability => IsManagerScreen || IsStaffOrderScreen;
 
     public bool IsPromotionProductTarget => SelectedPromotionTargetType == "Món ăn";
 
@@ -115,16 +127,28 @@ public partial class MainWindowViewModel(
 
     public bool IsAdmin => currentUserSession.User?.Role == UserRole.Admin;
 
+    public bool IsManager => currentUserSession.User?.Role == UserRole.Manager;
+
     public bool IsSetupScreen => IsSetupRequired;
 
     public bool IsLoginScreen => !IsSetupRequired && !IsAuthenticated;
 
     public bool IsAdminScreen => IsAuthenticatedWorkspace && IsAdmin;
 
-    public bool IsStaffScreen => IsAuthenticatedWorkspace && !IsAdmin;
+    public bool IsManagerScreen => IsAuthenticatedWorkspace && IsManager;
+
+    public bool IsManagementScreen => IsAdminScreen || IsManagerScreen;
+
+    public bool IsStaffScreen => IsAuthenticatedWorkspace
+        && currentUserSession.User?.Role == UserRole.Staff;
 
     public string CurrentUserDescription => currentUserSession.User is { } user
-        ? $"{user.Username} ({(user.Role == UserRole.Admin ? "Quản trị viên" : "Nhân viên")})"
+        ? $"{user.Username} ({user.Role switch
+        {
+            UserRole.Admin => "Quản trị viên",
+            UserRole.Manager => "Quản lý",
+            _ => "Nhân viên"
+        }})"
         : string.Empty;
 
     [ObservableProperty]
@@ -179,6 +203,9 @@ public partial class MainWindowViewModel(
     private string accountEmployeeEmail = string.Empty;
 
     [ObservableProperty]
+    private string accountRoleToCreate = "Nhân viên";
+
+    [ObservableProperty]
     private EmployeeAccountSummary? selectedEmployee;
 
     [ObservableProperty]
@@ -195,6 +222,24 @@ public partial class MainWindowViewModel(
 
     [ObservableProperty]
     private string selectedAccountProfileFilter = "Tất cả hồ sơ";
+
+    [ObservableProperty]
+    private int managementWorkspaceSelectedIndex;
+
+    [ObservableProperty]
+    private string auditLogSearchText = string.Empty;
+
+    [ObservableProperty]
+    private string selectedAuditLogCategoryFilter = "Tất cả nhóm";
+
+    [ObservableProperty]
+    private string selectedAuditLogActionFilter = "Tất cả hành động";
+
+    [ObservableProperty]
+    private DateTime? auditLogFromDate;
+
+    [ObservableProperty]
+    private DateTime? auditLogToDate;
 
     [ObservableProperty]
     private string employeeSearchText = string.Empty;
@@ -452,9 +497,12 @@ public partial class MainWindowViewModel(
             OnPropertyChanged(nameof(IsStaffOrderScreen));
             OnPropertyChanged(nameof(CanToggleProductAvailability));
             OnPropertyChanged(nameof(IsAdmin));
+            OnPropertyChanged(nameof(IsManager));
             OnPropertyChanged(nameof(IsPasswordChangeRequired));
             OnPropertyChanged(nameof(IsAuthenticatedWorkspace));
             OnPropertyChanged(nameof(IsAdminScreen));
+            OnPropertyChanged(nameof(IsManagerScreen));
+            OnPropertyChanged(nameof(IsManagementScreen));
             OnPropertyChanged(nameof(IsStaffScreen));
             OnPropertyChanged(nameof(IsLoginScreen));
             OnPropertyChanged(nameof(CurrentUserDescription));
@@ -475,8 +523,18 @@ public partial class MainWindowViewModel(
             }
             else if (user.Role == UserRole.Admin)
             {
-                await RefreshEmployeesAsync();
+                ManagementWorkspaceSelectedIndex = 0;
                 await RefreshAccountsAsync();
+                await RefreshEmployeesAsync();
+                if (auditLogService is not null)
+                {
+                    await RefreshAuditLogsAsync();
+                }
+            }
+            else if (user.Role == UserRole.Manager)
+            {
+                ManagementWorkspaceSelectedIndex = 1;
+                await RefreshEmployeesAsync();
                 await RefreshCatalogAsync();
             }
             else
@@ -492,6 +550,7 @@ public partial class MainWindowViewModel(
         currentUserSession.SignOut();
         Employees.Clear();
         Accounts.Clear();
+        AuditLogs.Clear();
         Tables.Clear();
         Categories.Clear();
         Products.Clear();
@@ -501,6 +560,7 @@ public partial class MainWindowViewModel(
         OrderProductGroups.Clear();
         CurrentOrderDetails.Clear();
         SelectedStaffWorkspaceIndex = 0;
+        ManagementWorkspaceSelectedIndex = 0;
         SelectedOrderHistory = null;
         CurrentOrderReceipt = null;
         SalesReport = null;
@@ -519,9 +579,12 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(IsStaffOrderScreen));
         OnPropertyChanged(nameof(CanToggleProductAvailability));
         OnPropertyChanged(nameof(IsAdmin));
+        OnPropertyChanged(nameof(IsManager));
         OnPropertyChanged(nameof(IsPasswordChangeRequired));
         OnPropertyChanged(nameof(IsAuthenticatedWorkspace));
         OnPropertyChanged(nameof(IsAdminScreen));
+        OnPropertyChanged(nameof(IsManagerScreen));
+        OnPropertyChanged(nameof(IsManagementScreen));
         OnPropertyChanged(nameof(IsStaffScreen));
         OnPropertyChanged(nameof(IsLoginScreen));
         OnPropertyChanged(nameof(CurrentUserDescription));
@@ -550,34 +613,20 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
-    private async Task CreateEmployeeAsync()
-    {
-        await RunOperationAsync(async () =>
-        {
-            await employeeManagementService.CreateEmployeeAsync(
-                EmployeeName,
-                EmployeePhone,
-                EmployeeEmail);
-            EmployeeName = string.Empty;
-            EmployeePhone = string.Empty;
-            EmployeeEmail = string.Empty;
-            await RefreshEmployeesAsync();
-            StatusMessage = "Đã tạo hồ sơ nhân viên.";
-        });
-    }
-
-    [RelayCommand]
     private async Task CreateAccountAsync()
     {
         await RunOperationAsync(async () =>
         {
+            var role = AccountRoleToCreate == "Quản lý" ? UserRole.Manager : UserRole.Staff;
             var credentials = await employeeManagementService.CreateAccountAsync(
                 AccountEmployeeName,
                 AccountEmployeePhone,
-                AccountEmployeeEmail);
+                AccountEmployeeEmail,
+                role);
             AccountEmployeeName = string.Empty;
             AccountEmployeePhone = string.Empty;
             AccountEmployeeEmail = string.Empty;
+            AccountRoleToCreate = "Nhân viên";
             await RefreshAccountsAsync();
             StatusMessage = "Đã tạo tài khoản. Hãy gửi mật khẩu tạm cho nhân viên; hệ thống sẽ yêu cầu đổi mật khẩu ở lần đăng nhập đầu.";
         });
@@ -665,7 +714,7 @@ public partial class MainWindowViewModel(
                 EmployeePhone,
                 EmployeeEmail);
             await RefreshEmployeesAsync();
-            StatusMessage = "Đã cập nhật số điện thoại và email nhân viên.";
+            StatusMessage = "Đã cập nhật thông tin nhân viên.";
         });
     }
 
@@ -1475,6 +1524,67 @@ public partial class MainWindowViewModel(
         SelectedAccount = FilteredAccounts.FirstOrDefault(account => account.AccountId == selectedAccountId);
     }
 
+    [RelayCommand]
+    private async Task LoadAuditLogsAsync()
+    {
+        if (auditLogService is null)
+        {
+            ErrorMessage = "Chức năng Audit Log chưa được khởi tạo.";
+            return;
+        }
+
+        if (!IsAdminScreen)
+        {
+            ErrorMessage = "Chỉ Admin mới được xem Audit Log.";
+            return;
+        }
+
+        await RunOperationAsync(RefreshAuditLogsAsync);
+    }
+
+    private async Task RefreshAuditLogsAsync()
+    {
+        if (auditLogService is null || !IsAdminScreen)
+        {
+            AuditLogs.Clear();
+            return;
+        }
+
+        var category = SelectedAuditLogCategoryFilter switch
+        {
+            "Tài khoản" => AuditLogCategory.Account,
+            "Nhân viên" => AuditLogCategory.Employee,
+            "Bàn / thực đơn" => AuditLogCategory.Catalog,
+            "Order" => AuditLogCategory.Order,
+            _ => (AuditLogCategory?)null
+        };
+        var action = SelectedAuditLogActionFilter switch
+        {
+            "Tạo mới" => AuditLogAction.Created,
+            "Cập nhật" => AuditLogAction.Updated,
+            "Xóa" => AuditLogAction.Deleted,
+            "Đổi vai trò" => AuditLogAction.RoleChanged,
+            "Đổi mật khẩu" => AuditLogAction.PasswordChanged,
+            "Đình chỉ" => AuditLogAction.Suspended,
+            "Bỏ đình chỉ" => AuditLogAction.Reactivated,
+            "Thanh toán" => AuditLogAction.Paid,
+            "Hủy" => AuditLogAction.Cancelled,
+            _ => (AuditLogAction?)null
+        };
+        var logs = await auditLogService.GetAuditLogsAsync(new AuditLogFilter(
+            category,
+            action,
+            AuditLogSearchText,
+            ToUtcBoundary(AuditLogFromDate),
+            ToUtcExclusiveBoundary(AuditLogToDate)));
+
+        AuditLogs.Clear();
+        foreach (var log in logs)
+        {
+            AuditLogs.Add(log);
+        }
+    }
+
     private void ApplyAccountFilters()
     {
         var searchText = AccountSearchText.Trim();
@@ -1485,6 +1595,7 @@ public partial class MainWindowViewModel(
              || ContainsSearchText(account.Phone, searchText)
              || ContainsSearchText(account.Email, searchText))
             && (SelectedAccountRoleFilter == "Tất cả vai trò"
+                || (SelectedAccountRoleFilter == "Quản lý" && account.Role == UserRole.Manager)
                 || (SelectedAccountRoleFilter == "Quản trị viên" && account.Role == UserRole.Admin)
                 || (SelectedAccountRoleFilter == "Nhân viên" && account.Role == UserRole.Staff))
             && (SelectedAccountProfileFilter == "Tất cả hồ sơ"
@@ -1614,7 +1725,7 @@ public partial class MainWindowViewModel(
     private async Task RefreshPromotionsAsync(int? selectedPromotionId = null)
     {
         Promotions.Clear();
-        if (!IsAdminScreen)
+        if (!IsManagerScreen)
         {
             SelectedPromotion = null;
             return;

@@ -27,8 +27,10 @@ public class DatabaseFoundationTests
                 $"Database thử nghiệm phải có tên chính xác là {TestDatabaseName} để tránh xóa nhầm dữ liệu.");
         }
 
+        var session = new CurrentUserSession();
         var options = new DbContextOptionsBuilder<RestaurantDbContext>()
             .UseMySQL(connectionString)
+            .AddInterceptors(new AuditLogSaveChangesInterceptor(session))
             .Options;
         const string password = "Phase-B-test-password-2026";
         var databaseReady = false;
@@ -55,7 +57,6 @@ public class DatabaseFoundationTests
                 await Assert.ThrowsAsync<InitialAdminAlreadyExistsException>(
                     () => setupService.CreateInitialAdminAsync("another-admin", password));
 
-                var session = new CurrentUserSession();
                 var authenticationService = new AuthenticationService(dbContext, session);
                 Assert.Null(await authenticationService.SignInAsync("test-admin", "incorrect-password"));
                 Assert.Null(session.User);
@@ -68,6 +69,46 @@ public class DatabaseFoundationTests
                 Assert.NotNull(admin);
                 Assert.Equal(UserRole.Admin, admin.Role);
 
+                var employeeService = new EmployeeManagementService(dbContext, session);
+                var managerCredentials = await employeeService.CreateAccountAsync(
+                    "Quản lý nhà hàng",
+                    null,
+                    "manager@example.test",
+                    UserRole.Manager);
+                await employeeService.CreateEmployeeProfileAsync(managerCredentials.AccountId);
+                var auditService = new AuditLogService(dbContext, session);
+                var accountAudit = Assert.Single(
+                    await auditService.GetAuditLogsAsync(new AuditLogFilter(
+                        AuditLogCategory.Account,
+                        AuditLogAction.Created,
+                        managerCredentials.Username,
+                        null,
+                        null)),
+                    log => log.Action == AuditLogAction.Created);
+                Assert.Equal(managerCredentials.Username, accountAudit.TargetName);
+                Assert.DoesNotContain("PasswordHash", accountAudit.ChangesJson ?? string.Empty);
+                Assert.DoesNotContain("EncryptedTemporaryPassword", accountAudit.ChangesJson ?? string.Empty);
+                Assert.DoesNotContain(
+                    managerCredentials.TemporaryPassword,
+                    accountAudit.ChangesJson ?? string.Empty);
+                var manager = await authenticationService.SignInAsync(
+                    managerCredentials.Username,
+                    managerCredentials.TemporaryPassword);
+                Assert.NotNull(manager);
+                Assert.Equal(UserRole.Manager, manager.Role);
+                var managerEmployeeId = Assert.IsType<int>(manager.EmployeeId);
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => auditService.GetAuditLogsAsync(new AuditLogFilter(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null)));
+
+                session.SignIn(admin);
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => catalogService.CreateTableAsync("Bàn 1", 4, "Sảnh chính"));
+                session.SignIn(manager);
                 await catalogService.CreateTableAsync("Bàn 1", 4, "Sảnh chính");
                 await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                     () => catalogService.CreateTableAsync("Bàn 1", 0));
@@ -130,7 +171,7 @@ public class DatabaseFoundationTests
                     null);
                 Assert.Empty(await catalogService.GetProductsAsync("Món không tồn tại"));
 
-                var employeeService = new EmployeeManagementService(dbContext, session);
+                session.SignIn(admin);
                 var staffCredentials = await employeeService.CreateAccountAsync(
                     "Nguyễn Văn An",
                     "0123456789",
@@ -146,10 +187,15 @@ public class DatabaseFoundationTests
                         null,
                         "not-an-email"));
 
-                Assert.Empty(await employeeService.GetEmployeesAsync());
+                var adminEmployeeList = await employeeService.GetEmployeesAsync();
+                Assert.Contains(
+                    adminEmployeeList,
+                    employee => employee.EmployeeId == managerEmployeeId);
                 var accountList = await employeeService.GetAccountsAsync();
-                Assert.All(accountList, account => Assert.Equal(UserRole.Staff, account.Role));
-                var accountBeforeProfile = Assert.Single(accountList);
+                Assert.Contains(accountList, account => account.Role == UserRole.Manager);
+                Assert.Contains(accountList, account => account.Role == UserRole.Staff);
+                var accountBeforeProfile = accountList.Single(account =>
+                    account.AccountId == staffCredentials.AccountId);
                 Assert.Equal(staffCredentials.AccountId, accountBeforeProfile.AccountId);
                 Assert.False(accountBeforeProfile.HasEmployeeProfile);
                 Assert.False(accountBeforeProfile.EmployeeProfileDeleted);
@@ -172,8 +218,23 @@ public class DatabaseFoundationTests
                 Assert.Equal("Tài khoản không tồn tại.", missingAccountSignIn.Message);
 
                 await employeeService.CreateEmployeeProfileAsync(staffCredentials.AccountId);
+                session.SignIn(manager);
                 var employees = await employeeService.GetEmployeesAsync();
-                var staff = Assert.Single(employees);
+                Assert.DoesNotContain(
+                    employees,
+                    employee => employee.EmployeeId == manager.EmployeeId);
+                var staff = employees.Single(employee =>
+                    employee.AccountId == staffCredentials.AccountId);
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => employeeService.UpdateEmployeeAsync(
+                        staff.EmployeeId,
+                        staff.FullName,
+                        staff.Phone,
+                        staff.Email));
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => employeeService.DeleteEmployeeProfileAsync(staff.EmployeeId));
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => employeeService.SetEmployeeActiveAsync(managerEmployeeId, false));
                 Assert.Equal("Nguyễn Văn An", staff.FullName);
                 Assert.Equal(UserRole.Staff, staff.Role);
                 Assert.Equal(staffCredentials.AccountId, staff.AccountId);
@@ -181,19 +242,25 @@ public class DatabaseFoundationTests
                 Assert.Equal(staffCredentials.Username, staff.Username);
                 Assert.Equal(20, staffCredentials.TemporaryPassword.Length);
                 Assert.True(staff.RequiresPasswordChange);
+                session.SignIn(admin);
                 await employeeService.UpdateAccountEmployeeNameAsync(
                     staffCredentials.AccountId,
                     "Nguyễn An");
+                session.SignIn(manager);
                 Assert.Equal(
                     "Nguyễn An",
-                    Assert.Single(await employeeService.GetEmployeesAsync()).FullName);
+                    (await employeeService.GetEmployeesAsync())
+                    .Single(employee => employee.AccountId == staffCredentials.AccountId).FullName);
+                session.SignIn(admin);
                 Assert.Equal(
                     "Nguyễn An",
-                    Assert.Single(await employeeService.GetAccountsAsync()).FullName);
+                    (await employeeService.GetAccountsAsync())
+                    .Single(account => account.AccountId == staffCredentials.AccountId).FullName);
                 await employeeService.UpdateAccountEmployeeNameAsync(
                     staffCredentials.AccountId,
                     "Trần Văn Bình");
-                var renamedAccount = Assert.Single(await employeeService.GetAccountsAsync());
+                var renamedAccount = (await employeeService.GetAccountsAsync())
+                    .Single(account => account.AccountId == staffCredentials.AccountId);
                 Assert.Equal("Trần Văn Bình", renamedAccount.FullName);
                 Assert.Equal("binh.tran", renamedAccount.Username);
                 Assert.Equal(
@@ -265,11 +332,11 @@ public class DatabaseFoundationTests
                 await Assert.ThrowsAsync<UnauthorizedAccessException>(
                     () => catalogService.CreateCategoryAsync("Không được phép"));
 
-                session.SignIn(admin);
+                session.SignIn(manager);
                 await catalogService.SetProductActiveAsync(product.Id, false);
                 session.SignIn(signedInStaff);
                 Assert.Empty(await catalogService.GetProductsAsync());
-                session.SignIn(admin);
+                session.SignIn(manager);
                 await catalogService.SetProductActiveAsync(product.Id, true);
                 var table = Assert.Single(await catalogService.GetTablesAsync());
                 await catalogService.SetProductAvailabilityAsync(product.Id, false);
@@ -282,7 +349,7 @@ public class DatabaseFoundationTests
                 await Assert.ThrowsAsync<UnauthorizedAccessException>(
                     () => catalogService.SetProductActiveAsync(product.Id, false));
 
-                session.SignIn(admin);
+                session.SignIn(manager);
                 var promotionStartsAt = DateTimeOffset.UtcNow.AddMinutes(-1);
                 var promotionEndsAt = DateTimeOffset.UtcNow.AddHours(1);
                 await catalogService.CreatePromotionAsync(
@@ -331,10 +398,6 @@ public class DatabaseFoundationTests
                 Assert.True(orderDetailSummary.Id > 0);
                 Assert.Equal("Phở bò đặc biệt", orderDetailSummary.ProductName);
                 Assert.Equal(65_000m, orderDetailSummary.UnitPrice);
-                await Assert.ThrowsAsync<UnauthorizedAccessException>(
-                    () => orderService.UpdateItemAsync(orderId, orderDetailSummary.Id, 2, null));
-                await Assert.ThrowsAsync<UnauthorizedAccessException>(
-                    () => orderService.RemoveItemAsync(orderId, orderDetailSummary.Id));
                 var order = await dbContext.RestaurantOrders.SingleAsync(
                     candidate => candidate.Id == orderId);
                 await Assert.ThrowsAsync<UnauthorizedAccessException>(
@@ -356,6 +419,9 @@ public class DatabaseFoundationTests
                 dbContext.RestaurantOrders.Add(duplicateOpenOrder);
                 await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
                 dbContext.Entry(duplicateOpenOrder).State = EntityState.Detached;
+                var auditCountAfterFailedSave = await dbContext.AuditLogs.CountAsync();
+                await dbContext.SaveChangesAsync();
+                Assert.Equal(auditCountAfterFailedSave, await dbContext.AuditLogs.CountAsync());
 
                 session.SignIn(signedInStaff);
                 await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
@@ -397,6 +463,7 @@ public class DatabaseFoundationTests
                     .Where(detail => detail.RestaurantOrderId == order.Id)
                     .Select(detail => detail.UnitPriceSnapshot)
                     .SingleAsync());
+                session.SignIn(manager);
                 await Assert.ThrowsAsync<InvalidOperationException>(
                     () => catalogService.SetTableActiveAsync(table.Id, false));
                 await Assert.ThrowsAsync<InvalidOperationException>(
@@ -416,7 +483,7 @@ public class DatabaseFoundationTests
                 session.SignIn(signedInStaff);
                 Assert.Empty(await catalogService.GetCategoriesAsync());
                 Assert.Empty(await catalogService.GetProductsAsync());
-                session.SignIn(admin);
+                session.SignIn(manager);
                 await catalogService.SetCategoryActiveAsync(category.Id, true);
 
                 session.SignIn(signedInStaff);
@@ -443,6 +510,11 @@ public class DatabaseFoundationTests
                         DateTimeOffset.UtcNow.AddDays(-1),
                         DateTimeOffset.UtcNow.AddDays(1)));
                 session.SignIn(admin);
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => orderService.GetSalesReportAsync(
+                        DateTimeOffset.UtcNow.AddDays(-1),
+                        DateTimeOffset.UtcNow.AddDays(1)));
+                session.SignIn(manager);
                 var salesReport = await orderService.GetSalesReportAsync(
                     DateTimeOffset.UtcNow.AddDays(-1),
                     DateTimeOffset.UtcNow.AddDays(1));
@@ -460,12 +532,12 @@ public class DatabaseFoundationTests
                     () => orderService.RemoveItemAsync(order.Id, detailIdBeforePayment));
                 await Assert.ThrowsAsync<UnauthorizedAccessException>(
                     () => catalogService.SetTableActiveAsync(table.Id, false));
-                session.SignIn(admin);
+                session.SignIn(manager);
                 await catalogService.SetTableActiveAsync(table.Id, false);
                 Assert.False(Assert.Single(await catalogService.GetTablesAsync()).IsActive);
                 session.SignIn(signedInStaff);
                 Assert.Empty(await catalogService.GetTablesAsync());
-                session.SignIn(admin);
+                session.SignIn(manager);
                 await catalogService.SetTableActiveAsync(table.Id, true);
                 session.SignIn(signedInStaff);
                 Assert.True(Assert.Single(await catalogService.GetTablesAsync()).IsActive);
@@ -483,9 +555,14 @@ public class DatabaseFoundationTests
                     history => history.Status is OrderStatus.Open or OrderStatus.Cancelled);
                 Assert.Null(await orderService.GetOrderReceiptAsync(cancelledOrderId));
                 session.SignIn(admin);
-                var adminOrderHistory = await orderService.GetOrderHistoryAsync();
-                Assert.Contains(adminOrderHistory, history => history.Status == OrderStatus.Paid);
-                Assert.Contains(adminOrderHistory, history => history.Status == OrderStatus.Cancelled);
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => orderService.GetOrderHistoryAsync());
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => orderService.GetOrderReceiptAsync(cancelledOrderId));
+                session.SignIn(manager);
+                var managerOrderHistory = await orderService.GetOrderHistoryAsync();
+                Assert.Contains(managerOrderHistory, history => history.Status == OrderStatus.Paid);
+                Assert.Contains(managerOrderHistory, history => history.Status == OrderStatus.Cancelled);
                 Assert.Equal(
                     OrderStatus.Cancelled,
                     Assert.IsType<OrderReceiptSummary>(
@@ -497,8 +574,14 @@ public class DatabaseFoundationTests
                         "renamed-staff",
                         "Phase-C-rotated-staff-password-2026"));
                 Assert.Equal("Nhân viên đang bị tạm đình chỉ.", suspendedSignIn.Message);
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    () => employeeService.SetEmployeeActiveAsync(staff.EmployeeId, true));
+                session.SignIn(admin);
+                var adminEmployees = await employeeService.GetEmployeesAsync();
+                Assert.Contains(adminEmployees, employee => employee.EmployeeId == managerEmployeeId);
                 await employeeService.SetEmployeeActiveAsync(staff.EmployeeId, true);
 
+                session.SignIn(admin);
                 await authenticationService.ChangePasswordAsync(
                     admin.Id,
                     password,
@@ -507,28 +590,25 @@ public class DatabaseFoundationTests
                 Assert.NotNull(await authenticationService.SignInAsync(
                     "test-admin",
                     "Phase-C-new-admin-password-2026"));
-                await employeeService.CreateEmployeeAsync(
-                    "Hồ sơ chưa cấp tài khoản",
-                    null,
-                    null);
-                var employeeWithoutAccount = (await employeeService.GetEmployeesAsync())
-                    .Single(candidate => candidate.FullName == "Hồ sơ chưa cấp tài khoản");
-                Assert.Null(employeeWithoutAccount.AccountId);
+                session.SignIn(admin);
                 Assert.Equal(
-                    "Đã đổi mk",
+                    "Đã đổi mật khẩu",
                     (await employeeService.GetAccountsAsync())
                     .Single(account => account.AccountId == staffAccountId)
                     .PasswordDisplay);
                 var relatedOrderId = order.Id;
+                session.SignIn(admin);
                 await employeeService.DeleteEmployeeProfileAsync(staff.EmployeeId);
+                session.SignIn(manager);
                 Assert.DoesNotContain(
                     await employeeService.GetEmployeesAsync(),
                     employee => employee.EmployeeId == staff.EmployeeId);
                 var retainedOrder = await dbContext.RestaurantOrders
                     .SingleAsync(candidate => candidate.Id == relatedOrderId);
                 Assert.Null(retainedOrder.CreatedByEmployeeId);
-                Assert.Equal(staff.FullName, retainedOrder.CreatedByEmployeeNameSnapshot);
+                Assert.Equal(renamedAccount.FullName, retainedOrder.CreatedByEmployeeNameSnapshot);
                 Assert.Equal(staffAccountId, retainedOrder.CreatedByUserId);
+                session.SignIn(admin);
                 Assert.Contains(
                     await employeeService.GetAccountsAsync(),
                     account => account.AccountId == staffAccountId);
@@ -573,6 +653,7 @@ public class DatabaseFoundationTests
                         "renamed-staff",
                         "Phase-C-rotated-staff-password-2026"));
                 Assert.Equal("Tài khoản không tồn tại.", deletedAccountSignIn.Message);
+                session.SignIn(manager);
                 var retainedEmployee = Assert.Single(
                     (await employeeService.GetEmployeesAsync())
                     .Where(employee => employee.FullName == "Trần Văn Bình"));
@@ -610,9 +691,11 @@ public class DatabaseFoundationTests
     {
         string[] statements =
         [
+            "DELETE FROM `AuditLogs`",
             "DELETE FROM `Payments`",
             "DELETE FROM `OrderDetails`",
             "DELETE FROM `RestaurantOrders`",
+            "DELETE FROM `Promotions`",
             "DELETE FROM `Products`",
             "DELETE FROM `Categories`",
             "DELETE FROM `RestaurantTables`",

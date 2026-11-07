@@ -19,10 +19,16 @@ public sealed class EmployeeManagementService(
     public async Task<IReadOnlyList<EmployeeAccountSummary>> GetEmployeesAsync(
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureAdminOrManager();
 
-        return await dbContext.Employees
-            .AsNoTracking()
+        var employees = dbContext.Employees.AsNoTracking();
+        if (currentUserSession.User?.Role == UserRole.Manager)
+        {
+            employees = employees.Where(employee =>
+                employee.UserAccount == null || employee.UserAccount.Role == UserRole.Staff);
+        }
+
+        return await employees
             .OrderBy(employee => employee.FullName)
             .Select(employee => new EmployeeAccountSummary(
                 employee.Id,
@@ -52,7 +58,7 @@ public sealed class EmployeeManagementService(
 
         var accounts = await dbContext.UserAccounts
             .AsNoTracking()
-            .Where(account => account.Role == UserRole.Staff && !account.IsDeleted)
+            .Where(account => account.Role != UserRole.Admin && !account.IsDeleted)
             .OrderBy(account => account.FullName)
             .Select(account => new
             {
@@ -82,32 +88,19 @@ public sealed class EmployeeManagementService(
             .ToList();
     }
 
-    public async Task CreateEmployeeAsync(
-        string fullName,
-        string? phone,
-        string? email,
-        CancellationToken cancellationToken = default)
-    {
-        EnsureAdmin();
-        var normalizedName = ValidateRequiredText(fullName, 150, nameof(fullName));
-        var employee = new Employee
-        {
-            FullName = normalizedName,
-            Phone = EmployeeContactValidator.NormalizePhone(phone),
-            Email = EmployeeContactValidator.NormalizeEmail(email)
-        };
-
-        dbContext.Employees.Add(employee);
-        await dbContext.SaveChangesAsync(cancellationToken);
-    }
-
     public async Task<GeneratedEmployeeCredentials> CreateAccountAsync(
         string fullName,
         string? phone,
         string? email,
+        UserRole role = UserRole.Staff,
         CancellationToken cancellationToken = default)
     {
         EnsureAdmin();
+        if (role is not UserRole.Staff and not UserRole.Manager)
+        {
+            throw new ArgumentOutOfRangeException(nameof(role), "Chỉ có thể cấp tài khoản Quản lý hoặc Nhân viên.");
+        }
+
         var normalizedName = ValidateRequiredText(fullName, 150, nameof(fullName));
         var username = await GenerateUsernameAsync(normalizedName, cancellationToken);
         var temporaryPassword = GenerateTemporaryPassword();
@@ -119,7 +112,7 @@ public sealed class EmployeeManagementService(
             Username = username,
             PasswordHash = global::BCrypt.Net.BCrypt.HashPassword(temporaryPassword),
             EncryptedTemporaryPassword = TemporaryPasswordProtector.Protect(temporaryPassword),
-            Role = UserRole.Staff,
+            Role = role,
             RequiresPasswordChange = true
         };
 
@@ -158,9 +151,9 @@ public sealed class EmployeeManagementService(
 
         EnsureAccountNotDeleted(account);
 
-        if (account.Role != UserRole.Staff)
+        if (account.Role is not UserRole.Staff and not UserRole.Manager)
         {
-            throw new InvalidOperationException("Chỉ tài khoản nhân viên mới được tạo hồ sơ nhân viên.");
+            throw new InvalidOperationException("Chỉ tài khoản Quản lý hoặc Nhân viên mới được tạo hồ sơ.");
         }
 
         if (account.Employee is not null)
@@ -283,17 +276,44 @@ public sealed class EmployeeManagementService(
             throw new InvalidOperationException("Không tìm thấy hồ sơ nhân viên cần cập nhật.");
         }
 
-        employee.FullName = ValidateRequiredText(fullName, 150, nameof(fullName));
+        var normalizedName = ValidateRequiredText(fullName, 150, nameof(fullName));
+        employee.FullName = normalizedName;
         employee.Phone = EmployeeContactValidator.NormalizePhone(phone);
         employee.Email = EmployeeContactValidator.NormalizeEmail(email);
         if (employee.UserAccount is not null)
         {
-            employee.UserAccount.FullName = employee.FullName;
-            employee.UserAccount.Phone = employee.Phone;
-            employee.UserAccount.Email = employee.Email;
+            var account = employee.UserAccount;
+            if (!account.IsDeleted)
+            {
+                if (!string.Equals(account.FullName, normalizedName, StringComparison.Ordinal))
+                {
+                    account.Username = await GenerateUsernameAsync(
+                        normalizedName,
+                        cancellationToken,
+                        account.Id);
+                }
+
+                account.FullName = normalizedName;
+                account.Phone = employee.Phone;
+                account.Email = employee.Email;
+            }
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (IsDuplicateKey(exception))
+        {
+            foreach (var entry in exception.Entries)
+            {
+                entry.State = EntityState.Detached;
+            }
+
+            throw new InvalidOperationException(
+                "Không thể cập nhật nhân viên vì tên đăng nhập mới đã được sử dụng. Hãy thử lại.",
+                exception);
+        }
     }
 
     public async Task DeleteEmployeeProfileAsync(
@@ -346,7 +366,7 @@ public sealed class EmployeeManagementService(
     {
         EnsureAdmin();
         var normalizedUsername = ValidateRequiredText(username, 50, nameof(username));
-        if (role is not UserRole.Admin and not UserRole.Staff)
+        if (role is not UserRole.Admin and not UserRole.Staff and not UserRole.Manager)
         {
             throw new ArgumentOutOfRangeException(nameof(role), "Hãy chọn vai trò hợp lệ.");
         }
@@ -409,13 +429,21 @@ public sealed class EmployeeManagementService(
         bool isActive,
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureAdminOrManager();
         var employee = await dbContext.Employees
             .Include(candidate => candidate.UserAccount)
             .SingleOrDefaultAsync(candidate => candidate.Id == employeeId, cancellationToken);
         if (employee is null)
         {
             throw new InvalidOperationException("Không tìm thấy hồ sơ nhân viên cần cập nhật.");
+        }
+
+        if (currentUserSession.User?.Role == UserRole.Manager
+            && (employee.UserAccount is not null && employee.UserAccount.Role != UserRole.Staff
+                || isActive))
+        {
+            throw new UnauthorizedAccessException(
+                "Quản lý chỉ có quyền đình chỉ nhân viên; chỉ Admin mới có thể bỏ đình chỉ.");
         }
 
         if (!isActive && employee.UserAccount?.Id == currentUserSession.User?.Id)
@@ -444,7 +472,15 @@ public sealed class EmployeeManagementService(
     {
         if (currentUserSession.User?.Role != UserRole.Admin)
         {
-            throw new UnauthorizedAccessException("Chỉ Admin mới được quản lý hồ sơ nhân viên và tài khoản.");
+            throw new UnauthorizedAccessException("Chỉ Admin mới được quản lý tài khoản.");
+        }
+    }
+
+    private void EnsureAdminOrManager()
+    {
+        if (currentUserSession.User?.Role is not UserRole.Admin and not UserRole.Manager)
+        {
+            throw new UnauthorizedAccessException("Chỉ Admin hoặc Quản lý mới được quản lý hồ sơ nhân viên.");
         }
     }
 

@@ -15,12 +15,12 @@ public sealed class RestaurantCatalogService(
     public async Task<IReadOnlyList<RestaurantTableSummary>> GetTablesAsync(
         CancellationToken cancellationToken = default)
     {
-        var isAdmin = currentUserSession.User?.Role == UserRole.Admin;
-        EnsureSignedIn();
+        var isManager = currentUserSession.User?.Role == UserRole.Manager;
+        EnsureCatalogReader();
 
         return await dbContext.RestaurantTables
             .AsNoTracking()
-            .Where(table => isAdmin || table.IsActive)
+            .Where(table => isManager || table.IsActive)
             .OrderBy(table => table.Area)
             .ThenBy(table => table.TableNumber)
             .Select(table => new RestaurantTableSummary(
@@ -60,12 +60,12 @@ public sealed class RestaurantCatalogService(
     public async Task<IReadOnlyList<CategorySummary>> GetCategoriesAsync(
         CancellationToken cancellationToken = default)
     {
-        var isAdmin = currentUserSession.User?.Role == UserRole.Admin;
-        EnsureSignedIn();
+        var isManager = currentUserSession.User?.Role == UserRole.Manager;
+        EnsureCatalogReader();
 
         return await dbContext.Categories
             .AsNoTracking()
-            .Where(category => isAdmin || category.IsActive)
+            .Where(category => isManager || category.IsActive)
             .OrderBy(category => category.Name)
             .Select(category => new CategorySummary(
                 category.Id,
@@ -80,12 +80,12 @@ public sealed class RestaurantCatalogService(
         int? categoryId = null,
         CancellationToken cancellationToken = default)
     {
-        var isAdmin = currentUserSession.User?.Role == UserRole.Admin;
-        EnsureSignedIn();
+        var isManager = currentUserSession.User?.Role == UserRole.Manager;
+        EnsureCatalogReader();
 
         var products = dbContext.Products
             .AsNoTracking()
-            .Where(product => isAdmin || (product.IsActive && product.Category.IsActive));
+            .Where(product => isManager || (product.IsActive && product.Category.IsActive));
         if (categoryId.HasValue)
         {
             products = products.Where(product => product.CategoryId == categoryId.Value);
@@ -119,7 +119,7 @@ public sealed class RestaurantCatalogService(
     public async Task<IReadOnlyList<PromotionSummary>> GetPromotionsAsync(
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         return await dbContext.Promotions
             .AsNoTracking()
             .OrderBy(promotion => promotion.Name)
@@ -146,7 +146,7 @@ public sealed class RestaurantCatalogService(
         int? categoryId,
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         await ValidatePromotionAsync(
             discountPercentage, startsAt, endsAt, productId, categoryId, cancellationToken);
         dbContext.Promotions.Add(new Promotion
@@ -171,7 +171,7 @@ public sealed class RestaurantCatalogService(
         int? categoryId,
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         var promotion = await dbContext.Promotions.SingleOrDefaultAsync(
             candidate => candidate.Id == promotionId,
             cancellationToken);
@@ -196,7 +196,7 @@ public sealed class RestaurantCatalogService(
         bool isActive,
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         var promotion = await dbContext.Promotions.SingleOrDefaultAsync(
             candidate => candidate.Id == promotionId,
             cancellationToken);
@@ -215,7 +215,7 @@ public sealed class RestaurantCatalogService(
         string area = "Chung",
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         var normalizedTableNumber = ValidateTable(tableNumber, area, seatCount);
         dbContext.RestaurantTables.Add(new RestaurantTable
         {
@@ -235,7 +235,7 @@ public sealed class RestaurantCatalogService(
         string area = "Chung",
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         var normalizedTableNumber = ValidateTable(tableNumber, area, seatCount);
         var table = await dbContext.RestaurantTables.SingleOrDefaultAsync(
             candidate => candidate.Id == tableId,
@@ -265,7 +265,7 @@ public sealed class RestaurantCatalogService(
         bool isActive,
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         var table = await dbContext.RestaurantTables.SingleOrDefaultAsync(
             candidate => candidate.Id == tableId,
             cancellationToken);
@@ -287,7 +287,7 @@ public sealed class RestaurantCatalogService(
 
     public async Task DeleteTableAsync(int tableId, CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         var table = await dbContext.RestaurantTables.SingleOrDefaultAsync(
             candidate => candidate.Id == tableId,
             cancellationToken);
@@ -312,7 +312,7 @@ public sealed class RestaurantCatalogService(
         string name,
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         dbContext.Categories.Add(new Category
         {
             Name = ValidateRequiredText(name, 100, nameof(name))
@@ -325,7 +325,7 @@ public sealed class RestaurantCatalogService(
         string name,
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         var category = await dbContext.Categories.SingleOrDefaultAsync(
             candidate => candidate.Id == categoryId,
             cancellationToken);
@@ -342,7 +342,7 @@ public sealed class RestaurantCatalogService(
         bool isActive,
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         var category = await dbContext.Categories.SingleOrDefaultAsync(
             candidate => candidate.Id == categoryId,
             cancellationToken);
@@ -357,7 +357,7 @@ public sealed class RestaurantCatalogService(
 
     public async Task DeleteCategoryAsync(int categoryId, CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         var category = await dbContext.Categories.SingleOrDefaultAsync(
             candidate => candidate.Id == categoryId,
             cancellationToken);
@@ -390,7 +390,7 @@ public sealed class RestaurantCatalogService(
         string? imagePath,
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         ValidatePrice(price);
         await EnsureActiveCategoryAsync(categoryId, cancellationToken);
         var product = new Product
@@ -414,7 +414,7 @@ public sealed class RestaurantCatalogService(
         string? imagePath,
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         ValidatePrice(price);
         var product = await dbContext.Products.SingleOrDefaultAsync(
             candidate => candidate.Id == productId,
@@ -455,7 +455,7 @@ public sealed class RestaurantCatalogService(
     {
         var user = currentUserSession.User
             ?? throw new UnauthorizedAccessException("Vui lòng đăng nhập để cập nhật tình trạng món.");
-        if (user.Role == UserRole.Admin)
+        if (user.Role == UserRole.Manager)
         {
             return;
         }
@@ -482,7 +482,7 @@ public sealed class RestaurantCatalogService(
         bool isActive,
         CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         var product = await dbContext.Products.SingleOrDefaultAsync(
             candidate => candidate.Id == productId,
             cancellationToken);
@@ -497,7 +497,7 @@ public sealed class RestaurantCatalogService(
 
     public async Task DeleteProductAsync(int productId, CancellationToken cancellationToken = default)
     {
-        EnsureAdmin();
+        EnsureManager();
         var product = await dbContext.Products.SingleOrDefaultAsync(
             candidate => candidate.Id == productId,
             cancellationToken);
@@ -588,19 +588,19 @@ public sealed class RestaurantCatalogService(
     private static bool IsDuplicateKey(DbUpdateException exception) =>
         exception.InnerException is MySqlException { Number: 1062 };
 
-    private void EnsureSignedIn()
+    private void EnsureCatalogReader()
     {
-        if (currentUserSession.User is null)
+        if (currentUserSession.User?.Role is not UserRole.Manager and not UserRole.Staff)
         {
-            throw new UnauthorizedAccessException("Vui lòng đăng nhập để xem dữ liệu nhà hàng.");
+            throw new UnauthorizedAccessException("Vai trò hiện tại không được truy cập thực đơn và bàn.");
         }
     }
 
-    private void EnsureAdmin()
+    private void EnsureManager()
     {
-        if (currentUserSession.User?.Role != UserRole.Admin)
+        if (currentUserSession.User?.Role != UserRole.Manager)
         {
-            throw new UnauthorizedAccessException("Chỉ Admin mới được quản lý bàn và thực đơn.");
+            throw new UnauthorizedAccessException("Chỉ Quản lý mới được quản lý bàn và thực đơn.");
         }
     }
 

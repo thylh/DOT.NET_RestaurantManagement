@@ -20,13 +20,17 @@ public static class DependencyInjection
                 "Connection string 'RestaurantDatabase' is missing from application configuration.");
         }
 
-        services.AddDbContext<RestaurantDbContext>(options => options.UseMySQL(connectionString));
+        services.AddScoped<AuditLogSaveChangesInterceptor>();
+        services.AddDbContext<RestaurantDbContext>((serviceProvider, options) =>
+            options.UseMySQL(connectionString)
+                .AddInterceptors(serviceProvider.GetRequiredService<AuditLogSaveChangesInterceptor>()));
         services.AddScoped<IInitialAdminSetupService, InitialAdminSetupService>();
         services.AddScoped<ICurrentUserSession, CurrentUserSession>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IEmployeeManagementService, EmployeeManagementService>();
         services.AddScoped<IRestaurantCatalogService, RestaurantCatalogService>();
         services.AddScoped<IRestaurantOrderService, RestaurantOrderService>();
+        services.AddScoped<IAuditLogService, AuditLogService>();
 
         return services;
     }

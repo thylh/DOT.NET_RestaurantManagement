@@ -51,13 +51,19 @@ public sealed class AuthenticationService(
             throw new InvalidOperationException("Nhân viên đang bị tạm đình chỉ.");
         }
 
+        if (account.Role == UserRole.Manager && employee is null)
+        {
+            throw new InvalidOperationException("Tài khoản Quản lý cần có hồ sơ nhân viên đang hoạt động.");
+        }
+
         var user = new AuthenticatedUser(
             account.Id,
             account.Username,
             account.Role,
             account.EmployeeId,
             employee?.FullName ?? account.FullName,
-            account.RequiresPasswordChange && employee is not null);
+            account.RequiresPasswordChange
+                && (account.Role == UserRole.Manager || employee is not null));
         currentUserSession.SignIn(user);
 
         return user;

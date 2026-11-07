@@ -11,6 +11,11 @@
         Background="{DynamicResource SurfaceBrush}"
         Foreground="{DynamicResource TextPrimaryBrush}">
     <StackPanel Margin="24">
+        <TextBlock Text="Họ tên" Margin="0,0,0,6" />
+        <TextBox x:Name="NameTextBox"
+                 MinWidth="380"
+                 Margin="0,0,0,14"
+                 behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Họ tên nhân viên"/>
         <TextBlock Text="Số điện thoại" Margin="0,0,0,6" />
         <TextBox x:Name="PhoneTextBox"
                  MinWidth="380"

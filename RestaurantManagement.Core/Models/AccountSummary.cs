@@ -25,7 +25,15 @@ public sealed record AccountSummary(
 
     public bool HasEmployeeProfile => EmployeeId.HasValue;
 
-    public bool CanCreateEmployeeProfile => Role == UserRole.Staff && !HasEmployeeProfile;
+    public bool CanCreateEmployeeProfile =>
+        (Role is UserRole.Staff or UserRole.Manager) && !HasEmployeeProfile;
+
+    public string RoleDisplay => Role switch
+    {
+        UserRole.Admin => "Quản trị viên",
+        UserRole.Manager => "Quản lý",
+        _ => "Nhân viên"
+    };
 
     public string ProfileActionLabel => HasEmployeeProfile ? "Đã tạo hồ sơ" : "Tạo hồ sơ";
 

@@ -23,6 +23,8 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
 
     public DbSet<Promotion> Promotions => Set<Promotion>();
 
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Employee>(entity =>
@@ -184,6 +186,22 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
                 .HasForeignKey(promotion => promotion.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(promotion => new { promotion.IsActive, promotion.StartsAt, promotion.EndsAt });
+        });
+
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.ToTable("AuditLogs");
+            entity.Property(log => log.ActorUsername).HasMaxLength(50).IsRequired();
+            entity.Property(log => log.ActorRole).HasMaxLength(20).IsRequired();
+            entity.Property(log => log.Category).HasConversion<string>().HasMaxLength(20);
+            entity.Property(log => log.Action).HasConversion<string>().HasMaxLength(30);
+            entity.Property(log => log.TargetType).HasMaxLength(50).IsRequired();
+            entity.Property(log => log.TargetName).HasMaxLength(200).IsRequired();
+            entity.Property(log => log.Summary).HasMaxLength(500).IsRequired();
+            entity.Property(log => log.ChangesJson).HasColumnType("json");
+            entity.HasIndex(log => log.OccurredAt);
+            entity.HasIndex(log => new { log.Category, log.OccurredAt });
+            entity.HasIndex(log => log.ActorUsername);
         });
     }
 }

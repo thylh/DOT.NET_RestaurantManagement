@@ -396,7 +396,7 @@ public class MainWindowViewModelTests
         Assert.Equal(
             (12, "Nguyễn Văn An", "0987654321", "new@example.test"),
             employeeService.LastEmployeeUpdate);
-        Assert.Equal("Đã cập nhật số điện thoại và email nhân viên.", viewModel.StatusMessage);
+        Assert.Equal("Đã cập nhật thông tin nhân viên.", viewModel.StatusMessage);
     }
 
     [Fact]
@@ -668,11 +668,122 @@ public class MainWindowViewModelTests
         Assert.True(viewModel.IsAdminScreen);
         Assert.False(viewModel.IsReadOnlyStaff);
         Assert.False(viewModel.IsStaffOrderScreen);
+        Assert.False(viewModel.IsManagerScreen);
         Assert.Equal(1, employeeService.EmployeeListReadCount);
         Assert.Equal(1, employeeService.AccountListReadCount);
+        Assert.Equal(0, catalogService.TableListReadCount);
+        Assert.Equal(0, catalogService.CategoryListReadCount);
+        Assert.Equal(0, catalogService.ProductListReadCount);
+    }
+
+    [Fact]
+    public async Task ManagerCanAccessOperationalWorkspaceButNotAccountAdministration()
+    {
+        var session = new CurrentUserSessionStub();
+        var employeeService = new EmployeeManagementServiceStub();
+        var catalogService = new RestaurantCatalogServiceStub();
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub
+            {
+                SignInResult = new AuthenticatedUser(
+                    3,
+                    "manager",
+                    UserRole.Manager,
+                    12,
+                    "Quản lý"),
+                OnSuccessfulSignIn = session.SignIn
+            },
+            session,
+            employeeService,
+            catalogService,
+            NullLogger<MainWindowViewModel>.Instance);
+
+        await viewModel.SignInCommand.ExecuteAsync(null);
+
+        Assert.False(viewModel.IsAdminScreen);
+        Assert.True(viewModel.IsManagerScreen);
+        Assert.True(viewModel.IsManagementScreen);
+        Assert.False(viewModel.IsStaffScreen);
+        Assert.Equal(1, viewModel.ManagementWorkspaceSelectedIndex);
+        Assert.Equal(1, employeeService.EmployeeListReadCount);
+        Assert.Equal(0, employeeService.AccountListReadCount);
         Assert.Equal(1, catalogService.TableListReadCount);
         Assert.Equal(1, catalogService.CategoryListReadCount);
         Assert.Equal(1, catalogService.ProductListReadCount);
+    }
+
+    [Fact]
+    public async Task AdminLoadsAuditLogsAndCanRefreshThem()
+    {
+        var session = new CurrentUserSessionStub();
+        var auditLogService = new AuditLogServiceStub
+        {
+            Logs =
+            [
+                new AuditLogSummary(
+                    1,
+                    DateTimeOffset.UtcNow,
+                    "manager",
+                    "Manager",
+                    AuditLogCategory.Employee,
+                    AuditLogAction.Suspended,
+                    "Hồ sơ nhân viên",
+                    12,
+                    "Nguyễn Văn An",
+                    "Đình chỉ hồ sơ nhân viên Nguyễn Văn An.",
+                    null)
+            ]
+        };
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub
+            {
+                SignInResult = new AuthenticatedUser(1, "admin", UserRole.Admin, null, "Admin"),
+                OnSuccessfulSignIn = session.SignIn
+            },
+            session,
+            new EmployeeManagementServiceStub(),
+            new RestaurantCatalogServiceStub(),
+            NullLogger<MainWindowViewModel>.Instance,
+            auditLogService: auditLogService);
+
+        await viewModel.SignInCommand.ExecuteAsync(null);
+
+        Assert.Single(viewModel.AuditLogs);
+        Assert.Equal(1, auditLogService.ReadCount);
+        Assert.Equal("Đình chỉ", Assert.Single(viewModel.AuditLogs).ActionDisplay);
+
+        viewModel.SelectedAuditLogCategoryFilter = "Nhân viên";
+        viewModel.SelectedAuditLogActionFilter = "Đình chỉ";
+        viewModel.AuditLogSearchText = "Nguyễn Văn An";
+        await viewModel.LoadAuditLogsCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, auditLogService.ReadCount);
+        Assert.Equal(AuditLogCategory.Employee, auditLogService.LastFilter?.Category);
+        Assert.Equal(AuditLogAction.Suspended, auditLogService.LastFilter?.Action);
+        Assert.Equal("Nguyễn Văn An", auditLogService.LastFilter?.SearchText);
+    }
+
+    [Fact]
+    public async Task ManagerCannotLoadAuditLogs()
+    {
+        var session = new CurrentUserSessionStub();
+        session.SignIn(new AuthenticatedUser(3, "manager", UserRole.Manager, 12, "Quản lý"));
+        var auditLogService = new AuditLogServiceStub();
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub(),
+            session,
+            new EmployeeManagementServiceStub(),
+            new RestaurantCatalogServiceStub(),
+            NullLogger<MainWindowViewModel>.Instance,
+            auditLogService: auditLogService);
+
+        await viewModel.LoadAuditLogsCommand.ExecuteAsync(null);
+
+        Assert.Equal("Chỉ Admin mới được xem Audit Log.", viewModel.ErrorMessage);
+        Assert.Equal(0, auditLogService.ReadCount);
     }
 
     private sealed class InitialAdminSetupServiceStub : IInitialAdminSetupService
@@ -757,16 +868,11 @@ public class MainWindowViewModelTests
             return Task.FromResult<IReadOnlyList<AccountSummary>>([]);
         }
 
-        public Task CreateEmployeeAsync(
-            string fullName,
-            string? phone,
-            string? email,
-            CancellationToken cancellationToken = default) => Task.CompletedTask;
-
         public Task<GeneratedEmployeeCredentials> CreateAccountAsync(
             string fullName,
             string? phone,
             string? email,
+            UserRole role = UserRole.Staff,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new GeneratedEmployeeCredentials(1, "an.nguyen", "Temporary123!"));
 
@@ -814,6 +920,24 @@ public class MainWindowViewModelTests
             return Task.CompletedTask;
         }
 
+    }
+
+    private sealed class AuditLogServiceStub : IAuditLogService
+    {
+        public IReadOnlyList<AuditLogSummary> Logs { get; init; } = [];
+
+        public int ReadCount { get; private set; }
+
+        public AuditLogFilter? LastFilter { get; private set; }
+
+        public Task<IReadOnlyList<AuditLogSummary>> GetAuditLogsAsync(
+            AuditLogFilter filter,
+            CancellationToken cancellationToken = default)
+        {
+            ReadCount++;
+            LastFilter = filter;
+            return Task.FromResult(Logs);
+        }
     }
 
     private sealed class RestaurantCatalogServiceStub : IRestaurantCatalogService

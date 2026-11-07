@@ -41,7 +41,7 @@ public sealed class RestaurantOrderService(
         DateTimeOffset? toExclusive = null,
         CancellationToken cancellationToken = default)
     {
-        var user = await GetAuthorizedReaderAsync(cancellationToken);
+        var user = await GetAuthorizedHistoryReaderAsync(cancellationToken);
         ValidateDateRange(fromInclusive, toExclusive);
         if (orderId is <= 0)
         {
@@ -84,7 +84,7 @@ public sealed class RestaurantOrderService(
         int orderId,
         CancellationToken cancellationToken = default)
     {
-        var user = await GetAuthorizedReaderAsync(cancellationToken);
+        var user = await GetAuthorizedHistoryReaderAsync(cancellationToken);
         if (orderId <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(orderId), "Mã order phải lớn hơn 0.");
@@ -441,10 +441,20 @@ public sealed class RestaurantOrderService(
         return user;
     }
 
-    private async Task<AuthenticatedUser> GetAuthorizedReaderAsync(CancellationToken cancellationToken)
+    private async Task<AuthenticatedUser> GetAuthorizedHistoryReaderAsync(CancellationToken cancellationToken)
     {
         var user = await GetCurrentAccountAsync(cancellationToken);
-        if (user.Role == UserRole.Staff
+        if (user.Role == UserRole.Admin)
+        {
+            throw new UnauthorizedAccessException("Admin không có quyền xem lịch sử order.");
+        }
+
+        if (user.Role == UserRole.Manager && user.EmployeeId is null)
+        {
+            throw new UnauthorizedAccessException("Tài khoản Quản lý chưa có hồ sơ nhân viên.");
+        }
+
+        if (user.Role is UserRole.Staff or UserRole.Manager
             && user.EmployeeId is { } employeeId
             && !await dbContext.Employees.AnyAsync(
                 employee => employee.Id == employeeId && employee.IsActive,
@@ -459,9 +469,9 @@ public sealed class RestaurantOrderService(
     private async Task<AuthenticatedUser> GetAuthorizedAdminAsync(CancellationToken cancellationToken)
     {
         var user = await GetCurrentAccountAsync(cancellationToken);
-        if (user.Role != UserRole.Admin)
+        if (user.Role != UserRole.Manager)
         {
-            throw new UnauthorizedAccessException("Chỉ Admin được xem báo cáo doanh thu.");
+            throw new UnauthorizedAccessException("Chỉ Quản lý được xem báo cáo doanh thu.");
         }
 
         return user;

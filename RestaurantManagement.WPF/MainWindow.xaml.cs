@@ -489,13 +489,20 @@ namespace RestaurantManagement.WPF
                 return;
             }
 
-            var dialog = new EditEmployeeContactWindow(employee.Phone, employee.Email) { Owner = this };
+            var dialog = new EditEmployeeContactWindow(
+                employee.FullName,
+                employee.Phone,
+                employee.Email)
+            {
+                Owner = this
+            };
             if (dialog.ShowDialog() != true)
             {
                 return;
             }
 
             viewModel.SelectedEmployee = employee;
+            viewModel.EmployeeName = dialog.EmployeeName;
             viewModel.EmployeePhone = dialog.EmployeePhone;
             viewModel.EmployeeEmail = dialog.EmployeeEmail;
             if (viewModel.UpdateEmployeeCommand.CanExecute(null))

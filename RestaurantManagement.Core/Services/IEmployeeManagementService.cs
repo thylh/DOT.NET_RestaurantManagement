@@ -11,16 +11,11 @@ public interface IEmployeeManagementService
     Task<IReadOnlyList<AccountSummary>> GetAccountsAsync(
         CancellationToken cancellationToken = default);
 
-    Task CreateEmployeeAsync(
-        string fullName,
-        string? phone,
-        string? email,
-        CancellationToken cancellationToken = default);
-
     Task<GeneratedEmployeeCredentials> CreateAccountAsync(
         string fullName,
         string? phone,
         string? email,
+        UserRole role = UserRole.Staff,
         CancellationToken cancellationToken = default);
 
     Task CreateEmployeeProfileAsync(

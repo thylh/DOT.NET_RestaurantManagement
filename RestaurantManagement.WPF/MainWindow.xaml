@@ -851,10 +851,12 @@
 
             <TabControl x:Name="AdminWorkspaceTabs"
                     Grid.Row="3"
-                        Visibility="{Binding IsAdminScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                        SelectedIndex="{Binding ManagementWorkspaceSelectedIndex}"
+                        Visibility="{Binding IsManagementScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
                         Margin="0"
                     SelectionChanged="AdminTabs_SelectionChanged">
-                <TabItem Header="Cấp tài khoản">
+                <TabItem Header="Cấp tài khoản"
+                         Visibility="{Binding IsAdminScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid Margin="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -868,29 +870,40 @@
                             <Grid Margin="0,0,0,14">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0"
-                                        Margin="0,0,12,8">
+                                        Margin="0,0,0,8">
                                     <TextBlock Text="Họ tên"/>
                                     <TextBox Text="{Binding AccountEmployeeName, UpdateSourceTrigger=PropertyChanged}"
                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Họ tên nhân viên"
                                             Margin="0,4,0,0"/>
                                 </StackPanel>
-                                <StackPanel Grid.Column="1"
-                                        Margin="0,0,12,8">
+                                <StackPanel Grid.Column="2"
+                                        Margin="0,0,0,8">
                                     <TextBlock Text="Điện thoại"/>
                                     <TextBox Text="{Binding AccountEmployeePhone, UpdateSourceTrigger=PropertyChanged}"
                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Số điện thoại (không bắt buộc)"
                                             Margin="0,4,0,0"/>
                                 </StackPanel>
-                                <StackPanel Grid.Column="2"
+                                <StackPanel Grid.Column="4"
                                         Margin="0,0,0,8">
                                     <TextBlock Text="Email"/>
                                     <TextBox Text="{Binding AccountEmployeeEmail, UpdateSourceTrigger=PropertyChanged}"
                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Email (không bắt buộc)"
                                             Margin="0,4,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="6"
+                                        Margin="0,0,0,8">
+                                    <TextBlock Text="Vai trò"/>
+                                    <ComboBox ItemsSource="{Binding AccountRoleOptions}"
+                                              SelectedItem="{Binding AccountRoleToCreate}"
+                                              Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Grid>
                             <Button Content="Tạo tài khoản"
@@ -1016,7 +1029,7 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Vai trò"
-                                            Binding="{Binding Role}"
+                                            Binding="{Binding RoleDisplay}"
                                             Width="*"/>
                                     <DataGridTextColumn Header="Hồ sơ nhân viên"
                                             Binding="{Binding EmployeeProfileStatusLabel}"
@@ -1027,7 +1040,8 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="Nhân viên">
+                <TabItem Header="Nhân viên"
+                         Visibility="{Binding IsManagementScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid Margin="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -1075,7 +1089,8 @@
                                         <Border Background="{StaticResource SurfaceMutedBrush}"
                                                 BorderBrush="{StaticResource BorderBrush}"
                                                 BorderThickness="0,1,0,0"
-                                                Padding="8,6">
+                                                Padding="8,6"
+                                                Visibility="{Binding DataContext.IsAdminScreen, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <StackPanel Orientation="Horizontal">
                                                 <Button Content="Chỉnh sửa"
                                                         Tag="{Binding}"
@@ -1105,10 +1120,27 @@
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ToggleButton IsChecked="{Binding IsEmployeeActive, Mode=OneWay}"
-                                                              Style="{StaticResource StateSwitchStyle}"
                                                               Tag="{Binding}"
                                                               Click="ToggleEmployeeStatus_Click"
-                                                              HorizontalAlignment="Center"/>
+                                                              HorizontalAlignment="Center">
+                                                    <ToggleButton.Style>
+                                                        <Style TargetType="{x:Type ToggleButton}"
+                                                               BasedOn="{StaticResource StateSwitchStyle}">
+                                                            <Style.Triggers>
+                                                                <MultiDataTrigger>
+                                                                    <MultiDataTrigger.Conditions>
+                                                                        <Condition Binding="{Binding DataContext.IsManagerScreen, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                                                                   Value="True"/>
+                                                                        <Condition Binding="{Binding IsEmployeeActive}"
+                                                                                   Value="False"/>
+                                                                    </MultiDataTrigger.Conditions>
+                                                                    <Setter Property="IsEnabled"
+                                                                            Value="False"/>
+                                                                </MultiDataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ToggleButton.Style>
+                                                </ToggleButton>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
@@ -1118,7 +1150,105 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="Bàn ăn">
+                <TabItem Header="Audit Log"
+                         Visibility="{Binding IsAdminScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid Margin="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0">
+                            <TextBlock Text="Nhật ký hoạt động"
+                                       FontSize="20"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,12"/>
+                            <TextBlock Text="Tối đa 500 bản ghi gần nhất; chọn dòng để xem chi tiết thay đổi."
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Margin="0,0,0,8"/>
+                            <WrapPanel Margin="0,0,0,10">
+                                <TextBox Width="280"
+                                         Text="{Binding AuditLogSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tìm người thao tác, đối tượng hoặc nội dung"
+                                         Margin="0,0,8,8"/>
+                                <ComboBox Width="170"
+                                          ItemsSource="{Binding AuditLogCategoryFilters}"
+                                          SelectedItem="{Binding SelectedAuditLogCategoryFilter}"
+                                          ToolTip="Lọc theo nhóm"
+                                          Margin="0,0,8,8"/>
+                                <ComboBox Width="170"
+                                          ItemsSource="{Binding AuditLogActionFilters}"
+                                          SelectedItem="{Binding SelectedAuditLogActionFilter}"
+                                          ToolTip="Lọc theo hành động"
+                                          Margin="0,0,8,8"/>
+                                <DatePicker Width="150"
+                                            SelectedDate="{Binding AuditLogFromDate}"
+                                            ToolTip="Từ ngày"
+                                            Margin="0,0,8,8"/>
+                                <DatePicker Width="150"
+                                            SelectedDate="{Binding AuditLogToDate}"
+                                            ToolTip="Đến ngày"
+                                            Margin="0,0,8,8"/>
+                                <Button Content="Lọc / Làm mới"
+                                        Command="{Binding LoadAuditLogsCommand}"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Margin="0,0,0,8"/>
+                            </WrapPanel>
+                        </StackPanel>
+                        <Border Grid.Row="1"
+                                Style="{StaticResource DataGridFrameStyle}">
+                            <DataGrid ItemsSource="{Binding AuditLogs}"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      CanUserAddRows="False"
+                                      CanUserReorderColumns="False"
+                                      CanUserResizeColumns="False"
+                                      RowDetailsVisibilityMode="VisibleWhenSelected"
+                                      GridLinesVisibility="Vertical"
+                                      VerticalGridLinesBrush="{StaticResource BorderBrush}">
+                                <DataGrid.RowDetailsTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource SurfaceMutedBrush}"
+                                                BorderBrush="{StaticResource BorderBrush}"
+                                                BorderThickness="0,1,0,0"
+                                                Padding="10">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Summary}"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGrid.RowDetailsTemplate>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Thời gian"
+                                                        Binding="{Binding OccurredAtDisplay}"
+                                                        Width="1.5*"/>
+                                    <DataGridTextColumn Header="Người thao tác"
+                                                        Binding="{Binding ActorUsername}"
+                                                        Width="1.3*"/>
+                                    <DataGridTextColumn Header="Vai trò"
+                                                        Binding="{Binding ActorRole}"
+                                                        Width="*"/>
+                                    <DataGridTextColumn Header="Nhóm"
+                                                        Binding="{Binding CategoryDisplay}"
+                                                        Width="*"/>
+                                    <DataGridTextColumn Header="Hành động"
+                                                        Binding="{Binding ActionDisplay}"
+                                                        Width="1.2*"/>
+                                    <DataGridTextColumn Header="Đối tượng"
+                                                        Binding="{Binding TargetDisplay}"
+                                                        Width="2*"/>
+                                    <DataGridTextColumn Header="Tóm tắt"
+                                                        Binding="{Binding Summary}"
+                                                        Width="2.5*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Bàn ăn"
+                         Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid Margin="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -1237,7 +1367,8 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="Thực đơn">
+                <TabItem Header="Thực đơn"
+                         Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TabControl Margin="12">
                         <TabItem Header="Danh mục">
                             <Grid Margin="12">
@@ -1649,11 +1780,13 @@
                         </TabItem>
                     </TabControl>
                 </TabItem>
-                <TabItem Header="Lịch sử">
+                <TabItem Header="Lịch sử"
+                         Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <ContentControl Content="{Binding}"
                                     ContentTemplate="{StaticResource OrderHistoryViewTemplate}"/>
                 </TabItem>
-                <TabItem Header="Báo cáo">
+                <TabItem Header="Báo cáo"
+                         Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid Margin="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
