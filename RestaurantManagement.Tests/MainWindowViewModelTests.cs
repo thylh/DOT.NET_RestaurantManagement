@@ -58,6 +58,43 @@ public class MainWindowViewModelTests
     }
 
     [Fact]
+    public void SalesReportChartItemsShowPaymentSharesAndTopFiveProducts()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.SalesReport = new SalesReportSummary(
+            3,
+            150m,
+            0m,
+            100m,
+            [
+                new PaymentMethodRevenueSummary(PaymentMethod.BankTransfer, 1, 30m),
+                new PaymentMethodRevenueSummary(PaymentMethod.Cash, 2, 70m)
+            ],
+            [
+                new TopSellingProductSummary("Phở bò", 10, 100m),
+                new TopSellingProductSummary("Bún bò", 5, 50m),
+                new TopSellingProductSummary("Cơm gà", 4, 40m),
+                new TopSellingProductSummary("Bánh cuốn", 3, 30m),
+                new TopSellingProductSummary("Cháo", 2, 20m),
+                new TopSellingProductSummary("Trà đá", 1, 10m)
+            ],
+            []);
+
+        Assert.Equal(
+            new[] { "Tiền mặt", "Chuyển khoản" },
+            viewModel.PaymentMethodChartItems.Select(item => item.Label));
+        Assert.Equal(0.7, viewModel.PaymentMethodChartItems[0].RelativeValue, 3);
+        Assert.Contains("70", viewModel.PaymentMethodChartItems[0].ValueText);
+        Assert.Equal(5, viewModel.TopSellingProductChartItems.Count);
+        Assert.Equal("Phở bò", viewModel.TopSellingProductChartItems[0].Label);
+        Assert.Equal(1, viewModel.TopSellingProductChartItems[0].RelativeValue);
+        Assert.Equal(0.5, viewModel.TopSellingProductChartItems[1].RelativeValue, 3);
+        Assert.DoesNotContain(
+            viewModel.TopSellingProductChartItems,
+            item => item.Label == "Trà đá");
+    }
+
+    [Fact]
     public void TableStatusReflectsOccupancyAndAvailability()
     {
         var table = new RestaurantTableSummary(1, "Bàn 1", "Tầng trệt", 4, true, false);
@@ -233,6 +270,34 @@ public class MainWindowViewModelTests
         Assert.Equal(
             new[] { "Chung", "Riêng tư", "VIP", "Ngoài trời" },
             viewModel.TableAreas);
+    }
+
+    [Fact]
+    public async Task AdminSystemRefreshReloadsAccountsEmployeesAuditLogsAndNotifications()
+    {
+        var session = new CurrentUserSessionStub();
+        session.SignIn(new AuthenticatedUser(1, "admin", UserRole.Admin, null, "Admin"));
+        var employeeService = new EmployeeManagementServiceStub();
+        var catalogService = new RestaurantCatalogServiceStub();
+        var auditLogService = new AuditLogServiceStub();
+        var notificationService = new NotificationServiceStub();
+        var viewModel = new MainWindowViewModel(
+            new InitialAdminSetupServiceStub(),
+            new AuthenticationServiceStub(),
+            session,
+            employeeService,
+            catalogService,
+            NullLogger<MainWindowViewModel>.Instance,
+            auditLogService: auditLogService,
+            notificationService: notificationService);
+
+        await viewModel.RefreshWorkspaceCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, employeeService.AccountListReadCount);
+        Assert.Equal(1, employeeService.EmployeeListReadCount);
+        Assert.Equal(1, auditLogService.ReadCount);
+        Assert.Equal(1, notificationService.InboxReadCount);
+        Assert.Equal("Đã làm mới dữ liệu hệ thống.", viewModel.StatusMessage);
     }
 
     private static MainWindowViewModel CreateViewModel() =>
@@ -938,6 +1003,43 @@ public class MainWindowViewModelTests
             LastFilter = filter;
             return Task.FromResult(Logs);
         }
+    }
+
+    private sealed class NotificationServiceStub : INotificationService
+    {
+        public int InboxReadCount { get; private set; }
+
+        public Task<IReadOnlyList<NotificationSummary>> GetInboxAsync(
+            CancellationToken cancellationToken = default)
+        {
+            InboxReadCount++;
+            return Task.FromResult<IReadOnlyList<NotificationSummary>>([]);
+        }
+
+        public Task<IReadOnlyList<NotificationRecipientOption>> GetRecipientsAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<NotificationRecipientOption>>([]);
+
+        public Task SendAsync(
+            string title,
+            string message,
+            NotificationPriority priority,
+            int? recipientUserId,
+            UserRole? recipientRole,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task RequestPasswordResetAsync(
+            string username,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<GeneratedEmployeeCredentials> IssueTemporaryPasswordAsync(
+            int notificationId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new GeneratedEmployeeCredentials(1, "staff", "temporary"));
+
+        public Task MarkReadAsync(
+            int notificationId,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class RestaurantCatalogServiceStub : IRestaurantCatalogService

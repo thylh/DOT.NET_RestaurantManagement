@@ -5,12 +5,19 @@ DineEase là ứng dụng desktop WPF hỗ trợ vận hành nhà hàng trên m�
 ## Chức năng chính
 
 - **Admin:** cấp và quản lý tài khoản, quản lý hồ sơ nhân viên và tra cứu Audit Log.
-- **Manager:** quản lý nhân viên trong phạm vi quyền, bàn, danh mục, món ăn và khuyến mãi; xem lịch sử order và báo cáo.
+- **Manager:** quản lý nhân viên trong phạm vi quyền, bàn, danh mục, món ăn và khuyến mãi; xem lịch sử order và báo cáo doanh thu.
 - **Staff:** xem bàn/thực đơn, tạo và cập nhật order, thanh toán và tra cứu order đã thanh toán.
+- Thông báo nội bộ qua biểu tượng chuông: gửi theo nhân viên/vai trò, đánh dấu mức khẩn, xem số chưa đọc và đánh dấu đã đọc.
+- Nút làm mới hệ thống ở thanh trên tải lại dữ liệu nghiệp vụ theo vai trò hiện đăng nhập; chuông chỉ mở hộp thư.
+- Staff gửi yêu cầu cấp lại mật khẩu từ màn hình đăng nhập; Admin xử lý bằng mật khẩu tạm mới, bắt buộc đổi sau khi đăng nhập.
 - Thiết lập tài khoản Admin lần đầu khi database chưa có tài khoản.
 - Lưu lịch sử order/thanh toán và hỗ trợ xem chi tiết/biên nhận.
+- Báo cáo doanh thu có biểu đồ xu hướng theo ngày, top 5 món bán chạy và tỷ trọng phương thức thanh toán; bảng số liệu đầy đủ vẫn có sẵn để đối chiếu.
+- KPI đếm số tăng dần; đường và thanh biểu đồ chạy tăng dần, còn thẻ Số liệu trượt lên khi mở. Thẻ Biểu đồ không chạy hiệu ứng trượt toàn trang.
+- Biểu tượng và biểu đồ dùng vector/WPF gốc, không thêm thư viện giao diện hoặc ảnh chụp món ăn.
 
 Quyền nghiệp vụ được kiểm tra ở tầng service. Ứng dụng hiện chạy cục bộ; không cung cấp Web API hoặc truy cập database nhiều máy qua mạng LAN.
+Thông báo dùng chung database MySQL cục bộ; mỗi phiên bản tải lại hộp thư khi mở chuông và dữ liệu nghiệp vụ khi bấm Làm mới hệ thống, không dùng push/realtime.
 
 ## Công nghệ
 

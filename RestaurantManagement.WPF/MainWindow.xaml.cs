@@ -23,9 +23,6 @@ namespace RestaurantManagement.WPF
         public MainWindow(MainWindowViewModel viewModel, ILogger<MainWindow> logger)
         {
             InitializeComponent();
-            var workArea = SystemParameters.WorkArea;
-            Width = Math.Min(workArea.Width, Math.Max(MinWidth, workArea.Width * 0.8 * 1.1));
-            Height = Math.Min(workArea.Height, Math.Max(MinHeight, workArea.Height * 0.97 * 1.1));
             LoadCoverImage(logger);
             DataContext = viewModel;
             _statusMessageTimer = new DispatcherTimer
@@ -44,6 +41,7 @@ namespace RestaurantManagement.WPF
             Loaded += async (_, _) =>
             {
                 await viewModel.InitializeAsync();
+                UpdateWindowState(viewModel);
             };
             Closed += (_, _) =>
             {
@@ -82,6 +80,12 @@ namespace RestaurantManagement.WPF
                 }
             }
 
+            if (e.PropertyName is nameof(viewModel.IsAuthenticatedWorkspace)
+                or nameof(viewModel.IsLoginScreen))
+            {
+                UpdateWindowState(viewModel);
+            }
+
             if (e.PropertyName is nameof(viewModel.SelectedOrderTab)
                 or nameof(viewModel.SelectedOrderTable))
             {
@@ -103,6 +107,18 @@ namespace RestaurantManagement.WPF
             else if (e.PropertyName == nameof(viewModel.NewPassword) && string.IsNullOrEmpty(viewModel.NewPassword))
             {
                 RequiredNewPasswordBox.Clear();
+            }
+        }
+
+        private void UpdateWindowState(MainWindowViewModel viewModel)
+        {
+            if (viewModel.IsAuthenticatedWorkspace)
+            {
+                WindowState = WindowState.Maximized;
+            }
+            else if (viewModel.IsLoginScreen && WindowState != WindowState.Normal)
+            {
+                WindowState = WindowState.Normal;
             }
         }
 
@@ -666,7 +682,12 @@ namespace RestaurantManagement.WPF
 
         private void CopyTemporaryPassword_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is not FrameworkElement { DataContext: AccountSummary { TemporaryPassword: { } password } })
+            var password = (sender as FrameworkElement)?.DataContext switch
+            {
+                AccountSummary { TemporaryPassword: { } accountPassword } => accountPassword,
+                _ => (DataContext as MainWindowViewModel)?.IssuedTemporaryCredentials?.TemporaryPassword
+            };
+            if (string.IsNullOrEmpty(password))
             {
                 return;
             }
@@ -676,7 +697,7 @@ namespace RestaurantManagement.WPF
                 Clipboard.SetText(password);
                 if (DataContext is MainWindowViewModel viewModel)
                 {
-                    viewModel.StatusMessage = "Đã sao chép mật khẩu tạm.";
+                    viewModel.StatusMessage = "Đã sao chép mật khẩu tạm. Hãy gửi mật khẩu an toàn cho nhân viên.";
                 }
             }
             catch (System.Runtime.InteropServices.ExternalException)

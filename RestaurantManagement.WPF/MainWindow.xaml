@@ -3,19 +3,68 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:RestaurantManagement.WPF"
         xmlns:behaviors="clr-namespace:RestaurantManagement.WPF.Behaviors"
+        xmlns:charts="clr-namespace:RestaurantManagement.WPF.Controls"
         xmlns:viewModels="clr-namespace:RestaurantManagement.WPF.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="{x:Static viewModels:MainWindowViewModel.Title}"
-        Height="720"
-        Width="1440"
+        Height="700"
+        Width="1120"
         MinHeight="620"
         MinWidth="1120"
         behaviors:DataGridSelectionBehavior.IsEnabled="True"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <Geometry x:Key="AccountIconGeometry">M10,10 A3,3 0 1 0 10,4 A3,3 0 0 0 10,10 M3,18 C3,14 17,14 17,18</Geometry>
+        <Geometry x:Key="PeopleIconGeometry">M7,9 A2.5,2.5 0 1 0 7,4 A2.5,2.5 0 0 0 7,9 M13,9 A2.5,2.5 0 1 0 13,4 A2.5,2.5 0 0 0 13,9 M1,17 C1,13 9,13 9,17 M11,17 C11,13 19,13 19,17</Geometry>
+        <Geometry x:Key="AuditIconGeometry">M4,3 L16,3 L16,18 L4,18 Z M7,7 L13,7 M7,10.5 L13,10.5 M7,14 L11,14</Geometry>
+        <Geometry x:Key="TableIconGeometry">M2,6 L18,6 L18,17 L2,17 Z M2,10 L18,10 M7,6 L7,17 M13,6 L13,17</Geometry>
+        <Geometry x:Key="MenuIconGeometry">M4,3 L16,3 L16,18 L4,18 Z M7,7 L13,7 M7,10.5 L13,10.5 M7,14 L12,14</Geometry>
+        <Geometry x:Key="HistoryIconGeometry">M10,2 A8,8 0 1 0 10,18 A8,8 0 1 0 10,2 M10,5 L10,10 L14,12</Geometry>
+        <Geometry x:Key="ReportIconGeometry">M3,18 L3,3 M3,18 L18,18 M6,14 L9,10 L12,12 L17,6 M14,6 L17,6 L17,9</Geometry>
+        <Geometry x:Key="PaymentIconGeometry">M3,5 L17,5 L17,15 L3,15 Z M3,9 L17,9 M6,12 L9,12 M12,12 L14,12</Geometry>
+        <Geometry x:Key="DiscountIconGeometry">M3,5 L17,5 L17,15 L3,15 Z M7,12 L13,8</Geometry>
+        <DataTemplate x:Key="ReportBarChartItemTemplate">
+            <Border Margin="0,5"
+                    Padding="0,2">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Label}"
+                               TextWrapping="Wrap"
+                               MaxHeight="34"
+                               FontSize="12"
+                               Margin="0,0,8,4"/>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding ValueText}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               TextAlignment="Right"
+                               MaxWidth="155"
+                               VerticalAlignment="Top"
+                               Margin="4,0,0,4"/>
+                    <Grid Grid.Row="1"
+                          Grid.ColumnSpan="2"
+                          Height="8">
+                        <Border Background="{StaticResource SurfaceMutedBrush}"
+                                CornerRadius="4"/>
+                        <Border Background="{StaticResource PrimaryBrush}"
+                                CornerRadius="4"
+                                RenderTransformOrigin="0,0.5"
+                                behaviors:ReportBarAnimationBehavior.TargetScale="{Binding RelativeValue}"/>
+                    </Grid>
+                </Grid>
+            </Border>
+        </DataTemplate>
         <Style x:Key="StateSwitchStyle"
                TargetType="{x:Type ToggleButton}">
             <EventSetter Event="Click"
@@ -496,7 +545,7 @@
                      Opacity="0.24"
                      HorizontalAlignment="Right"
                      VerticalAlignment="Center"
-                     Margin="0,150,5,0"
+                     Margin="0,310,-10,0"
                      RenderTransformOrigin="0.5,0.5"
                      behaviors:MotionTransitionBehavior.FlyInOnVisible="True"
                      behaviors:MotionTransitionBehavior.FlyInFromX="300"
@@ -728,6 +777,7 @@
                                    FontWeight="SemiBold"
                                    Margin="0,0,0,6"/>
                         <TextBox Text="{Binding LoginUsername, UpdateSourceTrigger=PropertyChanged}"
+                                 MaxLength="50"
                                  behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tên đăng nhập"
                                  Margin="0,0,0,18"/>
                         <TextBlock Text="Mật khẩu"
@@ -742,6 +792,14 @@
                                 Command="{Binding SignInCommand}"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 HorizontalAlignment="Stretch"/>
+                        <Button Content="Quên mật khẩu? Gửi yêu cầu Admin"
+                                Command="{Binding RequestPasswordResetCommand}"
+                                HorizontalAlignment="Center"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Foreground="{StaticResource PrimaryBrush}"
+                                Padding="12,8"
+                                Margin="0,8,0,0"/>
                     </StackPanel>
                     <Grid Grid.Column="1"
                           VerticalAlignment="Bottom"
@@ -820,6 +878,8 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Grid Grid.Column="0"
                       Height="54">
@@ -876,6 +936,54 @@
                     </Grid>
                 </Grid>
                 <Button Grid.Column="1"
+                        Command="{Binding RefreshWorkspaceCommand}"
+                        Padding="12,9"
+                        Background="Transparent"
+                        Foreground="{StaticResource SurfaceBrush}"
+                        BorderBrush="Transparent"
+                        BorderThickness="0"
+                        ToolTip="Làm mới dữ liệu hệ thống"
+                        AutomationProperties.Name="Làm mới dữ liệu hệ thống">
+                    <TextBlock Text="&#xE72C;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="20"
+                               Foreground="{StaticResource SurfaceBrush}"
+                               VerticalAlignment="Center"/>
+                </Button>
+                <Button Grid.Column="2"
+                        x:Name="NotificationButton"
+                        Command="{Binding ToggleNotificationCenterCommand}"
+                        Padding="12,9"
+                        Background="Transparent"
+                        Foreground="{StaticResource SurfaceBrush}"
+                        BorderBrush="Transparent"
+                        BorderThickness="0"
+                        ToolTip="Thông báo"
+                        AutomationProperties.Name="Thông báo">
+                    <Grid>
+                        <TextBlock Text="&#xE7F4;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="20"
+                                   Foreground="{StaticResource SurfaceBrush}"
+                                   VerticalAlignment="Center"/>
+                        <Border Background="{StaticResource DangerBrush}"
+                                CornerRadius="9"
+                                MinWidth="18"
+                                Height="18"
+                                Padding="4,0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Visibility="{Binding HasUnreadNotifications, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="{Binding UnreadNotificationBadge}"
+                                       Foreground="White"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Button>
+                <Button Grid.Column="3"
                         x:Name="AccountMenuButton"
                         Click="AccountMenuButton_Click"
                         Padding="14,9"
@@ -981,6 +1089,207 @@
                         </ContextMenu>
                     </Button.ContextMenu>
                 </Button>
+                <Popup PlacementTarget="{Binding ElementName=NotificationButton}"
+                       Placement="Bottom"
+                       HorizontalOffset="-350"
+                       VerticalOffset="8"
+                       StaysOpen="True"
+                       AllowsTransparency="True"
+                       IsOpen="{Binding IsNotificationCenterOpen}"
+                       DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <Border Width="390"
+                            MaxHeight="650"
+                            Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="14"
+                            Padding="16">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="22"
+                                              ShadowDepth="5"
+                                              Opacity="0.18"
+                                              Color="#542B1C"/>
+                        </Border.Effect>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Thông báo"
+                                                   FontSize="19"
+                                                   FontWeight="SemiBold"/>
+                                        <TextBlock FontSize="12"
+                                                   Foreground="{StaticResource TextSecondaryBrush}">
+                                            <Run Text="Chưa đọc: "/>
+                                            <Run Text="{Binding UnreadNotificationCount, Mode=OneWay}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Content="×"
+                                            Command="{Binding CloseNotificationCenterCommand}"
+                                            Padding="8,6"
+                                            VerticalAlignment="Center"
+                                            ToolTip="Đóng thông báo"/>
+                                </Grid>
+                                <TextBlock Text="Chưa có thông báo."
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Margin="0,8"
+                                           >
+                                    <TextBlock.Style>
+                                        <Style TargetType="{x:Type TextBlock}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasNotifications}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <ItemsControl ItemsSource="{Binding Notifications}"
+                                              MaxHeight="270">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource PrimaryTintBrush}"
+                                                    CornerRadius="10"
+                                                    Padding="11"
+                                                    Margin="0,0,0,8">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Title}"
+                                                                   FontWeight="SemiBold"
+                                                                   TextWrapping="Wrap"/>
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding CreatedAtDisplay}"
+                                                                   FontSize="11"
+                                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                                   Margin="8,0,0,0"/>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding SenderName}"
+                                                               FontSize="11"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                               Margin="0,3,0,5"/>
+                                                    <TextBlock Text="{Binding Message}"
+                                                               TextWrapping="Wrap"/>
+                                                    <TextBlock Text="KHẨN"
+                                                               FontSize="10"
+                                                               FontWeight="Bold"
+                                                               Foreground="{StaticResource DangerBrush}"
+                                                               Margin="0,6,0,0"
+                                                               Visibility="{Binding IsUrgent, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                    <TextBlock Text="Đã xử lý"
+                                                               FontSize="11"
+                                                               Foreground="{StaticResource SuccessBrush}"
+                                                               Margin="0,6,0,0"
+                                                               Visibility="{Binding IsResolved, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                    <StackPanel Orientation="Horizontal"
+                                                                Margin="0,8,0,0">
+                                                        <Button Content="Đánh dấu đã đọc"
+                                                                Command="{Binding DataContext.MarkNotificationReadCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                                CommandParameter="{Binding}"
+                                                                Padding="8,5"
+                                                                Margin="0,0,8,0">
+                                                            <Button.Style>
+                                                                <Style TargetType="{x:Type Button}">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsRead}" Value="True">
+                                                                            <Setter Property="Content" Value="Đã đọc"/>
+                                                                            <Setter Property="IsEnabled" Value="False"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
+                                                        <Button Content="Cấp lại mật khẩu"
+                                                                Command="{Binding DataContext.IssueTemporaryPasswordCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                                CommandParameter="{Binding}"
+                                                                Padding="8,5">
+                                                            <Button.Style>
+                                                                <Style TargetType="{x:Type Button}">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <MultiDataTrigger>
+                                                                            <MultiDataTrigger.Conditions>
+                                                                                <Condition Binding="{Binding IsPasswordResetRequest}" Value="True"/>
+                                                                                <Condition Binding="{Binding IsResolved}" Value="False"/>
+                                                                                <Condition Binding="{Binding DataContext.IsAdmin, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}" Value="True"/>
+                                                                            </MultiDataTrigger.Conditions>
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </MultiDataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Border Height="1"
+                                        Background="{StaticResource BorderBrush}"
+                                        Margin="0,4,0,12"/>
+                                <StackPanel Visibility="{Binding HasIssuedTemporaryCredentials, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <TextBlock Text="Mật khẩu tạm mới"
+                                               FontWeight="SemiBold"
+                                               Margin="0,0,0,6"/>
+                                    <TextBlock Text="{Binding IssuedTemporaryCredentials.Username}"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding IssuedTemporaryCredentials.TemporaryPassword, Mode=OneWay}"
+                                             IsReadOnly="True"
+                                             Margin="0,0,0,8"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Sao chép"
+                                                Click="CopyTemporaryPassword_Click"
+                                                Padding="10,6"
+                                                Margin="0,0,8,0"/>
+                                        <Button Content="Ẩn"
+                                                Command="{Binding ClearIssuedTemporaryCredentialsCommand}"
+                                                Padding="10,6"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel Visibility="{Binding CanSendNotifications, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <TextBlock Text="Gửi thông báo"
+                                               FontSize="15"
+                                               FontWeight="SemiBold"
+                                               Margin="0,0,0,8"/>
+                                    <ComboBox ItemsSource="{Binding NotificationRecipients}"
+                                              SelectedItem="{Binding SelectedNotificationRecipient}"
+                                              DisplayMemberPath="Label"
+                                              ToolTip="Chọn một nhân viên hoặc gửi theo vai trò"
+                                              Margin="0,0,0,8"/>
+                                    <TextBox Text="{Binding NotificationTitle, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="120"
+                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Tiêu đề"
+                                             Margin="0,0,0,8"/>
+                                    <TextBox Text="{Binding NotificationMessage, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="1000"
+                                             Height="76"
+                                             AcceptsReturn="True"
+                                             TextWrapping="Wrap"
+                                             VerticalScrollBarVisibility="Auto"
+                                             behaviors:TextBoxPlaceholderBehavior.PlaceholderText="Nội dung thông báo"
+                                             Margin="0,0,0,8"/>
+                                    <CheckBox Content="Đánh dấu thông báo khẩn"
+                                              IsChecked="{Binding IsNotificationUrgent}"
+                                              Margin="0,0,0,10"/>
+                                    <Button Content="Gửi thông báo"
+                                            Command="{Binding SendNotificationCommand}"
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            HorizontalAlignment="Stretch"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Popup>
             </Grid>
             <Border Grid.Row="1"
                     Style="{StaticResource OpenBottomFrameStyle}"
@@ -1020,8 +1329,20 @@
                         Visibility="{Binding IsManagementScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
                         Margin="0"
                         SelectionChanged="AdminTabs_SelectionChanged">
-                <TabItem Header="Cấp tài khoản"
-                         Visibility="{Binding IsAdminScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TabItem Visibility="{Binding IsAdminScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                         AutomationProperties.Name="Cấp tài khoản">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource AccountIconGeometry}"
+                                  Stroke="{StaticResource PrimaryBrush}"
+                                  StrokeThickness="1.5"
+                                  Width="18"
+                                  Height="18"
+                                  Stretch="Uniform"
+                                  Focusable="False"/>
+                            <TextBlock Text="Cấp tài khoản" Margin="7,0,0,0"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <Grid Margin="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -1203,8 +1524,20 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="Nhân viên"
-                         Visibility="{Binding IsManagementScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TabItem Visibility="{Binding IsManagementScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                         AutomationProperties.Name="Nhân viên">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource PeopleIconGeometry}"
+                                  Stroke="{StaticResource PrimaryBrush}"
+                                  StrokeThickness="1.5"
+                                  Width="18"
+                                  Height="18"
+                                  Stretch="Uniform"
+                                  Focusable="False"/>
+                            <TextBlock Text="Nhân viên" Margin="7,0,0,0"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <Grid Margin="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -1312,8 +1645,20 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="Audit Log"
-                         Visibility="{Binding IsAdminScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TabItem Visibility="{Binding IsAdminScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                         AutomationProperties.Name="Audit Log">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource AuditIconGeometry}"
+                                  Stroke="{StaticResource PrimaryBrush}"
+                                  StrokeThickness="1.5"
+                                  Width="18"
+                                  Height="18"
+                                  Stretch="Uniform"
+                                  Focusable="False"/>
+                            <TextBlock Text="Audit Log" Margin="7,0,0,0"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <Grid Margin="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -1407,8 +1752,20 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="Bàn ăn"
-                         Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TabItem Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                         AutomationProperties.Name="Bàn ăn">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource TableIconGeometry}"
+                                  Stroke="{StaticResource PrimaryBrush}"
+                                  StrokeThickness="1.5"
+                                  Width="18"
+                                  Height="18"
+                                  Stretch="Uniform"
+                                  Focusable="False"/>
+                            <TextBlock Text="Bàn ăn" Margin="7,0,0,0"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <Grid Margin="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -1527,8 +1884,20 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="Thực đơn"
-                         Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TabItem Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                         AutomationProperties.Name="Thực đơn">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource MenuIconGeometry}"
+                                  Stroke="{StaticResource PrimaryBrush}"
+                                  StrokeThickness="1.5"
+                                  Width="18"
+                                  Height="18"
+                                  Stretch="Uniform"
+                                  Focusable="False"/>
+                            <TextBlock Text="Thực đơn" Margin="7,0,0,0"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <TabControl Margin="12"
                                 behaviors:MotionTransitionBehavior.AnimateTabSelection="True">
                         <TabItem Header="Danh mục">
@@ -1935,13 +2304,37 @@
                         </TabItem>
                     </TabControl>
                 </TabItem>
-                <TabItem Header="Lịch sử"
-                         Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TabItem Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                         AutomationProperties.Name="Lịch sử">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource HistoryIconGeometry}"
+                                  Stroke="{StaticResource PrimaryBrush}"
+                                  StrokeThickness="1.5"
+                                  Width="18"
+                                  Height="18"
+                                  Stretch="Uniform"
+                                  Focusable="False"/>
+                            <TextBlock Text="Lịch sử" Margin="7,0,0,0"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <ContentControl Content="{Binding}"
                                     ContentTemplate="{StaticResource OrderHistoryViewTemplate}"/>
                 </TabItem>
-                <TabItem Header="Báo cáo"
-                         Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TabItem Visibility="{Binding IsManagerScreen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                         AutomationProperties.Name="Báo cáo">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource ReportIconGeometry}"
+                                  Stroke="{StaticResource PrimaryBrush}"
+                                  StrokeThickness="1.5"
+                                  Width="18"
+                                  Height="18"
+                                  Stretch="Uniform"
+                                  Focusable="False"/>
+                            <TextBlock Text="Báo cáo" Margin="7,0,0,0"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <Grid Margin="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -1962,11 +2355,22 @@
                                     <TextBlock Text="Đến hết ngày"/>
                                     <DatePicker SelectedDate="{Binding SalesReportToDate}"/>
                                 </StackPanel>
-                                <Button Content="Xem báo cáo"
-                                        Command="{Binding RefreshSalesReportCommand}"
+                                <Button Command="{Binding RefreshSalesReportCommand}"
                                         Style="{StaticResource PrimaryButtonStyle}"
                                         Padding="12,7"
-                                        Margin="0,19,0,8"/>
+                                        Margin="0,19,0,8"
+                                        AutomationProperties.Name="Xem báo cáo doanh thu">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource ReportIconGeometry}"
+                                              Stroke="{StaticResource SurfaceBrush}"
+                                              StrokeThickness="1.5"
+                                              Width="16"
+                                              Height="16"
+                                              Stretch="Uniform"
+                                              Focusable="False"/>
+                                        <TextBlock Text="Xem báo cáo" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </Button>
                             </WrapPanel>
                         </StackPanel>
                         <Grid Grid.Row="1"
@@ -1992,15 +2396,24 @@
                                                       Color="#542B1C"/>
                                 </Border.Effect>
                                 <StackPanel>
-                                    <TextBlock Text="Đơn đã thanh toán"
-                                               FontSize="12"
-                                               FontWeight="Medium"
-                                               Foreground="{StaticResource TextSecondaryBrush}"
-                                               Margin="0,0,0,6"/>
-                                    <TextBlock Text="{Binding SalesReport.PaidOrderCount}"
-                                               FontSize="24"
-                                               FontWeight="Bold"
-                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                        <Path Data="{StaticResource HistoryIconGeometry}"
+                                              Stroke="{StaticResource TextSecondaryBrush}"
+                                              StrokeThickness="1.5"
+                                              Width="16"
+                                              Height="16"
+                                              Stretch="Uniform"
+                                              Focusable="False"/>
+                                        <TextBlock Text="Đơn đã thanh toán"
+                                                   FontSize="12"
+                                                   FontWeight="Medium"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                    <charts:AnimatedMetricTextBlock Value="{Binding SalesReport.PaidOrderCount}"
+                                                                    FontSize="24"
+                                                                    FontWeight="Bold"
+                                                                    Foreground="{StaticResource TextPrimaryBrush}"/>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="1"
@@ -2017,15 +2430,25 @@
                                                       Color="#542B1C"/>
                                 </Border.Effect>
                                 <StackPanel>
-                                    <TextBlock Text="Doanh thu trước giảm"
-                                               FontSize="12"
-                                               FontWeight="Medium"
-                                               Foreground="{StaticResource TextSecondaryBrush}"
-                                               Margin="0,0,0,6"/>
-                                    <TextBlock Text="{Binding SalesReport.GrossRevenue, StringFormat={}{0:N0} đ}"
-                                               FontSize="22"
-                                               FontWeight="Bold"
-                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                        <Path Data="{StaticResource ReportIconGeometry}"
+                                              Stroke="{StaticResource TextSecondaryBrush}"
+                                              StrokeThickness="1.5"
+                                              Width="16"
+                                              Height="16"
+                                              Stretch="Uniform"
+                                              Focusable="False"/>
+                                        <TextBlock Text="Doanh thu trước giảm"
+                                                   FontSize="12"
+                                                   FontWeight="Medium"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                    <charts:AnimatedMetricTextBlock Value="{Binding SalesReport.GrossRevenue}"
+                                                                    Suffix=" đ"
+                                                                    FontSize="22"
+                                                                    FontWeight="Bold"
+                                                                    Foreground="{StaticResource TextPrimaryBrush}"/>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="2"
@@ -2042,15 +2465,25 @@
                                                       Color="#542B1C"/>
                                 </Border.Effect>
                                 <StackPanel>
-                                    <TextBlock Text="Tổng giảm giá"
-                                               FontSize="12"
-                                               FontWeight="Medium"
-                                               Foreground="{StaticResource TextSecondaryBrush}"
-                                               Margin="0,0,0,6"/>
-                                    <TextBlock Text="{Binding SalesReport.DiscountTotal, StringFormat={}{0:N0} đ}"
-                                               FontSize="22"
-                                               FontWeight="Bold"
-                                               Foreground="{StaticResource DangerBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                        <Path Data="{StaticResource DiscountIconGeometry}"
+                                              Stroke="{StaticResource TextSecondaryBrush}"
+                                              StrokeThickness="1.5"
+                                              Width="16"
+                                              Height="16"
+                                              Stretch="Uniform"
+                                              Focusable="False"/>
+                                        <TextBlock Text="Tổng giảm giá"
+                                                   FontSize="12"
+                                                   FontWeight="Medium"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                    <charts:AnimatedMetricTextBlock Value="{Binding SalesReport.DiscountTotal}"
+                                                                    Suffix=" đ"
+                                                                    FontSize="22"
+                                                                    FontWeight="Bold"
+                                                                    Foreground="{StaticResource DangerBrush}"/>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="3"
@@ -2066,63 +2499,218 @@
                                                       Color="#542B1C"/>
                                 </Border.Effect>
                                 <StackPanel>
-                                    <TextBlock Text="Doanh thu thực nhận"
-                                               FontSize="12"
-                                               FontWeight="SemiBold"
-                                               Foreground="{StaticResource PrimaryBrush}"
-                                               Margin="0,0,0,6"/>
-                                    <TextBlock Text="{Binding SalesReport.NetRevenue, StringFormat={}{0:N0} đ}"
-                                               FontSize="24"
-                                               FontWeight="Bold"
-                                               Foreground="{StaticResource PrimaryDarkBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                        <Path Data="{StaticResource ReportIconGeometry}"
+                                              Stroke="{StaticResource PrimaryBrush}"
+                                              StrokeThickness="1.5"
+                                              Width="16"
+                                              Height="16"
+                                              Stretch="Uniform"
+                                              Focusable="False"/>
+                                        <TextBlock Text="Doanh thu thực nhận"
+                                                   FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource PrimaryBrush}"
+                                                   Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                    <charts:AnimatedMetricTextBlock Value="{Binding SalesReport.NetRevenue}"
+                                                                    Suffix=" đ"
+                                                                    FontSize="24"
+                                                                    FontWeight="Bold"
+                                                                    Foreground="{StaticResource PrimaryDarkBrush}"/>
                                 </StackPanel>
                             </Border>
                         </Grid>
-                        <Grid Grid.Row="2">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="0.9*"/>
-                                <ColumnDefinition Width="12"/>
-                                <ColumnDefinition Width="1.1*"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0"
-                                    Style="{StaticResource DataGridFrameStyle}">
-                                <DataGrid ItemsSource="{Binding SalesReport.PaymentMethods}"
-                                          AutoGenerateColumns="False"
-                                          IsReadOnly="True"
-                                          CanUserAddRows="False">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Phương thức"
-                                                            Binding="{Binding MethodDisplay}"
-                                                            Width="*"/>
-                                        <DataGridTextColumn Header="Số giao dịch"
-                                                            Binding="{Binding PaymentCount}"
-                                                            Width="0.9*"/>
-                                        <DataGridTextColumn Header="Doanh thu"
-                                                            Binding="{Binding TotalAmount, StringFormat={}{0:N0} đ}"
-                                                            Width="1.2*"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </Border>
-                            <Border Grid.Column="2"
-                                    Style="{StaticResource DataGridFrameStyle}">
-                                <DataGrid ItemsSource="{Binding SalesReport.TopSellingProducts}"
-                                          AutoGenerateColumns="False"
-                                          IsReadOnly="True"
-                                          CanUserAddRows="False">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Món bán chạy"
-                                                            Binding="{Binding ProductName}"
-                                                            Width="*"/>
-                                        <DataGridTextColumn Header="Số lượng"
-                                                            Binding="{Binding QuantitySold}"
-                                                            Width="0.75*"/>
-                                        <DataGridTextColumn Header="Doanh thu gộp"
-                                                            Binding="{Binding GrossRevenue, StringFormat={}{0:N0} đ}"
-                                                            Width="1.2*"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </Border>
-                        </Grid>
+                        <TabControl Grid.Row="2">
+                            <TabItem AutomationProperties.Name="Biểu đồ doanh thu">
+                                <TabItem.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource ReportIconGeometry}"
+                                              Stroke="{StaticResource PrimaryBrush}"
+                                              StrokeThickness="1.5"
+                                              Width="16"
+                                              Height="16"
+                                              Stretch="Uniform"
+                                              Focusable="False"/>
+                                        <TextBlock Text="Biểu đồ" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </TabItem.Header>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1.35*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="1*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="1*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0"
+                                            Style="{StaticResource OpenBottomFrameStyle}"
+                                            Background="{StaticResource SurfaceBrush}"
+                                            BorderBrush="{StaticResource BorderBrush}"
+                                            Padding="12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Path Data="{StaticResource ReportIconGeometry}"
+                                                      Stroke="{StaticResource PrimaryBrush}"
+                                                      StrokeThickness="1.5"
+                                                      Width="17"
+                                                      Height="17"
+                                                      Stretch="Uniform"
+                                                      Focusable="False"/>
+                                                <TextBlock Text="Doanh thu theo ngày"
+                                                           FontWeight="SemiBold"
+                                                           Margin="7,0,0,0"/>
+                                            </StackPanel>
+                                            <charts:RevenueTrendChart Grid.Row="1"
+                                                                      ItemsSource="{Binding SalesReport.DailyRevenue}"
+                                                                      MinHeight="180"
+                                                                      Margin="0,8,0,0"
+                                                                      AutomationProperties.Name="Biểu đồ đường doanh thu thực nhận theo ngày. Bảng số liệu chi tiết nằm trong thẻ Số liệu."/>
+                                        </Grid>
+                                    </Border>
+                                    <Border Grid.Column="2"
+                                            Style="{StaticResource OpenBottomFrameStyle}"
+                                            Background="{StaticResource SurfaceBrush}"
+                                            BorderBrush="{StaticResource BorderBrush}"
+                                            Padding="12"
+                                            Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <Path Data="{StaticResource MenuIconGeometry}"
+                                                      Stroke="{StaticResource PrimaryBrush}"
+                                                      StrokeThickness="1.5"
+                                                      Width="17"
+                                                      Height="17"
+                                                      Stretch="Uniform"
+                                                      Focusable="False"/>
+                                                <TextBlock Text="5 món bán chạy"
+                                                           FontWeight="SemiBold"
+                                                           Margin="7,0,0,0"/>
+                                            </StackPanel>
+                                            <ItemsControl ItemsSource="{Binding TopSellingProductChartItems}"
+                                                          ItemTemplate="{StaticResource ReportBarChartItemTemplate}"
+                                                          Visibility="{Binding HasTopSellingProductChartItems, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                            <TextBlock Text="Chưa có dữ liệu món bán trong khoảng ngày này."
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       Visibility="{Binding HasNoTopSellingProductChartItems, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="4"
+                                            Style="{StaticResource OpenBottomFrameStyle}"
+                                            Background="{StaticResource SurfaceBrush}"
+                                            BorderBrush="{StaticResource BorderBrush}"
+                                            Padding="12"
+                                            Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <Path Data="{StaticResource PaymentIconGeometry}"
+                                                      Stroke="{StaticResource PrimaryBrush}"
+                                                      StrokeThickness="1.5"
+                                                      Width="17"
+                                                      Height="17"
+                                                      Stretch="Uniform"
+                                                      Focusable="False"/>
+                                                <TextBlock Text="Cơ cấu thanh toán"
+                                                           FontWeight="SemiBold"
+                                                           Margin="7,0,0,0"/>
+                                            </StackPanel>
+                                            <ItemsControl ItemsSource="{Binding PaymentMethodChartItems}"
+                                                          ItemTemplate="{StaticResource ReportBarChartItemTemplate}"
+                                                          Visibility="{Binding HasPaymentMethodChartItems, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                            <TextBlock Text="Chưa có giao dịch trong khoảng ngày này."
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       Visibility="{Binding HasNoPaymentMethodChartItems, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </TabItem>
+                            <TabItem AutomationProperties.Name="Số liệu báo cáo">
+                                <TabItem.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource TableIconGeometry}"
+                                              Stroke="{StaticResource PrimaryBrush}"
+                                              StrokeThickness="1.5"
+                                              Width="16"
+                                              Height="16"
+                                              Stretch="Uniform"
+                                              Focusable="False"/>
+                                        <TextBlock Text="Số liệu" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </TabItem.Header>
+                                <Grid behaviors:MotionTransitionBehavior.FlyInOnVisible="True"
+                                      behaviors:MotionTransitionBehavior.FlyInFromY="24">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1.1*"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="0.9*"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="1.2*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0"
+                                            Style="{StaticResource DataGridFrameStyle}">
+                                        <DataGrid ItemsSource="{Binding SalesReport.DailyRevenue}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  CanUserAddRows="False"
+                                                  ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Ngày"
+                                                                    Binding="{Binding Date, StringFormat={}{0:dd/MM/yyyy}}"
+                                                                    Width="*"/>
+                                                <DataGridTextColumn Header="Doanh thu thực nhận"
+                                                                    Binding="{Binding NetRevenue, StringFormat={}{0:N0} đ}"
+                                                                    Width="1.2*"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Border>
+                                    <Border Grid.Column="2"
+                                            Style="{StaticResource DataGridFrameStyle}">
+                                        <DataGrid ItemsSource="{Binding SalesReport.PaymentMethods}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  CanUserAddRows="False">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Phương thức"
+                                                                    Binding="{Binding MethodDisplay}"
+                                                                    Width="*"/>
+                                                <DataGridTextColumn Header="Số giao dịch"
+                                                                    Binding="{Binding PaymentCount}"
+                                                                    Width="0.9*"/>
+                                                <DataGridTextColumn Header="Doanh thu"
+                                                                    Binding="{Binding TotalAmount, StringFormat={}{0:N0} đ}"
+                                                                    Width="1.2*"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Border>
+                                    <Border Grid.Column="4"
+                                            Style="{StaticResource DataGridFrameStyle}">
+                                        <DataGrid ItemsSource="{Binding SalesReport.TopSellingProducts}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  CanUserAddRows="False">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Món bán chạy"
+                                                                    Binding="{Binding ProductName}"
+                                                                    Width="*"/>
+                                                <DataGridTextColumn Header="Số lượng"
+                                                                    Binding="{Binding QuantitySold}"
+                                                                    Width="0.75*"/>
+                                                <DataGridTextColumn Header="Doanh thu gộp"
+                                                                    Binding="{Binding GrossRevenue, StringFormat={}{0:N0} đ}"
+                                                                    Width="1.2*"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Border>
+                                </Grid>
+                            </TabItem>
+                        </TabControl>
                     </Grid>
                 </TabItem>
             </TabControl>

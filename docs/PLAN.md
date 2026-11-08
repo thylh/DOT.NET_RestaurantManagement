@@ -59,6 +59,8 @@ View và code-behind không truy vấn database trực tiếp. ViewModel gọi s
 - Quản lý toàn bộ hồ sơ nhân viên, bao gồm cả hồ sơ của Quản lý: tạo, xem, sửa, đình chỉ/bỏ đình chỉ và xóa hồ sơ.
 - Cấp và quản lý tài khoản đăng nhập cho Quản lý và Staff; quản lý quyền tài khoản và tạo hồ sơ cho các tài khoản đã cấp.
 - Xem và lọc Audit Log; không sửa hoặc xóa nhật ký.
+- Nhận yêu cầu cấp lại mật khẩu từ Staff, cấp mật khẩu tạm mới và bắt buộc đổi mật khẩu ở lần đăng nhập kế tiếp.
+- Gửi thông báo nội bộ tới nhân viên hoặc vai trò nhân viên/quản lý.
 
 ### Manager (Quản lý)
 
@@ -67,6 +69,7 @@ View và code-behind không truy vấn database trực tiếp. ViewModel gọi s
 - Chỉ được đình chỉ nhân viên Staff; không được bỏ đình chỉ, sửa thông tin hoặc xóa hồ sơ. Admin chịu trách nhiệm các thao tác quản trị hồ sơ còn lại.
 - Quản lý bàn, danh mục món, món ăn và khuyến mãi.
 - Xem toàn bộ lịch sử order, chi tiết/biên nhận, kể cả order đang mở, cùng báo cáo.
+- Gửi thông báo/nhắc nhở cho một Staff hoặc toàn bộ Staff; có thể đánh dấu thông báo khẩn.
 - Không quản lý tài khoản đăng nhập/phân quyền và không xử lý order hoặc thanh toán thay Staff.
 
 ### Staff
@@ -76,6 +79,7 @@ View và code-behind không truy vấn database trực tiếp. ViewModel gọi s
 - Xem bàn, danh mục và món đang kinh doanh.
 - Tạo/cập nhật order.
 - Thực hiện thanh toán; tra cứu lịch sử chỉ gồm order đã thanh toán và xem chi tiết/biên nhận của các order đó.
+- Nhận thông báo qua chuông, xem thông báo chưa đọc và đánh dấu đã đọc; gửi yêu cầu Admin cấp lại mật khẩu từ màn hình đăng nhập.
 
 Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩn hoặc hiện nút trên giao diện.
 
@@ -101,6 +105,16 @@ Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩ
 - Admin có thể tìm kiếm theo người thao tác/đối tượng/nội dung, lọc theo nhóm và khoảng ngày; hiển thị tối đa 500 kết quả gần nhất cho mỗi truy vấn.
 - Chỉ Admin được đọc nhật ký. Không có thao tác sửa/xóa nhật ký trong ứng dụng.
 - Không lưu mật khẩu, hash mật khẩu, mật khẩu tạm, token hoặc secret vào nội dung thay đổi.
+
+### 5.1.2 Thông báo nội bộ và cấp lại mật khẩu
+
+- Chuông thông báo hiển thị số chưa đọc; hộp thư lưu người gửi, thời gian, nội dung, mức độ thường/khẩn và trạng thái đã đọc.
+- Admin và Quản lý có thể gửi thông báo tới một tài khoản hoặc một vai trò trong phạm vi quyền; thông báo khẩn được làm nổi bật.
+- Staff gửi yêu cầu cấp lại mật khẩu bằng tên đăng nhập trên màn hình đăng nhập; phản hồi không tiết lộ tài khoản có tồn tại hay không.
+- Yêu cầu hợp lệ được gửi vào hộp thư Admin. Admin cấp mật khẩu tạm mới; hệ thống lưu hash và bản tạm được bảo vệ, buộc đổi mật khẩu sau đăng nhập, đồng thời ghi thao tác vào Audit Log.
+- Mật khẩu tạm chỉ hiển thị cho Admin vừa xử lý để sao chép và chuyển cho Staff; không đưa mật khẩu vào nội dung thông báo.
+- Thông báo được lưu trong MySQL cục bộ và dùng chung giữa các phiên bản ứng dụng trên cùng máy. Hộp thư cập nhật khi mở chuông hoặc bấm Làm mới; không triển khai push/SignalR.
+- Nút làm mới dữ liệu hệ thống đặt riêng trên thanh đầu trang, ngoài biểu tượng chuông; tải lại các danh sách và order/báo cáo đang sử dụng theo vai trò hiện đăng nhập.
 
 ### 5.2 Quản lý nhân viên
 
@@ -166,6 +180,8 @@ Quyền phải được kiểm tra trong service nghiệp vụ, không chỉ ẩ
 - Số order đã thanh toán.
 - Doanh thu theo phương thức thanh toán.
 - Món bán chạy.
+- Biểu đồ doanh thu thực nhận theo ngày, so sánh top 5 món và tỷ trọng phương thức thanh toán; bảng chi tiết phải còn truy cập được để đối chiếu số liệu.
+- KPI có hiệu ứng đếm tăng; biểu đồ vẽ/mở thanh tăng dần. Khi mở tab Số liệu, nội dung trượt lên; tab Biểu đồ chỉ animate biểu đồ, không animate toàn vùng nội dung.
 - Báo cáo phải truy vấn dữ liệu đã lưu, không dùng số liệu viết cứng.
 
 ## 6. Mô hình dữ liệu dự kiến
@@ -293,14 +309,14 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 ### Giai đoạn H — Báo cáo và hoàn thiện giao diện
 
-- Xây dựng dashboard doanh thu và món bán chạy.
+- Xây dựng dashboard doanh thu và món bán chạy bằng biểu đồ/vector native của WPF; không phụ thuộc ảnh chụp hoặc thư viện chart bên ngoài.
 - Chuẩn hóa điều hướng, thông báo lỗi, xác nhận thao tác và trạng thái tải; thông báo thông thường không chặn luồng, xác nhận dành cho thao tác xóa, hủy và hoàn tất thanh toán.
-- Ảnh nền đăng nhập/thiết lập đặt trong `RestaurantManagement.WPF/Assets/Images`; hỗ trợ JPG/JPEG và PNG.
+- Chưa bổ sung ảnh thật khi chưa có nguồn phù hợp; tiếp tục dùng tài nguyên vector có thể kiểm soát trong giao diện.
 - Chỉ bổ sung PDF/in nếu đã hoàn thành chức năng bắt buộc.
 
 **Kết quả:** báo cáo dùng dữ liệu thật và giao diện thống nhất.
 
-**Trạng thái:** Chức năng báo cáo đã triển khai theo khoảng ngày, gồm số order đã thanh toán, doanh thu trước giảm, tổng giảm giá, doanh thu thực nhận, phân tách theo phương thức thanh toán và top 10 món bán chạy. Thông báo thành công/lỗi dùng banner chung; các thao tác xóa, hủy và hoàn tất thanh toán yêu cầu xác nhận. Tiếp tục rà soát và hoàn thiện UI/UX.
+**Trạng thái:** Báo cáo theo khoảng ngày có KPI đếm tăng, biểu đồ doanh thu thực nhận vẽ theo tiến độ, thanh top 5 món và cơ cấu phương thức thanh toán tăng dần; thẻ Số liệu trượt lên khi mở, riêng thẻ Biểu đồ không chạy hiệu ứng chuyển động toàn khung. Thẻ Số liệu giữ bảng ngày, phương thức thanh toán và top 10 món để tra cứu đầy đủ. Biểu đồ và icon dùng vector/WPF gốc, không thêm ảnh chụp hay thư viện chart. Thông báo thành công/lỗi dùng banner chung; các thao tác xóa, hủy và hoàn tất thanh toán yêu cầu xác nhận.
 
 **Kế hoạch rà soát UI/UX còn lại:**
 
@@ -320,13 +336,13 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 
 **Kết quả:** ứng dụng chạy ổn định trên một máy và có tài liệu bàn giao.
 
-**Trạng thái:** Đã chạy toàn bộ bộ test với MySQL thật: 41/41 đạt, không có test bị bỏ qua. Ca tích hợp xác nhận các luồng tài khoản, phân quyền, nhân viên, danh mục/món, order, thanh toán, báo cáo, Audit Log và dọn dữ liệu database test. Đã sửa các assertion lỗi thời và thứ tự xóa dữ liệu test theo khóa ngoại. Còn chuẩn bị dữ liệu demo, kịch bản trình diễn và tiếp tục rà soát UI/UX trước khi bàn giao.
+**Trạng thái:** Đã chạy toàn bộ bộ test với MySQL thật: 42/42 đạt, không có test bị bỏ qua. Ca tích hợp xác nhận các luồng tài khoản, phân quyền, nhân viên, danh mục/món, order, thanh toán, báo cáo (bao gồm tổng hợp doanh thu theo ngày), Audit Log, thông báo, yêu cầu/cấp lại mật khẩu và dọn dữ liệu database test. Còn chuẩn bị dữ liệu demo, kịch bản trình diễn và xác minh trực quan UI ở các mức DPI trước khi bàn giao.
 
 ## 9. Kiểm thử và tiêu chí nghiệm thu
 
 ### Kiểm thử tối thiểu
 
-- Đã xác nhận: `dotnet test .\RestaurantManagement.Tests\RestaurantManagement.Tests.csproj` với `RESTAURANT_TEST_CONNECTION_STRING` trỏ chính xác tới `RestaurantManagement_Test`: 41 đạt, 0 lỗi, 0 bỏ qua.
+- Đã xác nhận: `dotnet test .\RestaurantManagement.Tests\RestaurantManagement.Tests.csproj` với `RESTAURANT_TEST_CONNECTION_STRING` trỏ chính xác tới `RestaurantManagement_Test`: 42 đạt, 0 lỗi, 0 bỏ qua.
 - Đăng nhập đúng/sai; tài khoản đã bị xóa, nhân viên bị đình chỉ hoặc tài khoản không có hồ sơ; kiểm tra quyền Admin/Manager/Staff.
 - Thiết lập Admin lần đầu thành công trên database chưa có tài khoản; không thể chạy lại sau khi đã có tài khoản.
 - CRUD nhân viên, bàn, danh mục và món.
@@ -344,6 +360,12 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 - Không thanh toán order trống hoặc thanh toán order hai lần.
 - Lỗi trong quy trình thanh toán không để lại dữ liệu cập nhật dở dang.
 - Báo cáo khớp với dữ liệu thanh toán mẫu.
+- Gửi thông báo theo tài khoản/vai trò, đánh dấu khẩn và đã đọc; chỉ Admin/Quản lý được gửi trong phạm vi quyền.
+- Yêu cầu cấp lại mật khẩu không tiết lộ tài khoản; Admin xử lý được yêu cầu, mật khẩu tạm mới được hash/lưu bảo vệ, bắt buộc đổi và được ghi Audit Log.
+- Nút Làm mới hệ thống nằm ngoài chuông và tải lại dữ liệu nghiệp vụ theo vai trò; chuông chỉ mở hộp thư.
+- Biểu đồ doanh thu theo ngày dùng cùng tập thanh toán hoàn tất với KPI; ngày không có giao dịch hiển thị giá trị 0 và bảng chi tiết vẫn truy cập được.
+- Biểu đồ phương thức thanh toán thể hiện tỷ trọng tổng doanh thu; biểu đồ món bán chạy xếp theo số lượng và không thay thế bảng top 10.
+- KPI đếm số tới giá trị báo cáo; đường/thanh biểu đồ chạy tăng dần. Chỉ tab Số liệu dùng hiệu ứng trượt lên và tùy chọn hệ thống tắt animation được tôn trọng.
 - Xác nhận màn hình đăng nhập/thiết lập và lỗi khởi động trước đăng nhập không dùng khung hở đáy; các khung thuộc giao diện sau đăng nhập dùng đúng kiểu đã thống nhất.
 - Xác nhận viền ngoài và đường chia cột không bị vẽ trùng; cạnh kéo dài dừng trước nội dung/vật cản và không vượt vùng bố cục của khung.
 
@@ -365,7 +387,7 @@ EF Core mapping, khóa ngoại, chỉ mục và cấu hình database thuộc `In
 Các phần chức năng bắt buộc theo phạm vi hiện tại đã được triển khai; bộ test tích hợp MySQL đã đạt. Các đầu việc bàn giao còn lại:
 
 - Chuẩn bị dữ liệu demo và hoàn thiện kịch bản trình diễn.
-- Tiếp tục rà soát UI/UX trước khi bàn giao.
+- Xác minh trực quan các biểu đồ, khung và bảng tại các mức scale DPI thường dùng.
 
 Các ý tưởng mở rộng chưa thuộc phạm vi hiện tại:
 

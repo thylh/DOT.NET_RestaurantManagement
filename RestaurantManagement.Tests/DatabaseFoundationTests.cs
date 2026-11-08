@@ -525,6 +525,15 @@ public class DatabaseFoundationTests
                 Assert.Equal(52_000m, Assert.Single(salesReport.PaymentMethods).TotalAmount);
                 Assert.Equal("Phở bò đặc biệt",
                     Assert.Single(salesReport.TopSellingProducts).ProductName);
+                var paidAt = await dbContext.Payments
+                    .Where(payment => payment.RestaurantOrderId == order.Id)
+                    .Select(payment => payment.PaidAt)
+                    .SingleAsync();
+                var paidDate = DateOnly.FromDateTime(paidAt.ToLocalTime().Date);
+                Assert.Equal(
+                    52_000m,
+                    Assert.Single(salesReport.DailyRevenue.Where(day => day.Date == paidDate)).NetRevenue);
+                Assert.Contains(salesReport.DailyRevenue, day => day.NetRevenue == 0);
                 session.SignIn(signedInStaff);
                 await Assert.ThrowsAsync<InvalidOperationException>(
                     () => orderService.UpdateItemAsync(order.Id, detailIdBeforePayment, 2, null));
@@ -638,6 +647,82 @@ public class DatabaseFoundationTests
                 Assert.NotNull(await authenticationService.SignInAsync(
                     "renamed-staff",
                     "Phase-C-rotated-staff-password-2026"));
+
+                var notificationService = new NotificationService(dbContext, session);
+                var staffUserId = Assert.IsType<int>(staffAccountId);
+                session.SignIn(admin);
+                var recipients = await notificationService.GetRecipientsAsync();
+                Assert.Contains(recipients, recipient => recipient.UserId == staffUserId);
+                await notificationService.SendAsync(
+                    "Kiểm tra kho",
+                    "Vui lòng kiểm tra lại số lượng hàng.",
+                    NotificationPriority.Urgent,
+                    staffUserId,
+                    null);
+                session.SignIn(new AuthenticatedUser(
+                    staffUserId,
+                    "renamed-staff",
+                    UserRole.Staff,
+                    staff.EmployeeId,
+                    staff.FullName));
+                var staffInbox = await notificationService.GetInboxAsync();
+                var manualNotification = Assert.Single(
+                    staffInbox,
+                    notification => notification.Kind == NotificationKind.Manual);
+                Assert.True(manualNotification.IsUrgent);
+                Assert.False(manualNotification.IsRead);
+                await notificationService.MarkReadAsync(manualNotification.Id);
+
+                await notificationService.RequestPasswordResetAsync("renamed-staff");
+                session.SignIn(admin);
+                var resetRequest = Assert.Single(
+                    await notificationService.GetInboxAsync(),
+                    notification => notification.Kind == NotificationKind.PasswordResetRequest
+                        && !notification.IsResolved);
+                session.SignIn(manager);
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => notificationService.IssueTemporaryPasswordAsync(resetRequest.Id));
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => notificationService.SendAsync(
+                        "Không hợp lệ",
+                        "Quản lý không được gửi thông báo tới vai trò Quản lý.",
+                        NotificationPriority.Normal,
+                        null,
+                        UserRole.Manager));
+                session.SignIn(admin);
+                var resetCredentials = await notificationService.IssueTemporaryPasswordAsync(resetRequest.Id);
+                Assert.Equal("renamed-staff", resetCredentials.Username);
+                var resetAccount = await dbContext.UserAccounts.SingleAsync(account => account.Id == staffUserId);
+                Assert.True(resetAccount.RequiresPasswordChange);
+                Assert.True(global::BCrypt.Net.BCrypt.Verify(
+                    resetCredentials.TemporaryPassword,
+                    resetAccount.PasswordHash));
+                Assert.Null(await authenticationService.SignInAsync(
+                    resetCredentials.Username,
+                    "Phase-C-rotated-staff-password-2026"));
+                var resetAudits = await auditService.GetAuditLogsAsync(new AuditLogFilter(
+                    AuditLogCategory.Account,
+                    AuditLogAction.PasswordChanged,
+                    resetCredentials.Username,
+                    null,
+                    null));
+                Assert.Contains(resetAudits, audit => audit.ActorUsername == admin.Username);
+                Assert.DoesNotContain(
+                    resetAudits.Select(audit => audit.ChangesJson ?? string.Empty),
+                    changes => changes.Contains(resetCredentials.TemporaryPassword, StringComparison.Ordinal));
+
+                session.SignIn(new AuthenticatedUser(
+                    staffUserId,
+                    "renamed-staff",
+                    UserRole.Staff,
+                    staff.EmployeeId,
+                    staff.FullName,
+                    RequiresPasswordChange: true));
+                var passwordIssuedNotification = Assert.Single(
+                    await notificationService.GetInboxAsync(),
+                    notification => notification.Kind == NotificationKind.PasswordResetIssued);
+                Assert.Contains("liên hệ Admin", passwordIssuedNotification.Message);
+
                 session.SignOut();
                 session.SignIn(admin);
                 await employeeService.DeleteAccountAsync(staffAccountId);
@@ -691,6 +776,7 @@ public class DatabaseFoundationTests
     {
         string[] statements =
         [
+            "DELETE FROM `Notifications`",
             "DELETE FROM `AuditLogs`",
             "DELETE FROM `Payments`",
             "DELETE FROM `OrderDetails`",

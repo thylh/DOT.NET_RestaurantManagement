@@ -8,7 +8,12 @@ public sealed record SalesReportSummary(
     decimal DiscountTotal,
     decimal NetRevenue,
     IReadOnlyList<PaymentMethodRevenueSummary> PaymentMethods,
-    IReadOnlyList<TopSellingProductSummary> TopSellingProducts);
+    IReadOnlyList<TopSellingProductSummary> TopSellingProducts,
+    IReadOnlyList<DailyRevenueSummary> DailyRevenue);
+
+public sealed record DailyRevenueSummary(
+    DateOnly Date,
+    decimal NetRevenue);
 
 public sealed record PaymentMethodRevenueSummary(
     PaymentMethod Method,

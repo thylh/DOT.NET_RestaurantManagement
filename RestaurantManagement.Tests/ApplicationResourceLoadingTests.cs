@@ -1,4 +1,9 @@
 using System.Windows;
+using System.Globalization;
+using System.Windows.Media;
+using System.Windows.Controls;
+using System.Windows.Threading;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace RestaurantManagement.Tests;
 
@@ -15,6 +20,75 @@ public class ApplicationResourceLoadingTests
             {
                 var app = new RestaurantManagement.WPF.App();
                 app.InitializeComponent();
+                var viewModel = new RestaurantManagement.WPF.ViewModels.MainWindowViewModel(
+                    null!,
+                    null!,
+                    new RestaurantManagement.Infrastructure.Services.CurrentUserSession(),
+                    null!,
+                    null!,
+                    NullLogger<RestaurantManagement.WPF.ViewModels.MainWindowViewModel>.Instance);
+                _ = new RestaurantManagement.WPF.MainWindow(
+                    viewModel,
+                    NullLogger<RestaurantManagement.WPF.MainWindow>.Instance);
+                var metric = new RestaurantManagement.WPF.Controls.AnimatedMetricTextBlock
+                {
+                    Value = 12_500,
+                    Suffix = " đ"
+                };
+                Assert.Equal(
+                    $"{12_500.ToString("N0", CultureInfo.CurrentCulture)} đ",
+                    metric.Text);
+                var chart = new RestaurantManagement.WPF.Controls.RevenueTrendChart
+                {
+                    ItemsSource =
+                    [
+                        new RestaurantManagement.Core.Models.DailyRevenueSummary(
+                            DateOnly.FromDateTime(DateTime.Today),
+                            12_500m),
+                        new RestaurantManagement.Core.Models.DailyRevenueSummary(
+                            DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
+                            18_000m)
+                    ]
+                };
+                var bar = new System.Windows.Controls.Border();
+                RestaurantManagement.WPF.Behaviors.ReportBarAnimationBehavior.SetTargetScale(
+                    bar,
+                    0.65);
+                var animationHost = new Window
+                {
+                    Width = 480,
+                    Height = 360,
+                    Opacity = 0,
+                    ShowInTaskbar = false,
+                    Content = new StackPanel
+                    {
+                        Children = { metric, chart, bar }
+                    }
+                };
+                animationHost.Show();
+                WaitForAnimation(TimeSpan.FromMilliseconds(1200));
+                Assert.Equal(
+                    $"{12_500.ToString("N0", CultureInfo.CurrentCulture)} đ",
+                    metric.Text);
+                Assert.Equal(0.65, Assert.IsType<ScaleTransform>(bar.RenderTransform).ScaleX, 3);
+                var progressProperty = (System.Windows.DependencyProperty)typeof(
+                        RestaurantManagement.WPF.Controls.RevenueTrendChart)
+                    .GetField(
+                        "ProgressProperty",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+                    .GetValue(null)!;
+                Assert.Equal(1d, chart.GetValue(progressProperty));
+                chart.Measure(new Size(480, 220));
+                chart.Arrange(new Rect(0, 0, 480, 220));
+                var chartBitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                    480,
+                    220,
+                    96,
+                    96,
+                    System.Windows.Media.PixelFormats.Pbgra32);
+                chartBitmap.Render(chart);
+                Assert.Equal(480, chartBitmap.PixelWidth);
+                animationHost.Close();
                 _ = new RestaurantManagement.WPF.MessageDialogWindow(
                     "Kiểm tra",
                     "Kiểm tra nạp giao diện hộp thoại.",
@@ -174,5 +248,21 @@ public class ApplicationResourceLoadingTests
 
         Assert.True(loadException is null, loadException?.ToString());
         Assert.Equal(Visibility.Collapsed, bannerVisibility);
+    }
+
+    private static void WaitForAnimation(TimeSpan duration)
+    {
+        var frame = new DispatcherFrame();
+        var timer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = duration
+        };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            frame.Continue = false;
+        };
+        timer.Start();
+        Dispatcher.PushFrame(frame);
     }
 }

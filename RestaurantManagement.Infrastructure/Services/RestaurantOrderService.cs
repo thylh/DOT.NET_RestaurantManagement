@@ -174,6 +174,20 @@ public sealed class RestaurantOrderService(
             .ThenBy(product => product.ProductName)
             .Take(10)
             .ToArray();
+        var revenueByDate = payments
+            .GroupBy(payment => DateOnly.FromDateTime(payment.PaidAt.ToLocalTime().Date))
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(payment => payment.Amount));
+        var firstDate = DateOnly.FromDateTime(fromInclusive.ToLocalTime().Date);
+        var lastDate = DateOnly.FromDateTime(toExclusive.ToLocalTime().AddTicks(-1).Date);
+        var dailyRevenue = new List<DailyRevenueSummary>();
+        for (var date = firstDate; date <= lastDate; date = date.AddDays(1))
+        {
+            dailyRevenue.Add(new DailyRevenueSummary(
+                date,
+                revenueByDate.GetValueOrDefault(date)));
+        }
 
         return new SalesReportSummary(
             payments.Count,
@@ -182,7 +196,8 @@ public sealed class RestaurantOrderService(
             payments.Sum(payment => payment.RestaurantOrder.DiscountAmountSnapshot),
             payments.Sum(payment => payment.Amount),
             paymentMethods,
-            topSellingProducts);
+            topSellingProducts,
+            dailyRevenue);
     }
 
     public async Task<int> StartOrderAsync(

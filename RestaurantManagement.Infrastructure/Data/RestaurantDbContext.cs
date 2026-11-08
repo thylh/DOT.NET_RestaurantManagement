@@ -25,6 +25,8 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+    public DbSet<Notification> Notifications => Set<Notification>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Employee>(entity =>
@@ -202,6 +204,33 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) 
             entity.HasIndex(log => log.OccurredAt);
             entity.HasIndex(log => new { log.Category, log.OccurredAt });
             entity.HasIndex(log => log.ActorUsername);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.ToTable("Notifications");
+            entity.Property(notification => notification.Title).HasMaxLength(120).IsRequired();
+            entity.Property(notification => notification.Message).HasMaxLength(1000).IsRequired();
+            entity.Property(notification => notification.Kind).HasConversion<string>().HasMaxLength(30);
+            entity.Property(notification => notification.Priority).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(notification => new { notification.RecipientUserId, notification.CreatedAt });
+            entity.HasIndex(notification => new
+            {
+                notification.ResetTargetUserId,
+                notification.ResolvedAt
+            });
+            entity.HasOne(notification => notification.Sender)
+                .WithMany()
+                .HasForeignKey(notification => notification.SenderUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(notification => notification.Recipient)
+                .WithMany()
+                .HasForeignKey(notification => notification.RecipientUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(notification => notification.ResetTargetUser)
+                .WithMany()
+                .HasForeignKey(notification => notification.ResetTargetUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

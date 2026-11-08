@@ -19,7 +19,8 @@ public partial class MainWindowViewModel(
     IRestaurantCatalogService restaurantCatalogService,
     ILogger<MainWindowViewModel> logger,
     IRestaurantOrderService? restaurantOrderService = null,
-    IAuditLogService? auditLogService = null) : ObservableObject
+    IAuditLogService? auditLogService = null,
+    INotificationService? notificationService = null) : ObservableObject
 {
     private ObservableCollection<ProductTagOption>? _productTagOptions;
     private IReadOnlyList<ProductSummary> _catalogProducts = [];
@@ -83,6 +84,10 @@ public partial class MainWindowViewModel(
 
     public ObservableCollection<AuditLogSummary> AuditLogs { get; } = [];
 
+    public ObservableCollection<NotificationSummary> Notifications { get; } = [];
+
+    public ObservableCollection<NotificationRecipientOption> NotificationRecipients { get; } = [];
+
     public ObservableCollection<string> AuditLogCategoryFilters { get; } =
         ["Tất cả nhóm", "Tài khoản", "Nhân viên", "Bàn / thực đơn", "Order"];
 
@@ -129,6 +134,8 @@ public partial class MainWindowViewModel(
 
     public bool IsManager => currentUserSession.User?.Role == UserRole.Manager;
 
+    public bool CanSendNotifications => IsAdmin || IsManager;
+
     public bool IsSetupScreen => IsSetupRequired;
 
     public bool IsLoginScreen => !IsSetupRequired && !IsAuthenticated;
@@ -150,6 +157,18 @@ public partial class MainWindowViewModel(
             _ => "Nhân viên"
         }})"
         : string.Empty;
+
+    public int UnreadNotificationCount { get; private set; }
+
+    public string UnreadNotificationBadge => UnreadNotificationCount > 99
+        ? "99+"
+        : UnreadNotificationCount.ToString(CultureInfo.CurrentCulture);
+
+    public bool HasUnreadNotifications => UnreadNotificationCount > 0;
+
+    public bool HasNotifications => Notifications.Count > 0;
+
+    public bool HasIssuedTemporaryCredentials => IssuedTemporaryCredentials is not null;
 
     [ObservableProperty]
     private bool isSetupRequired;
@@ -227,6 +246,24 @@ public partial class MainWindowViewModel(
     private int managementWorkspaceSelectedIndex;
 
     [ObservableProperty]
+    private bool isNotificationCenterOpen;
+
+    [ObservableProperty]
+    private string notificationTitle = string.Empty;
+
+    [ObservableProperty]
+    private string notificationMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool isNotificationUrgent;
+
+    [ObservableProperty]
+    private NotificationRecipientOption? selectedNotificationRecipient;
+
+    [ObservableProperty]
+    private GeneratedEmployeeCredentials? issuedTemporaryCredentials;
+
+    [ObservableProperty]
     private string auditLogSearchText = string.Empty;
 
     [ObservableProperty]
@@ -285,6 +322,47 @@ public partial class MainWindowViewModel(
 
     [ObservableProperty]
     private SalesReportSummary? salesReport;
+
+    public IReadOnlyList<ReportBarChartItem> PaymentMethodChartItems =>
+        SalesReport is not { } report
+            ? []
+            : CreateBarChartItems(
+                report.PaymentMethods
+                    .OrderByDescending(method => method.TotalAmount)
+                    .Select(method => (
+                    method.MethodDisplay,
+                    method.TotalAmount,
+                    $"{method.TotalAmount.ToString("N0", CultureInfo.CurrentCulture)} đ · {method.PaymentCount} giao dịch · {(report.NetRevenue == 0 ? 0 : method.TotalAmount / report.NetRevenue).ToString("P0", CultureInfo.CurrentCulture)}")),
+                normalizeToTotal: true);
+
+    public IReadOnlyList<ReportBarChartItem> TopSellingProductChartItems =>
+        SalesReport is not { } report
+            ? []
+            : CreateBarChartItems(
+                report.TopSellingProducts
+                    .Take(5)
+                    .Select(product => (
+                        product.ProductName,
+                        (decimal)product.QuantitySold,
+                        $"{product.QuantitySold} món · {product.GrossRevenue.ToString("N0", CultureInfo.CurrentCulture)} đ")));
+
+    public bool HasPaymentMethodChartItems => PaymentMethodChartItems.Count > 0;
+
+    public bool HasTopSellingProductChartItems => TopSellingProductChartItems.Count > 0;
+
+    public bool HasNoPaymentMethodChartItems => !HasPaymentMethodChartItems;
+
+    public bool HasNoTopSellingProductChartItems => !HasTopSellingProductChartItems;
+
+    partial void OnSalesReportChanged(SalesReportSummary? value)
+    {
+        OnPropertyChanged(nameof(PaymentMethodChartItems));
+        OnPropertyChanged(nameof(TopSellingProductChartItems));
+        OnPropertyChanged(nameof(HasPaymentMethodChartItems));
+        OnPropertyChanged(nameof(HasTopSellingProductChartItems));
+        OnPropertyChanged(nameof(HasNoPaymentMethodChartItems));
+        OnPropertyChanged(nameof(HasNoTopSellingProductChartItems));
+    }
 
     [ObservableProperty]
     private ProductSummary? selectedPromotionProduct;
@@ -498,6 +576,7 @@ public partial class MainWindowViewModel(
             OnPropertyChanged(nameof(CanToggleProductAvailability));
             OnPropertyChanged(nameof(IsAdmin));
             OnPropertyChanged(nameof(IsManager));
+            OnPropertyChanged(nameof(CanSendNotifications));
             OnPropertyChanged(nameof(IsPasswordChangeRequired));
             OnPropertyChanged(nameof(IsAuthenticatedWorkspace));
             OnPropertyChanged(nameof(IsAdminScreen));
@@ -541,13 +620,183 @@ public partial class MainWindowViewModel(
             {
                 await RefreshCatalogAsync();
             }
+
+            if (!IsPasswordChangeRequired && notificationService is not null)
+            {
+                await RefreshNotificationDataAsync();
+            }
         });
+    }
+
+    [RelayCommand]
+    private async Task ToggleNotificationCenterAsync()
+    {
+        IsNotificationCenterOpen = !IsNotificationCenterOpen;
+        if (IsNotificationCenterOpen)
+        {
+            await RefreshNotificationsAsync();
+        }
+    }
+
+    [RelayCommand]
+    private void CloseNotificationCenter()
+    {
+        IsNotificationCenterOpen = false;
+    }
+
+    [RelayCommand]
+    private async Task RefreshNotificationsAsync()
+    {
+        await RunOperationAsync(RefreshNotificationDataAsync);
+    }
+
+    [RelayCommand]
+    private async Task RefreshWorkspaceAsync()
+    {
+        if (!IsAuthenticatedWorkspace)
+        {
+            ErrorMessage = "Hãy đăng nhập để làm mới dữ liệu.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            if (IsAdminScreen)
+            {
+                await RefreshAccountsAsync();
+                await RefreshEmployeesAsync();
+                if (auditLogService is not null)
+                {
+                    await RefreshAuditLogsAsync();
+                }
+            }
+            else if (IsManagerScreen)
+            {
+                await RefreshEmployeesAsync();
+                await RefreshCatalogAsync();
+            }
+            else if (IsStaffScreen)
+            {
+                await RefreshCatalogAsync();
+                await RefreshOpenOrderTabsAsync();
+            }
+
+            if (restaurantOrderService is not null && OrderHistory.Count > 0)
+            {
+                await RefreshVisibleOrderHistoryAsync();
+            }
+
+            if (SalesReport is not null
+                && SalesReportFromDate is { } reportFrom
+                && SalesReportToDate is { } reportTo
+                && reportFrom.Date <= reportTo.Date)
+            {
+                SalesReport = await GetRestaurantOrderService().GetSalesReportAsync(
+                    ToUtcBoundary(reportFrom)!.Value,
+                    ToUtcExclusiveBoundary(reportTo)!.Value);
+            }
+
+            await RefreshNotificationDataAsync();
+            StatusMessage = "Đã làm mới dữ liệu hệ thống.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task SendNotificationAsync()
+    {
+        if (notificationService is null)
+        {
+            ErrorMessage = "Chức năng thông báo chưa được khởi tạo.";
+            return;
+        }
+
+        if (SelectedNotificationRecipient is not { } recipient)
+        {
+            ErrorMessage = "Hãy chọn người nhận thông báo.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await notificationService.SendAsync(
+                NotificationTitle,
+                NotificationMessage,
+                IsNotificationUrgent ? NotificationPriority.Urgent : NotificationPriority.Normal,
+                recipient.UserId,
+                recipient.Role);
+            NotificationTitle = string.Empty;
+            NotificationMessage = string.Empty;
+            IsNotificationUrgent = false;
+            await RefreshNotificationDataAsync();
+            StatusMessage = "Đã gửi thông báo.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task RequestPasswordResetAsync()
+    {
+        if (notificationService is null)
+        {
+            ErrorMessage = "Chức năng yêu cầu cấp lại mật khẩu chưa được khởi tạo.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await notificationService.RequestPasswordResetAsync(LoginUsername);
+            StatusMessage = "Nếu tài khoản phù hợp, yêu cầu cấp lại mật khẩu đã được gửi tới Admin.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task MarkNotificationReadAsync(NotificationSummary? notification)
+    {
+        if (notificationService is null || notification is null || notification.IsRead)
+        {
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await notificationService.MarkReadAsync(notification.Id);
+            await RefreshNotificationDataAsync();
+        });
+    }
+
+    [RelayCommand]
+    private async Task IssueTemporaryPasswordAsync(NotificationSummary? notification)
+    {
+        if (notificationService is null || notification is null || !IsAdmin)
+        {
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            IssuedTemporaryCredentials = await notificationService.IssueTemporaryPasswordAsync(notification.Id);
+            OnPropertyChanged(nameof(HasIssuedTemporaryCredentials));
+            await RefreshNotificationDataAsync();
+        });
+    }
+
+    [RelayCommand]
+    private void ClearIssuedTemporaryCredentials()
+    {
+        IssuedTemporaryCredentials = null;
+        OnPropertyChanged(nameof(HasIssuedTemporaryCredentials));
     }
 
     [RelayCommand]
     private async Task SignOutAsync()
     {
         currentUserSession.SignOut();
+        IsNotificationCenterOpen = false;
+        Notifications.Clear();
+        NotificationRecipients.Clear();
+        UnreadNotificationCount = 0;
+        OnPropertyChanged(nameof(UnreadNotificationBadge));
+        OnPropertyChanged(nameof(HasUnreadNotifications));
+        ClearIssuedTemporaryCredentials();
         Employees.Clear();
         Accounts.Clear();
         AuditLogs.Clear();
@@ -580,6 +829,7 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(CanToggleProductAvailability));
         OnPropertyChanged(nameof(IsAdmin));
         OnPropertyChanged(nameof(IsManager));
+        OnPropertyChanged(nameof(CanSendNotifications));
         OnPropertyChanged(nameof(IsPasswordChangeRequired));
         OnPropertyChanged(nameof(IsAuthenticatedWorkspace));
         OnPropertyChanged(nameof(IsAdminScreen));
@@ -1510,6 +1760,126 @@ public partial class MainWindowViewModel(
         SelectedEmployee = FilteredEmployees.FirstOrDefault(employee => employee.EmployeeId == selectedEmployeeId);
     }
 
+    private async Task RefreshNotificationDataAsync()
+    {
+        if (notificationService is null || !IsAuthenticatedWorkspace)
+        {
+            Notifications.Clear();
+            NotificationRecipients.Clear();
+            OnPropertyChanged(nameof(HasNotifications));
+            UpdateUnreadNotificationCount();
+            return;
+        }
+
+        var notifications = await notificationService.GetInboxAsync();
+        Notifications.Clear();
+        foreach (var notification in notifications)
+        {
+            Notifications.Add(notification);
+        }
+        OnPropertyChanged(nameof(HasNotifications));
+
+        if (CanSendNotifications)
+        {
+            var selectedLabel = SelectedNotificationRecipient?.Label;
+            var recipients = await notificationService.GetRecipientsAsync();
+            NotificationRecipients.Clear();
+            foreach (var recipient in recipients)
+            {
+                NotificationRecipients.Add(recipient);
+            }
+
+            SelectedNotificationRecipient = NotificationRecipients.FirstOrDefault(
+                recipient => recipient.Label == selectedLabel)
+                ?? NotificationRecipients.FirstOrDefault();
+        }
+        else
+        {
+            NotificationRecipients.Clear();
+            SelectedNotificationRecipient = null;
+        }
+
+        UpdateUnreadNotificationCount();
+    }
+
+    private async Task RefreshOpenOrderTabsAsync()
+    {
+        if (restaurantOrderService is null)
+        {
+            return;
+        }
+
+        var selectedTab = SelectedOrderTab;
+        var openOrderTabs = OrderTabs
+            .Where(tab => tab.TableId.HasValue)
+            .ToArray();
+        foreach (var tab in openOrderTabs)
+        {
+            var tableId = tab.TableId!.Value;
+            var order = await restaurantOrderService.GetOpenOrderAsync(tableId);
+            if (order is null)
+            {
+                CloseOrderTab(tab);
+                continue;
+            }
+
+            tab.Order = order;
+            tab.Title = GetOrderTabTitle(tableId, order);
+        }
+
+        if (selectedTab is not null && OrderTabs.Contains(selectedTab))
+        {
+            SelectedOrderTab = selectedTab;
+        }
+    }
+
+    private async Task RefreshVisibleOrderHistoryAsync()
+    {
+        int? orderId = null;
+        if (!string.IsNullOrWhiteSpace(OrderHistoryIdText))
+        {
+            if (!int.TryParse(OrderHistoryIdText, out var parsedOrderId) || parsedOrderId <= 0)
+            {
+                return;
+            }
+
+            orderId = parsedOrderId;
+        }
+
+        if (orderId is null
+            && OrderHistoryFromDate is { } fromDate
+            && OrderHistoryToDate is { } toDate
+            && fromDate.Date > toDate.Date)
+        {
+            return;
+        }
+
+        var selectedOrderId = SelectedOrderHistory?.OrderId;
+        var history = await GetRestaurantOrderService().GetOrderHistoryAsync(
+            orderId,
+            orderId is null ? ToUtcBoundary(OrderHistoryFromDate) : null,
+            orderId is null ? ToUtcExclusiveBoundary(OrderHistoryToDate) : null);
+        OrderHistory.Clear();
+        foreach (var order in history)
+        {
+            OrderHistory.Add(order);
+        }
+
+        SelectedOrderHistory = OrderHistory.FirstOrDefault(order => order.OrderId == selectedOrderId);
+        if (SelectedOrderHistory is null)
+        {
+            CurrentOrderReceipt = null;
+        }
+    }
+
+    private void UpdateUnreadNotificationCount()
+    {
+        UnreadNotificationCount = Notifications.Count(notification => !notification.IsRead);
+        OnPropertyChanged(nameof(UnreadNotificationCount));
+        OnPropertyChanged(nameof(UnreadNotificationBadge));
+        OnPropertyChanged(nameof(HasUnreadNotifications));
+    }
+
     private async Task RefreshAccountsAsync()
     {
         var selectedAccountId = SelectedAccount?.AccountId;
@@ -2005,6 +2375,24 @@ public partial class MainWindowViewModel(
     private IRestaurantOrderService GetRestaurantOrderService() =>
         restaurantOrderService
         ?? throw new InvalidOperationException("Chức năng order chưa được khởi tạo.");
+
+    private static IReadOnlyList<ReportBarChartItem> CreateBarChartItems(
+        IEnumerable<(string Label, decimal Value, string ValueText)> values,
+        bool normalizeToTotal = false)
+    {
+        var items = values.ToArray();
+        var maximum = items.Length == 0
+            ? 0
+            : normalizeToTotal
+                ? items.Sum(item => item.Value)
+                : items.Max(item => item.Value);
+        return items
+            .Select(item => new ReportBarChartItem(
+                item.Label,
+                item.ValueText,
+                maximum <= 0 ? 0 : (double)(item.Value / maximum)))
+            .ToArray();
+    }
 
     private static DateTimeOffset? ToUtcBoundary(DateTime? date) =>
         date is { } value
